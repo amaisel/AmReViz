@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
+import { useEffect, useRef, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -69,36 +69,66 @@ function MapController({ center, zoom, autoFly }) {
   return null;
 }
 
-function ColonyCircles({ colonies, darkMode }) {
-  const maxPop = Math.max(...colonies.map(c => c.population));
-  
-  return colonies.map((colony, idx) => (
-    <CircleMarker
-      key={idx}
-      center={[colony.lat, colony.lng]}
-      radius={Math.sqrt(colony.population / maxPop) * 25}
-      pathOptions={{
-        color: darkMode ? 'rgba(30, 58, 95, 0.7)' : 'rgba(30, 58, 95, 0.5)',
-        fillColor: darkMode ? 'rgba(30, 58, 95, 0.3)' : 'rgba(30, 58, 95, 0.15)',
-        fillOpacity: 0.6,
-        weight: 2
-      }}
-    >
-      <Popup className="vintage-popup">
-        <div style={{ fontFamily: 'Georgia, serif' }}>
-          <strong>{colony.name}</strong><br/>
-          Population: {colony.population.toLocaleString()}<br/>
-          Main Export: {colony.mainExport}<br/>
-          Export Value: £{colony.exports.toLocaleString()}
+function ColonyBoundaries({ boundaries, darkMode }) {
+  const [hoveredColony, setHoveredColony] = useState(null);
+
+  const style = (feature) => ({
+    fillColor: darkMode ? 'rgba(30, 58, 95, 0.2)' : 'rgba(30, 58, 95, 0.1)',
+    weight: 1.5,
+    opacity: 0.7,
+    color: darkMode ? 'rgba(139, 163, 196, 0.5)' : 'rgba(30, 58, 95, 0.4)',
+    fillOpacity: hoveredColony === feature.properties.name ? 0.4 : 0.15
+  });
+
+  const onEachFeature = (feature, layer) => {
+    const props = feature.properties;
+    
+    layer.bindTooltip(
+      `<div class="colony-tooltip">
+        <strong>${props.name}</strong>
+        <div class="tooltip-stats">
+          <span>Pop: ${props.population.toLocaleString()}</span>
+          <span>Export: ${props.mainExport}</span>
+          <span>Value: £${props.exports.toLocaleString()}</span>
         </div>
-      </Popup>
-    </CircleMarker>
-  ));
+      </div>`,
+      {
+        permanent: false,
+        direction: 'top',
+        className: 'colony-tooltip-container'
+      }
+    );
+
+    layer.on({
+      mouseover: (e) => {
+        setHoveredColony(props.name);
+        e.target.setStyle({
+          fillOpacity: 0.35,
+          weight: 2.5
+        });
+      },
+      mouseout: (e) => {
+        setHoveredColony(null);
+        e.target.setStyle({
+          fillOpacity: 0.15,
+          weight: 1.5
+        });
+      }
+    });
+  };
+
+  return (
+    <GeoJSON 
+      data={boundaries} 
+      style={style}
+      onEachFeature={onEachFeature}
+    />
+  );
 }
 
 export default function Map({ 
   events, 
-  colonies,
+  colonyBoundaries,
   activeEventId, 
   onEventClick,
   showColonies,
@@ -134,7 +164,9 @@ export default function Map({
         
         <MapController center={center} zoom={zoom} autoFly={autoFly} />
         
-        {showColonies && <ColonyCircles colonies={colonies} darkMode={darkMode} />}
+        {showColonies && colonyBoundaries && (
+          <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} />
+        )}
         
         {events.map((event) => (
           <Marker

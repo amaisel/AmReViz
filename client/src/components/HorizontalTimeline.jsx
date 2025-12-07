@@ -1,6 +1,8 @@
 import { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export default function HorizontalTimeline({ events, activeEventId, onEventClick, darkMode }) {
   const scrollRef = useRef(null);
   const activeRef = useRef(null);
@@ -26,13 +28,18 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
     }
   }, [activeEventId]);
 
+  const getMonth = (dateStr) => {
+    const date = new Date(dateStr);
+    return monthNames[date.getMonth()];
+  };
+
   return (
     <div className={`horizontal-timeline ${darkMode ? 'dark' : 'light'}`}>
       <div className="timeline-track" ref={scrollRef}>
         <div className="timeline-line" />
         
         <div className="timeline-events-row">
-          {events.map((event, index) => {
+          {events.map((event) => {
             const isActive = event.id === activeEventId;
             
             return (
@@ -62,23 +69,9 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
                 
                 <div className="h-event-content">
                   <span className="h-event-year">{event.year}</span>
+                  <span className="h-event-month">{getMonth(event.date)}</span>
                   <span className="h-event-title">{event.title}</span>
                 </div>
-                
-                {isActive && (
-                  <motion.div 
-                    className="h-event-details"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                  >
-                    <p className="h-event-location">{event.location}</p>
-                    <p className="h-event-description">{event.description}</p>
-                    <div className="h-event-significance">
-                      <strong>Significance:</strong> {event.significance}
-                    </div>
-                  </motion.div>
-                )}
               </motion.div>
             );
           })}
@@ -87,7 +80,7 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
       
       <div className="timeline-nav">
         <span className="nav-year">1773</span>
-        <div className="nav-arrow">→ Time →</div>
+        <div className="nav-arrow">Time</div>
         <span className="nav-year">1783</span>
       </div>
     </div>

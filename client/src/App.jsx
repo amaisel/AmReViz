@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Map from './components/Map';
 import HorizontalTimeline from './components/HorizontalTimeline';
+import EventCard from './components/EventCard';
 import { ArmyChart, TradeChart } from './components/Charts';
-import { events, armyData, economicData, colonyData } from './data/events';
+import { events, armyData, economicData } from './data/events';
+import { colonyBoundaries } from './data/colonyBoundaries';
 import './App.css';
 
 function ModeToggle({ darkMode, onToggle }) {
@@ -115,12 +117,13 @@ export default function App() {
               <div className="map-area">
                 <Map 
                   events={events}
-                  colonies={colonyData}
+                  colonyBoundaries={colonyBoundaries}
                   activeEventId={activeEventId}
                   onEventClick={setActiveEventId}
                   showColonies={showColonies}
                   darkMode={darkMode}
                 />
+                <EventCard event={activeEvent} darkMode={darkMode} />
               </div>
               <HorizontalTimeline 
                 events={events}
@@ -146,12 +149,12 @@ export default function App() {
                     checked={showColonies}
                     onChange={() => setShowColonies(!showColonies)}
                   />
-                  Show Colonial Population
+                  Show Colony Boundaries
                 </label>
               </div>
               <Map 
                 events={events}
-                colonies={colonyData}
+                colonyBoundaries={colonyBoundaries}
                 activeEventId={activeEventId}
                 onEventClick={setActiveEventId}
                 showColonies={showColonies}

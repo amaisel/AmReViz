@@ -450,7 +450,7 @@ body.dark-mode {
 }
 
 .h-timeline-event.active {
-  width: 280px;
+  width: 140px;
 }
 
 .h-event-dot {
@@ -479,11 +479,25 @@ body.dark-mode {
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-american);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0;
+  line-height: 1.2;
 }
 
 .dark .h-event-year {
   color: #8ba3c4;
+}
+
+.h-event-month {
+  display: block;
+  font-size: 0.7rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
+}
+
+.dark .h-event-month {
+  color: #777;
 }
 
 .h-event-title {
@@ -582,6 +596,167 @@ body.dark-mode {
   color: #888;
   font-size: 0.75rem;
   letter-spacing: 0.1em;
+}
+
+.event-card-fixed {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 320px;
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+  background: var(--color-white);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  z-index: 500;
+}
+
+.event-card-fixed.dark {
+  background: #1a1a2e;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.event-card-type-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.event-card-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-ink);
+  margin: 0 0 0.75rem 0;
+}
+
+.event-card-fixed.dark .event-card-title {
+  color: #e5e5e5;
+}
+
+.event-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.event-card-fixed.dark .event-card-meta {
+  border-color: #333;
+}
+
+.event-card-date {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.event-card-fixed.dark .event-card-date {
+  color: #a0a0a0;
+}
+
+.event-card-location {
+  font-size: 0.85rem;
+  color: var(--color-american);
+  font-weight: 500;
+}
+
+.event-card-fixed.dark .event-card-location {
+  color: #8ba3c4;
+}
+
+.event-card-description {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #444;
+  margin-bottom: 1rem;
+}
+
+.event-card-fixed.dark .event-card-description {
+  color: #ccc;
+}
+
+.event-card-significance {
+  background: rgba(30, 58, 95, 0.06);
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--color-american);
+}
+
+.event-card-fixed.dark .event-card-significance {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: #8ba3c4;
+}
+
+.event-card-significance strong {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-american);
+  margin-bottom: 0.5rem;
+}
+
+.event-card-fixed.dark .event-card-significance strong {
+  color: #8ba3c4;
+}
+
+.event-card-significance p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #555;
+}
+
+.event-card-fixed.dark .event-card-significance p {
+  color: #aaa;
+}
+
+.colony-tooltip-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.colony-tooltip-container .leaflet-tooltip-content {
+  background: transparent;
+}
+
+.colony-tooltip {
+  background: var(--color-white);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+  font-family: var(--font-body);
+}
+
+.colony-tooltip strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--color-american);
+  margin-bottom: 0.5rem;
+}
+
+.tooltip-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.tooltip-stats span {
+  display: block;
 }
 
 .event-card {
