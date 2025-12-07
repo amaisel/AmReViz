@@ -108,11 +108,10 @@ function ColonyBoundaries({ boundaries, darkMode }) {
 
   const style = (feature) => ({
     fillColor: darkMode ? 'rgba(139, 35, 35, 0.15)' : 'rgba(30, 58, 95, 0.08)',
-    weight: 2,
-    opacity: 0.8,
-    color: darkMode ? 'rgba(200, 180, 160, 0.6)' : 'rgba(101, 67, 33, 0.5)',
-    fillOpacity: hoveredColony === feature.properties.name ? 0.3 : 0.1,
-    dashArray: '4, 4'
+    weight: 0,
+    opacity: 0,
+    color: 'transparent',
+    fillOpacity: hoveredColony === feature.properties.name ? 0.3 : 0.1
   });
 
   const onEachFeature = (feature, layer) => {
@@ -141,17 +140,13 @@ function ColonyBoundaries({ boundaries, darkMode }) {
       mouseover: (e) => {
         setHoveredColony(props.name);
         e.target.setStyle({
-          fillOpacity: 0.25,
-          weight: 3,
-          dashArray: null
+          fillOpacity: 0.25
         });
       },
       mouseout: (e) => {
         setHoveredColony(null);
         e.target.setStyle({
-          fillOpacity: 0.1,
-          weight: 2,
-          dashArray: '4, 4'
+          fillOpacity: 0.1
         });
       }
     });
