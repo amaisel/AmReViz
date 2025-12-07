@@ -21,11 +21,12 @@ client/                     # React frontend application
 ## Features
 - **Timeline View**: Map on top with horizontal scrolling timeline at bottom (1773→1783)
 - **Event Card**: Fixed card on right side showing selected event details (positioned over Atlantic)
-- **State Boundaries**: Hover over colony borders to see population, exports, and trade data
+- **State Boundaries**: Accurate colonial boundary polygons with hover tooltips (population, exports, trade data)
 - **Map View**: Independent exploration of all event locations with colony boundaries
 - **Data View**: Charts showing Continental vs British army strength and colonial trade patterns
 - **Light/Dark Mode**: Toggle between light (vintage sepia) and dark themes
 - **Vintage Styling**: Colonial-inspired design with Playfair Display font and period-appropriate colors
+- **Historical Accuracy**: Label-free map tiles (no modern city names), all 13 colonial boundaries
 
 ## Color Scheme
 - **Blue (#1e3a5f)**: American/Colonial forces
@@ -46,11 +47,13 @@ cd client && npm run dev
 Runs on port 5000.
 
 ## Recent Changes
-- Dec 2024: Horizontal timeline redesign - time now flows naturally left-to-right
-- Removed redundant event card overlay on map
+- Dec 2024: Switched to label-free CARTO map tiles for historical accuracy (no modern city names)
+- Added accurate GeoJSON polygon boundaries for all 13 colonies
+- Removed non-US events (Treaty of Alliance, Treaty of Paris) - now 9 US-based events
+- Added Valley Forge Winter Encampment as new event
+- Horizontal timeline redesign - time now flows naturally left-to-right
 - Map takes full view height with timeline as bottom bar
 - Sepia filter on map tiles for vintage aesthetic
-- Independent map exploration in Map view (autoFly disabled)
 
 ## User Preferences
 - Explain code relative to Python concepts when possible
