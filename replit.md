@@ -20,7 +20,9 @@ client/                     # React frontend application
 
 ## Features
 - **Timeline View**: Map on top with horizontal scrolling timeline at bottom (1773→1783)
-- **Map View**: Independent exploration of all event locations with colony population circles
+- **Event Card**: Fixed card on right side showing selected event details (positioned over Atlantic)
+- **State Boundaries**: Hover over colony borders to see population, exports, and trade data
+- **Map View**: Independent exploration of all event locations with colony boundaries
 - **Data View**: Charts showing Continental vs British army strength and colonial trade patterns
 - **Light/Dark Mode**: Toggle between light (vintage sepia) and dark themes
 - **Vintage Styling**: Colonial-inspired design with Playfair Display font and period-appropriate colors
