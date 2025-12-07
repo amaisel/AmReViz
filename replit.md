@@ -49,13 +49,17 @@ Runs on port 5000.
 ## Recent Changes
 - Dec 2024: Switched to ESRI Shaded Relief tiles for terrain-focused colonial aesthetic
 - Added accurate GeoJSON polygon boundaries for all 13 colonies with dashed borders
-- Added colonial-style labels on map (Playfair Display italic font, abbreviations for small colonies)
+- Added colonial-style labels on map (Playfair Display italic font, 2-letter abbreviations for all colonies)
 - Added District of Maine as part of Massachusetts Colony
 - Fixed Georgia northern border
 - Removed non-US events (Treaty of Alliance, Treaty of Paris) - now 9 US-based events
 - Added Valley Forge Winter Encampment as new event
 - Horizontal timeline redesign - time now flows naturally left-to-right
 - Map takes full view height with timeline as bottom bar
+- Limited map zoom out to eastern seaboard (minZoom=4, maxBounds covering 25°-48°N, 90°-65°W)
+- Future events appear translucent/subtle (35% opacity) before their date is reached
+- Added "Hide Future Events" toggle in Map view to completely hide events that haven't occurred yet
+- All colony labels now use standard 2-letter abbreviations (MA, ME, NH, RI, CT, NY, NJ, PA, DE, MD, VA, NC, SC, GA)
 
 ## User Preferences
 - Explain code relative to Python concepts when possible
