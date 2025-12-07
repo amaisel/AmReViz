@@ -150,7 +150,11 @@ body.dark-mode {
 }
 
 .map-container.light .leaflet-tile-pane {
-  filter: sepia(15%) saturate(90%) brightness(102%);
+  filter: sepia(8%) saturate(95%) brightness(100%) contrast(98%);
+}
+
+.map-container.light .colonial-tiles {
+  filter: none;
 }
 
 .map-container .leaflet-control-zoom {

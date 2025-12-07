@@ -47,13 +47,13 @@ cd client && npm run dev
 Runs on port 5000.
 
 ## Recent Changes
-- Dec 2024: Switched to label-free CARTO map tiles for historical accuracy (no modern city names)
-- Added accurate GeoJSON polygon boundaries for all 13 colonies
+- Dec 2024: Switched to Stamen Watercolor tiles for colonial-era aesthetic (hand-painted look, no modern cities)
+- Added accurate GeoJSON polygon boundaries for all 13 colonies with dashed borders
 - Removed non-US events (Treaty of Alliance, Treaty of Paris) - now 9 US-based events
 - Added Valley Forge Winter Encampment as new event
 - Horizontal timeline redesign - time now flows naturally left-to-right
 - Map takes full view height with timeline as bottom bar
-- Sepia filter on map tiles for vintage aesthetic
+- Colonial styling with watercolor terrain and period-appropriate colors
 
 ## User Preferences
 - Explain code relative to Python concepts when possible

@@ -73,11 +73,12 @@ function ColonyBoundaries({ boundaries, darkMode }) {
   const [hoveredColony, setHoveredColony] = useState(null);
 
   const style = (feature) => ({
-    fillColor: darkMode ? 'rgba(30, 58, 95, 0.2)' : 'rgba(30, 58, 95, 0.1)',
-    weight: 1.5,
-    opacity: 0.7,
-    color: darkMode ? 'rgba(139, 163, 196, 0.5)' : 'rgba(30, 58, 95, 0.4)',
-    fillOpacity: hoveredColony === feature.properties.name ? 0.4 : 0.15
+    fillColor: darkMode ? 'rgba(139, 35, 35, 0.15)' : 'rgba(30, 58, 95, 0.08)',
+    weight: 2,
+    opacity: 0.8,
+    color: darkMode ? 'rgba(200, 180, 160, 0.6)' : 'rgba(101, 67, 33, 0.5)',
+    fillOpacity: hoveredColony === feature.properties.name ? 0.3 : 0.1,
+    dashArray: '4, 4'
   });
 
   const onEachFeature = (feature, layer) => {
@@ -103,15 +104,17 @@ function ColonyBoundaries({ boundaries, darkMode }) {
       mouseover: (e) => {
         setHoveredColony(props.name);
         e.target.setStyle({
-          fillOpacity: 0.35,
-          weight: 2.5
+          fillOpacity: 0.25,
+          weight: 3,
+          dashArray: null
         });
       },
       mouseout: (e) => {
         setHoveredColony(null);
         e.target.setStyle({
-          fillOpacity: 0.15,
-          weight: 1.5
+          fillOpacity: 0.1,
+          weight: 2,
+          dashArray: '4, 4'
         });
       }
     });
@@ -141,9 +144,9 @@ export default function Map({
     : [39.5, -76.0];
   const zoom = activeEvent ? 7 : 5;
 
-  const tileUrl = darkMode
-    ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
+  const watercolorUrl = 'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg';
+  const terrainUrl = 'https://tiles.stadiamaps.com/tiles/stamen_terrain_background/{z}/{x}/{y}{r}.png';
+  const darkTerrainUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
 
   return (
     <div className={`map-container ${darkMode ? 'dark' : 'light'}`}>
@@ -154,13 +157,21 @@ export default function Map({
         zoomControl={true}
         attributionControl={false}
       >
-        <TileLayer
-          url={tileUrl}
-          attribution='&copy; OpenStreetMap &copy; CARTO'
-          subdomains="abcd"
-          maxZoom={19}
-          className={darkMode ? '' : 'vintage-tiles'}
-        />
+        {darkMode ? (
+          <TileLayer
+            url={darkTerrainUrl}
+            attribution='&copy; OpenStreetMap &copy; CARTO'
+            subdomains="abcd"
+            maxZoom={18}
+          />
+        ) : (
+          <TileLayer
+            url={watercolorUrl}
+            attribution='&copy; Stamen Design &copy; OpenStreetMap'
+            maxZoom={16}
+            className="colonial-tiles"
+          />
+        )}
         
         <MapController center={center} zoom={zoom} autoFly={autoFly} />
         
