@@ -144,8 +144,8 @@ export default function Map({
     : [39.5, -76.0];
   const zoom = activeEvent ? 7 : 5;
 
-  const watercolorUrl = 'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg';
-  const terrainUrl = 'https://tiles.stadiamaps.com/tiles/stamen_terrain_background/{z}/{x}/{y}{r}.png';
+  const terrainUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}';
+  const physicalUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}';
   const darkTerrainUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
 
   return (
@@ -166,9 +166,9 @@ export default function Map({
           />
         ) : (
           <TileLayer
-            url={watercolorUrl}
-            attribution='&copy; Stamen Design &copy; OpenStreetMap'
-            maxZoom={16}
+            url={terrainUrl}
+            attribution='Tiles &copy; Esri &mdash; Source: Esri, USGS'
+            maxZoom={13}
             className="colonial-tiles"
           />
         )}
