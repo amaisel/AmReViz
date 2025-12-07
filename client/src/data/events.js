@@ -79,16 +79,16 @@ export const events = [
   },
   {
     id: 7,
-    date: "1778-02-06",
-    year: 1778,
-    title: "Treaty of Alliance with France",
-    location: "Paris, France",
-    lat: 48.8566,
-    lng: 2.3522,
-    type: "diplomatic",
+    date: "1777-12-19",
+    year: 1777,
+    title: "Valley Forge Winter Encampment",
+    location: "Valley Forge, Pennsylvania",
+    lat: 40.1033,
+    lng: -75.4444,
+    type: "political",
     side: "american",
-    description: "France formally recognized American independence and pledged military support. The alliance brought French troops, a powerful navy, and desperately needed financial aid. Spain and the Netherlands would also eventually join against Britain.",
-    significance: "Transformed a colonial rebellion into a global conflict; French aid proved decisive."
+    description: "The Continental Army endured a brutal winter at Valley Forge. Despite losing nearly 2,000 men to cold, disease, and starvation, the army emerged stronger. Baron von Steuben drilled the troops into a professional fighting force, transforming them from militia to soldiers.",
+    significance: "Crucible that forged the Continental Army into an effective fighting force; symbol of American perseverance."
   },
   {
     id: 8,
@@ -105,19 +105,6 @@ export const events = [
   },
   {
     id: 9,
-    date: "1783-09-03",
-    year: 1783,
-    title: "Treaty of Paris",
-    location: "Paris, France",
-    lat: 48.8566,
-    lng: 2.3522,
-    type: "diplomatic",
-    side: "american",
-    description: "Britain formally recognized American independence and ceded all territory east of the Mississippi River. The treaty established generous boundaries for the new nation, though it left many issues—like British forts in the Northwest—unresolved.",
-    significance: "Official end of the Revolutionary War; established the United States as a sovereign nation."
-  },
-  {
-    id: 10,
     date: "1783-12-23",
     year: 1783,
     title: "Washington Resigns Commission",
@@ -153,20 +140,4 @@ export const economicData = [
   { year: 1776, colonialExports: 1.2, colonialImports: 0.1, teaImports: 0.00, label: "Independence" },
   { year: 1777, colonialExports: 0.8, colonialImports: 0.5, teaImports: 0.00, label: "Wartime" },
   { year: 1778, colonialExports: 1.0, colonialImports: 1.2, teaImports: 0.00, label: "French Alliance" }
-];
-
-export const colonyData = [
-  { name: "Virginia", population: 447000, exports: 1000000, mainExport: "Tobacco", lat: 37.5, lng: -79.0 },
-  { name: "Massachusetts", population: 338000, exports: 400000, mainExport: "Fish", lat: 42.4, lng: -71.4 },
-  { name: "Pennsylvania", population: 270000, exports: 350000, mainExport: "Flour", lat: 40.0, lng: -76.5 },
-  { name: "Maryland", population: 203000, exports: 400000, mainExport: "Tobacco", lat: 39.0, lng: -76.7 },
-  { name: "New York", population: 163000, exports: 200000, mainExport: "Wheat", lat: 43.0, lng: -75.5 },
-  { name: "Connecticut", population: 198000, exports: 100000, mainExport: "Livestock", lat: 41.6, lng: -72.7 },
-  { name: "South Carolina", population: 124000, exports: 600000, mainExport: "Rice", lat: 33.8, lng: -80.9 },
-  { name: "New Jersey", population: 130000, exports: 80000, mainExport: "Iron", lat: 40.1, lng: -74.7 },
-  { name: "North Carolina", population: 197000, exports: 150000, mainExport: "Naval Stores", lat: 35.5, lng: -79.0 },
-  { name: "Rhode Island", population: 58000, exports: 90000, mainExport: "Rum", lat: 41.7, lng: -71.5 },
-  { name: "New Hampshire", population: 62000, exports: 70000, mainExport: "Lumber", lat: 43.5, lng: -71.5 },
-  { name: "Delaware", population: 35000, exports: 40000, mainExport: "Grain", lat: 39.0, lng: -75.5 },
-  { name: "Georgia", population: 23000, exports: 100000, mainExport: "Indigo", lat: 32.9, lng: -83.4 }
 ];

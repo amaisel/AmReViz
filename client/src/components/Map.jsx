@@ -142,8 +142,8 @@ export default function Map({
   const zoom = activeEvent ? 7 : 5;
 
   const tileUrl = darkMode
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
 
   return (
     <div className={`map-container ${darkMode ? 'dark' : 'light'}`}>
