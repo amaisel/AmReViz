@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Map from './components/Map';
-import Timeline from './components/Timeline';
+import HorizontalTimeline from './components/HorizontalTimeline';
 import { ArmyChart, TradeChart } from './components/Charts';
 import { events, armyData, economicData, colonyData } from './data/events';
 import './App.css';
@@ -40,36 +40,6 @@ function ViewToggle({ view, onViewChange }) {
         Data
       </button>
     </div>
-  );
-}
-
-function EventCard({ event, darkMode }) {
-  if (!event) return null;
-  
-  return (
-    <motion.div 
-      className="event-card"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      key={event.id}
-    >
-      <span className="event-card-type">{event.type.toUpperCase()}</span>
-      <h2>{event.title}</h2>
-      <p className="event-card-date">
-        {new Date(event.date).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        })}
-      </p>
-      <p className="event-card-location">{event.location}</p>
-      <p className="event-card-description">{event.description}</p>
-      <div className="event-card-significance">
-        <strong>Historical Significance</strong>
-        <p>{event.significance}</p>
-      </div>
-    </motion.div>
   );
 }
 
@@ -136,21 +106,13 @@ export default function App() {
         <AnimatePresence mode="wait">
           {view === 'timeline' && (
             <motion.div 
-              className="split-view"
+              className="timeline-view"
               key="timeline"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className="timeline-panel">
-                <Timeline 
-                  events={events}
-                  activeEventId={activeEventId}
-                  onEventClick={setActiveEventId}
-                  darkMode={darkMode}
-                />
-              </div>
-              <div className="map-panel">
+              <div className="map-area">
                 <Map 
                   events={events}
                   colonies={colonyData}
@@ -159,10 +121,13 @@ export default function App() {
                   showColonies={showColonies}
                   darkMode={darkMode}
                 />
-                <AnimatePresence>
-                  <EventCard event={activeEvent} darkMode={darkMode} />
-                </AnimatePresence>
               </div>
+              <HorizontalTimeline 
+                events={events}
+                activeEventId={activeEventId}
+                onEventClick={setActiveEventId}
+                darkMode={darkMode}
+              />
             </motion.div>
           )}
 
