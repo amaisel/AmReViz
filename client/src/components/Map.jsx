@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from 'react-l
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const createEventIcon = (type, side, isActive) => {
+const createEventIcon = (type, side, isActive, isFuture = false) => {
   const colors = {
     american: '#1e3a5f',
     british: '#8b2323'
@@ -16,9 +16,11 @@ const createEventIcon = (type, side, isActive) => {
   };
 
   const size = isActive ? 44 : 34;
+  const opacity = isFuture ? 0.35 : 1;
   const borderColor = colors[side] || '#1e3a5f';
   const bgColor = isActive ? borderColor : '#fffef5';
   const textColor = isActive ? '#fffef5' : borderColor;
+  const shadowOpacity = isFuture ? 0.15 : 0.35;
   
   return L.divIcon({
     className: 'custom-marker',
@@ -33,9 +35,10 @@ const createEventIcon = (type, side, isActive) => {
         align-items: center;
         justify-content: center;
         font-size: ${size * 0.45}px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+        box-shadow: 0 3px 10px rgba(0,0,0,${shadowOpacity});
         transition: all 0.3s ease;
         cursor: pointer;
+        opacity: ${opacity};
       ">
         <span style="color: ${textColor};">${symbols[type] || '●'}</span>
       </div>
@@ -45,9 +48,7 @@ const createEventIcon = (type, side, isActive) => {
   });
 };
 
-const createColonyLabel = (name, abbrev, isSmall, darkMode) => {
-  const displayName = isSmall ? abbrev : name;
-  const fontSize = isSmall ? '11px' : '13px';
+const createColonyLabel = (abbrev, darkMode) => {
   const textColor = darkMode ? 'rgba(220, 200, 180, 0.9)' : 'rgba(60, 40, 20, 0.85)';
   const shadowColor = darkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
   
@@ -56,7 +57,7 @@ const createColonyLabel = (name, abbrev, isSmall, darkMode) => {
     html: `
       <div style="
         font-family: 'Playfair Display', Georgia, serif;
-        font-size: ${fontSize};
+        font-size: 12px;
         font-weight: 600;
         font-style: italic;
         color: ${textColor};
@@ -66,15 +67,15 @@ const createColonyLabel = (name, abbrev, isSmall, darkMode) => {
           1px -1px 2px ${shadowColor},
           -1px 1px 2px ${shadowColor};
         white-space: nowrap;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.15em;
         text-transform: uppercase;
         pointer-events: none;
       ">
-        ${displayName}
+        ${abbrev}
       </div>
     `,
-    iconSize: [100, 20],
-    iconAnchor: [50, 10]
+    iconSize: [40, 20],
+    iconAnchor: [20, 10]
   });
 };
 
@@ -166,21 +167,17 @@ function ColonyBoundaries({ boundaries, darkMode }) {
 }
 
 function ColonyLabels({ boundaries, darkMode }) {
-  const smallColonies = ['Rhode Island', 'Delaware', 'New Jersey', 'Connecticut', 'New Hampshire', 'District of Maine'];
-  
   return (
     <>
       {boundaries.features.map((feature) => {
         const props = feature.properties;
         if (!props.labelLat || !props.labelLng) return null;
         
-        const isSmall = smallColonies.includes(props.name);
-        
         return (
           <Marker
             key={`label-${props.name}`}
             position={[props.labelLat, props.labelLng]}
-            icon={createColonyLabel(props.name, props.abbrev, isSmall, darkMode)}
+            icon={createColonyLabel(props.abbrev, darkMode)}
             interactive={false}
           />
         );
@@ -189,6 +186,11 @@ function ColonyLabels({ boundaries, darkMode }) {
   );
 }
 
+const easternSeaboardBounds = [
+  [25.0, -90.0],
+  [48.0, -65.0]
+];
+
 export default function Map({ 
   events, 
   colonyBoundaries,
@@ -196,9 +198,11 @@ export default function Map({
   onEventClick,
   showColonies,
   darkMode,
-  autoFly = true
+  autoFly = true,
+  hideFutureEvents = false
 }) {
   const activeEvent = events.find(e => e.id === activeEventId);
+  const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
   const center = activeEvent 
     ? [activeEvent.lat, activeEvent.lng] 
     : [39.5, -76.0];
@@ -207,11 +211,25 @@ export default function Map({
   const terrainUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}';
   const darkTerrainUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
 
+  const visibleEvents = events.filter(event => {
+    if (!hideFutureEvents) return true;
+    if (!activeEventDate) return true;
+    return new Date(event.date) <= activeEventDate;
+  });
+
+  const isFutureEvent = (event) => {
+    if (!activeEventDate) return false;
+    return new Date(event.date) > activeEventDate;
+  };
+
   return (
     <div className={`map-container ${darkMode ? 'dark' : 'light'}`}>
       <MapContainer
         center={[39.5, -76.0]}
         zoom={5}
+        minZoom={4}
+        maxBounds={easternSeaboardBounds}
+        maxBoundsViscosity={0.8}
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
         attributionControl={false}
@@ -241,11 +259,11 @@ export default function Map({
           </>
         )}
         
-        {events.map((event) => (
+        {visibleEvents.map((event) => (
           <Marker
             key={event.id}
             position={[event.lat, event.lng]}
-            icon={createEventIcon(event.type, event.side, event.id === activeEventId)}
+            icon={createEventIcon(event.type, event.side, event.id === activeEventId, isFutureEvent(event))}
             eventHandlers={{
               click: () => onEventClick(event.id)
             }}

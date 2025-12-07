@@ -5,7 +5,7 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Massachusetts",
-        "abbrev": "MASS",
+        "abbrev": "MA",
         "population": 338000,
         "exports": 400000,
         "mainExport": "Fish & Shipbuilding",
@@ -30,7 +30,7 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "District of Maine",
-        "abbrev": "MAINE",
+        "abbrev": "ME",
         "population": 30000,
         "exports": 50000,
         "mainExport": "Lumber & Fish",
@@ -106,7 +106,7 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Connecticut",
-        "abbrev": "CONN",
+        "abbrev": "CT",
         "population": 198000,
         "exports": 100000,
         "mainExport": "Livestock & Grains",
@@ -188,7 +188,7 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Pennsylvania",
-        "abbrev": "PENN",
+        "abbrev": "PA",
         "population": 270000,
         "exports": 350000,
         "mainExport": "Flour & Iron",
@@ -214,7 +214,7 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Delaware",
-        "abbrev": "DEL",
+        "abbrev": "DE",
         "population": 35000,
         "exports": 40000,
         "mainExport": "Grain & Flour",

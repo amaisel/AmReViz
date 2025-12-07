@@ -84,6 +84,7 @@ export default function App() {
   const [activeEventId, setActiveEventId] = useState(1);
   const [view, setView] = useState('timeline');
   const [showColonies, setShowColonies] = useState(true);
+  const [hideFutureEvents, setHideFutureEvents] = useState(false);
   
   const activeEvent = events.find(e => e.id === activeEventId);
 
@@ -122,6 +123,7 @@ export default function App() {
                   onEventClick={setActiveEventId}
                   showColonies={showColonies}
                   darkMode={darkMode}
+                  hideFutureEvents={hideFutureEvents}
                 />
                 <EventCard event={activeEvent} darkMode={darkMode} />
               </div>
@@ -151,6 +153,14 @@ export default function App() {
                   />
                   Show Colony Boundaries
                 </label>
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox"
+                    checked={hideFutureEvents}
+                    onChange={() => setHideFutureEvents(!hideFutureEvents)}
+                  />
+                  Hide Future Events
+                </label>
               </div>
               <Map 
                 events={events}
@@ -160,6 +170,7 @@ export default function App() {
                 showColonies={showColonies}
                 darkMode={darkMode}
                 autoFly={false}
+                hideFutureEvents={hideFutureEvents}
               />
               <div className="map-event-list">
                 {events.map(event => (
