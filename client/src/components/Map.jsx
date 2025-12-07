@@ -45,6 +45,39 @@ const createEventIcon = (type, side, isActive) => {
   });
 };
 
+const createColonyLabel = (name, abbrev, isSmall, darkMode) => {
+  const displayName = isSmall ? abbrev : name;
+  const fontSize = isSmall ? '11px' : '13px';
+  const textColor = darkMode ? 'rgba(220, 200, 180, 0.9)' : 'rgba(60, 40, 20, 0.85)';
+  const shadowColor = darkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
+  
+  return L.divIcon({
+    className: 'colony-label',
+    html: `
+      <div style="
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: ${fontSize};
+        font-weight: 600;
+        font-style: italic;
+        color: ${textColor};
+        text-shadow: 
+          1px 1px 2px ${shadowColor},
+          -1px -1px 2px ${shadowColor},
+          1px -1px 2px ${shadowColor},
+          -1px 1px 2px ${shadowColor};
+        white-space: nowrap;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        pointer-events: none;
+      ">
+        ${displayName}
+      </div>
+    `,
+    iconSize: [100, 20],
+    iconAnchor: [50, 10]
+  });
+};
+
 function MapController({ center, zoom, autoFly }) {
   const map = useMap();
   const prevCenterRef = useRef(null);
@@ -84,9 +117,12 @@ function ColonyBoundaries({ boundaries, darkMode }) {
   const onEachFeature = (feature, layer) => {
     const props = feature.properties;
     
+    const partOfText = props.partOf ? `<div style="font-style: italic; color: #888;">(Part of ${props.partOf})</div>` : '';
+    
     layer.bindTooltip(
       `<div class="colony-tooltip">
         <strong>${props.name}</strong>
+        ${partOfText}
         <div class="tooltip-stats">
           <span>Pop: ${props.population.toLocaleString()}</span>
           <span>Export: ${props.mainExport}</span>
@@ -129,6 +165,30 @@ function ColonyBoundaries({ boundaries, darkMode }) {
   );
 }
 
+function ColonyLabels({ boundaries, darkMode }) {
+  const smallColonies = ['Rhode Island', 'Delaware', 'New Jersey', 'Connecticut', 'New Hampshire', 'District of Maine'];
+  
+  return (
+    <>
+      {boundaries.features.map((feature) => {
+        const props = feature.properties;
+        if (!props.labelLat || !props.labelLng) return null;
+        
+        const isSmall = smallColonies.includes(props.name);
+        
+        return (
+          <Marker
+            key={`label-${props.name}`}
+            position={[props.labelLat, props.labelLng]}
+            icon={createColonyLabel(props.name, props.abbrev, isSmall, darkMode)}
+            interactive={false}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 export default function Map({ 
   events, 
   colonyBoundaries,
@@ -145,7 +205,6 @@ export default function Map({
   const zoom = activeEvent ? 7 : 5;
 
   const terrainUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}';
-  const physicalUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}';
   const darkTerrainUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
 
   return (
@@ -176,7 +235,10 @@ export default function Map({
         <MapController center={center} zoom={zoom} autoFly={autoFly} />
         
         {showColonies && colonyBoundaries && (
-          <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} />
+          <>
+            <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} />
+            <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} />
+          </>
         )}
         
         {events.map((event) => (

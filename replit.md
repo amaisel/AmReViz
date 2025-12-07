@@ -47,13 +47,15 @@ cd client && npm run dev
 Runs on port 5000.
 
 ## Recent Changes
-- Dec 2024: Switched to Stamen Watercolor tiles for colonial-era aesthetic (hand-painted look, no modern cities)
+- Dec 2024: Switched to ESRI Shaded Relief tiles for terrain-focused colonial aesthetic
 - Added accurate GeoJSON polygon boundaries for all 13 colonies with dashed borders
+- Added colonial-style labels on map (Playfair Display italic font, abbreviations for small colonies)
+- Added District of Maine as part of Massachusetts Colony
+- Fixed Georgia northern border
 - Removed non-US events (Treaty of Alliance, Treaty of Paris) - now 9 US-based events
 - Added Valley Forge Winter Encampment as new event
 - Horizontal timeline redesign - time now flows naturally left-to-right
 - Map takes full view height with timeline as bottom bar
-- Colonial styling with watercolor terrain and period-appropriate colors
 
 ## User Preferences
 - Explain code relative to Python concepts when possible

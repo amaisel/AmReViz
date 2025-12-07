@@ -5,11 +5,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Massachusetts",
+        "abbrev": "MASS",
         "population": 338000,
         "exports": 400000,
         "mainExport": "Fish & Shipbuilding",
         "founded": 1620,
-        "capital": "Boston"
+        "capital": "Boston",
+        "labelLat": 42.2,
+        "labelLng": -71.8
       },
       "geometry": {
         "type": "Polygon",
@@ -26,12 +29,47 @@ export const colonyBoundaries = {
     {
       "type": "Feature",
       "properties": {
+        "name": "District of Maine",
+        "abbrev": "MAINE",
+        "population": 30000,
+        "exports": 50000,
+        "mainExport": "Lumber & Fish",
+        "founded": 1622,
+        "capital": "Falmouth",
+        "partOf": "Massachusetts",
+        "labelLat": 44.5,
+        "labelLng": -69.5
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-70.97, 43.37], [-70.82, 43.12], [-70.70, 43.06], [-70.58, 43.08],
+          [-70.22, 43.57], [-70.00, 43.68], [-69.06, 44.04], [-68.80, 44.46],
+          [-68.51, 44.38], [-68.18, 44.34], [-67.96, 44.45], [-67.79, 44.52],
+          [-67.40, 44.70], [-67.19, 44.65], [-67.13, 45.14], [-67.29, 45.17],
+          [-67.43, 45.30], [-67.48, 45.50], [-67.71, 45.68], [-67.75, 45.82],
+          [-67.80, 47.07], [-68.23, 47.35], [-68.90, 47.18], [-69.05, 47.30],
+          [-69.24, 47.46], [-70.02, 46.69], [-70.06, 46.42], [-70.25, 46.25],
+          [-70.29, 46.06], [-70.42, 45.94], [-70.42, 45.72], [-70.72, 45.51],
+          [-70.64, 45.39], [-70.72, 45.01], [-71.08, 45.30], [-71.50, 45.01],
+          [-72.56, 45.01], [-72.46, 42.73], [-71.33, 42.70], [-71.05, 42.71],
+          [-70.81, 42.56], [-70.58, 43.08], [-70.70, 43.06], [-70.82, 43.12],
+          [-70.97, 43.37]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
         "name": "New Hampshire",
+        "abbrev": "NH",
         "population": 62000,
         "exports": 70000,
         "mainExport": "Lumber & Masts",
         "founded": 1623,
-        "capital": "Portsmouth"
+        "capital": "Portsmouth",
+        "labelLat": 43.8,
+        "labelLng": -71.5
       },
       "geometry": {
         "type": "Polygon",
@@ -46,11 +84,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Rhode Island",
+        "abbrev": "RI",
         "population": 58000,
         "exports": 90000,
         "mainExport": "Rum & Trade",
         "founded": 1636,
-        "capital": "Providence"
+        "capital": "Providence",
+        "labelLat": 41.7,
+        "labelLng": -71.5
       },
       "geometry": {
         "type": "Polygon",
@@ -65,11 +106,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Connecticut",
+        "abbrev": "CONN",
         "population": 198000,
         "exports": 100000,
         "mainExport": "Livestock & Grains",
         "founded": 1636,
-        "capital": "Hartford"
+        "capital": "Hartford",
+        "labelLat": 41.6,
+        "labelLng": -72.7
       },
       "geometry": {
         "type": "Polygon",
@@ -84,11 +128,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "New York",
+        "abbrev": "NY",
         "population": 163000,
         "exports": 200000,
         "mainExport": "Wheat & Flour",
         "founded": 1626,
-        "capital": "New York City"
+        "capital": "New York City",
+        "labelLat": 42.8,
+        "labelLng": -75.5
       },
       "geometry": {
         "type": "Polygon",
@@ -112,11 +159,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "New Jersey",
+        "abbrev": "NJ",
         "population": 130000,
         "exports": 80000,
         "mainExport": "Iron & Grain",
         "founded": 1664,
-        "capital": "Perth Amboy"
+        "capital": "Perth Amboy",
+        "labelLat": 40.2,
+        "labelLng": -74.7
       },
       "geometry": {
         "type": "Polygon",
@@ -138,11 +188,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Pennsylvania",
+        "abbrev": "PENN",
         "population": 270000,
         "exports": 350000,
         "mainExport": "Flour & Iron",
         "founded": 1681,
-        "capital": "Philadelphia"
+        "capital": "Philadelphia",
+        "labelLat": 41.0,
+        "labelLng": -77.5
       },
       "geometry": {
         "type": "Polygon",
@@ -161,11 +214,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Delaware",
+        "abbrev": "DEL",
         "population": 35000,
         "exports": 40000,
         "mainExport": "Grain & Flour",
         "founded": 1638,
-        "capital": "Dover"
+        "capital": "Dover",
+        "labelLat": 39.0,
+        "labelLng": -75.5
       },
       "geometry": {
         "type": "Polygon",
@@ -182,11 +238,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Maryland",
+        "abbrev": "MD",
         "population": 203000,
         "exports": 400000,
         "mainExport": "Tobacco",
         "founded": 1634,
-        "capital": "Annapolis"
+        "capital": "Annapolis",
+        "labelLat": 39.0,
+        "labelLng": -77.0
       },
       "geometry": {
         "type": "Polygon",
@@ -208,11 +267,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Virginia",
+        "abbrev": "VA",
         "population": 447000,
         "exports": 1000000,
         "mainExport": "Tobacco",
         "founded": 1607,
-        "capital": "Williamsburg"
+        "capital": "Williamsburg",
+        "labelLat": 37.8,
+        "labelLng": -79.0
       },
       "geometry": {
         "type": "Polygon",
@@ -243,11 +305,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "North Carolina",
+        "abbrev": "NC",
         "population": 197000,
         "exports": 150000,
         "mainExport": "Naval Stores & Tobacco",
         "founded": 1653,
-        "capital": "New Bern"
+        "capital": "New Bern",
+        "labelLat": 35.5,
+        "labelLng": -79.5
       },
       "geometry": {
         "type": "Polygon",
@@ -266,11 +331,14 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "South Carolina",
+        "abbrev": "SC",
         "population": 124000,
         "exports": 600000,
         "mainExport": "Rice & Indigo",
         "founded": 1663,
-        "capital": "Charles Town"
+        "capital": "Charles Town",
+        "labelLat": 33.8,
+        "labelLng": -80.9
       },
       "geometry": {
         "type": "Polygon",
@@ -289,26 +357,29 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "Georgia",
+        "abbrev": "GA",
         "population": 23000,
         "exports": 100000,
         "mainExport": "Indigo & Rice",
         "founded": 1733,
-        "capital": "Savannah"
+        "capital": "Savannah",
+        "labelLat": 32.5,
+        "labelLng": -83.0
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [-85.61, 35.00], [-84.32, 35.26], [-84.32, 34.99], [-83.11, 35.00],
-          [-82.99, 34.47], [-82.76, 33.97], [-82.58, 33.57], [-82.36, 33.31],
-          [-82.22, 33.13], [-82.02, 32.54], [-81.83, 32.65], [-81.42, 32.62],
-          [-81.19, 32.38], [-81.13, 32.11], [-81.06, 31.80], [-81.17, 31.52],
-          [-81.28, 31.20], [-81.17, 31.00], [-81.25, 30.79], [-81.51, 30.72],
-          [-81.73, 30.75], [-82.01, 30.79], [-82.21, 30.51], [-82.42, 30.58],
-          [-82.70, 30.60], [-83.13, 30.64], [-83.50, 30.65], [-84.03, 30.67],
-          [-84.32, 30.69], [-84.86, 30.71], [-85.00, 31.00], [-85.11, 31.27],
-          [-85.00, 31.79], [-84.92, 32.24], [-85.00, 32.51], [-85.18, 32.87],
-          [-85.23, 33.11], [-85.19, 33.69], [-85.39, 33.90], [-85.53, 34.11],
-          [-85.61, 34.48], [-85.61, 35.00]
+          [-83.11, 35.00], [-82.99, 34.47], [-82.76, 33.97], [-82.58, 33.57],
+          [-82.36, 33.31], [-82.22, 33.13], [-82.02, 32.54], [-81.83, 32.65],
+          [-81.42, 32.62], [-81.19, 32.38], [-81.13, 32.11], [-81.06, 31.80],
+          [-81.17, 31.52], [-81.28, 31.20], [-81.17, 31.00], [-81.25, 30.79],
+          [-81.51, 30.72], [-81.73, 30.75], [-82.01, 30.79], [-82.21, 30.51],
+          [-82.42, 30.58], [-82.70, 30.60], [-83.13, 30.64], [-83.50, 30.65],
+          [-84.03, 30.67], [-84.32, 30.69], [-84.86, 30.71], [-85.00, 31.00],
+          [-85.11, 31.27], [-85.00, 31.79], [-84.92, 32.24], [-85.00, 32.51],
+          [-85.18, 32.87], [-85.23, 33.11], [-85.19, 33.69], [-85.39, 33.90],
+          [-85.53, 34.11], [-85.61, 34.48], [-85.61, 34.99], [-84.32, 34.99],
+          [-83.11, 35.00]
         ]]
       }
     }
