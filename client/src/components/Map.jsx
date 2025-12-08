@@ -204,7 +204,7 @@ export default function Map({
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
   const center = activeEvent 
-    ? [activeEvent.lat, activeEvent.lng - 10] 
+    ? [activeEvent.lat, activeEvent.lng + 6] 
     : [40.0, -74.0];
   const zoom = activeEvent ? 7 : 5;
 
