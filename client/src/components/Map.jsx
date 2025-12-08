@@ -187,8 +187,8 @@ function ColonyLabels({ boundaries, darkMode }) {
 }
 
 const easternSeaboardBounds = [
-  [25.0, -90.0],
-  [48.0, -65.0]
+  [28.0, -85.0],
+  [47.0, -65.0]
 ];
 
 export default function Map({ 
@@ -204,9 +204,9 @@ export default function Map({
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
   const center = activeEvent 
-    ? [activeEvent.lat, activeEvent.lng - 3] 
-    : [39.5, -79.0];
-  const zoom = activeEvent ? 7 : 5;
+    ? [activeEvent.lat, activeEvent.lng - 5] 
+    : [38.5, -77.0];
+  const zoom = activeEvent ? 5.5 : 5;
 
   const terrainUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}';
   const darkTerrainUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
@@ -225,7 +225,7 @@ export default function Map({
   return (
     <div className={`map-container ${darkMode ? 'dark' : 'light'}`}>
       <MapContainer
-        center={[39.5, -79.0]}
+        center={[38.5, -77.0]}
         zoom={5}
         minZoom={4}
         maxBounds={easternSeaboardBounds}
