@@ -602,7 +602,7 @@ body.dark-mode {
   position: absolute;
   top: 20px;
   right: 20px;
-  width: 320px;
+  width: 380px;
   max-height: calc(100% - 40px);
   overflow-y: auto;
   background: var(--color-white);
