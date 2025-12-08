@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -267,36 +267,7 @@ export default function Map({
             eventHandlers={{
               click: () => onEventClick(event.id)
             }}
-          >
-            <Popup className="vintage-popup">
-              <div style={{ 
-                fontFamily: 'Georgia, serif',
-                maxWidth: '250px'
-              }}>
-                <h3 style={{ margin: '0 0 8px 0', color: '#1e3a5f' }}>
-                  {event.title}
-                </h3>
-                <p style={{ 
-                  fontSize: '12px', 
-                  color: '#666',
-                  margin: '0 0 8px 0'
-                }}>
-                  {new Date(event.date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
-                <p style={{ 
-                  fontSize: '13px',
-                  lineHeight: '1.5',
-                  margin: 0
-                }}>
-                  {event.description.substring(0, 150)}...
-                </p>
-              </div>
-            </Popup>
-          </Marker>
+          />
         ))}
       </MapContainer>
     </div>

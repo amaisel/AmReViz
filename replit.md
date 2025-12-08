@@ -56,10 +56,14 @@ Runs on port 5000.
 - Added Valley Forge Winter Encampment as new event
 - Horizontal timeline redesign - time now flows naturally left-to-right
 - Map takes full view height with timeline as bottom bar
-- Limited map zoom out to eastern seaboard (minZoom=4, maxBounds covering 25°-48°N, 90°-65°W)
+- Limited map zoom out to eastern seaboard (minZoom=4, maxBounds covering 28°-48°N, 85°-60°W)
 - Future events appear translucent/subtle (35% opacity) before their date is reached
 - Added "Hide Future Events" toggle in Map view to completely hide events that haven't occurred yet
 - All colony labels now use standard 2-letter abbreviations (MA, ME, NH, RI, CT, NY, NJ, PA, DE, MD, VA, NC, SC, GA)
+- App starts with no event selected, showing all 13 colonies overview
+- Clicking an event zooms to level 6 with eastward offset to keep event visible beside the card
+- Removed duplicate popup from map markers - event details only show in the side card
+- Event card positioned over the Atlantic Ocean (380px wide)
 
 ## User Preferences
 - Explain code relative to Python concepts when possible
