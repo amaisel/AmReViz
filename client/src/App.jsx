@@ -81,7 +81,7 @@ function DataView({ activeYear, darkMode }) {
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [activeEventId, setActiveEventId] = useState(1);
+  const [activeEventId, setActiveEventId] = useState(null);
   const [view, setView] = useState('timeline');
   const [showColonies, setShowColonies] = useState(true);
   const [hideFutureEvents, setHideFutureEvents] = useState(false);
