@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@doist/todoist-api-typescript": "^6.2.1"
+    "@doist/todoist-api-typescript": "^6.2.1",
+    "@octokit/rest": "^22.0.1"
   }
 }
