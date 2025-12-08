@@ -204,8 +204,8 @@ export default function Map({
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
   const center = activeEvent 
-    ? [activeEvent.lat, activeEvent.lng - 8] 
-    : [38.5, -77.0];
+    ? [38.5, -73.0] 
+    : [38.5, -73.0];
   const zoom = 5;
 
   const terrainUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}';
@@ -225,7 +225,7 @@ export default function Map({
   return (
     <div className={`map-container ${darkMode ? 'dark' : 'light'}`}>
       <MapContainer
-        center={[38.5, -77.0]}
+        center={[38.5, -73.0]}
         zoom={5}
         minZoom={4}
         maxBounds={easternSeaboardBounds}
