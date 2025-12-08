@@ -204,9 +204,9 @@ export default function Map({
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
   const center = activeEvent 
-    ? [activeEvent.lat, activeEvent.lng - 5] 
+    ? [activeEvent.lat, activeEvent.lng - 8] 
     : [38.5, -77.0];
-  const zoom = activeEvent ? 5.5 : 5;
+  const zoom = 5;
 
   const terrainUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}';
   const darkTerrainUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
