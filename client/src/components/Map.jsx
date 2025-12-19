@@ -91,9 +91,9 @@ function MapController({ center, zoom, autoFly }) {
         prevCenter[1] !== center[1];
       
       if (centerChanged) {
-        map.flyTo(center, zoom, {
-          duration: 1.2,
-          easeLinearity: 0.25
+        map.setView(center, zoom, {
+          animate: true,
+          duration: 0.3
         });
         prevCenterRef.current = center;
       }
