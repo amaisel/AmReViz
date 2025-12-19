@@ -319,10 +319,7 @@ export default function Map({
         <MapController center={center} zoom={zoom} autoFly={autoFly} />
         
         {showColonies && colonyBoundaries && (
-          <>
-            <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
-            <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} events={visibleEvents} />
-          </>
+          <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
         )}
         
         {visibleEvents.map((event) => (
