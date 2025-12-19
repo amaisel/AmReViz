@@ -156,9 +156,6 @@ export default function ScrollytellingView({
             transition={{ duration: 0.3 }}
           />
         </div>
-        <div className="progress-label">
-          Event {currentEventIndex + 1} of {events.length}
-        </div>
       </div>
       
       {/* Pause/Map View Toggle */}
