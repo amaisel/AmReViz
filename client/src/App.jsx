@@ -38,12 +38,6 @@ function ViewToggle({ view, onViewChange }) {
         Timeline
       </button>
       <button 
-        className={view === 'map' ? 'active' : ''}
-        onClick={() => onViewChange('map')}
-      >
-        Map
-      </button>
-      <button 
         className={view === 'data' ? 'active' : ''}
         onClick={() => onViewChange('data')}
       >
@@ -186,57 +180,6 @@ export default function App() {
                 onEventClick={setActiveEventId}
                 darkMode={darkMode}
               />
-            </motion.div>
-          )}
-
-          {view === 'map' && (
-            <motion.div 
-              className="full-map-view"
-              key="map"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="map-controls">
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox"
-                    checked={showColonies}
-                    onChange={() => setShowColonies(!showColonies)}
-                  />
-                  Show Colony Boundaries
-                </label>
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox"
-                    checked={hideFutureEvents}
-                    onChange={() => setHideFutureEvents(!hideFutureEvents)}
-                  />
-                  Hide Future Events
-                </label>
-              </div>
-              <Map 
-                events={events}
-                colonyBoundaries={colonyBoundaries}
-                activeEventId={activeEventId}
-                onEventClick={setActiveEventId}
-                showColonies={showColonies}
-                darkMode={darkMode}
-                autoFly={false}
-                hideFutureEvents={hideFutureEvents}
-              />
-              <div className="map-event-list">
-                {events.map(event => (
-                  <button
-                    key={event.id}
-                    className={`map-event-btn ${event.id === activeEventId ? 'active' : ''}`}
-                    onClick={() => setActiveEventId(event.id)}
-                  >
-                    <span className="btn-year">{event.year}</span>
-                    <span className="btn-title">{event.title}</span>
-                  </button>
-                ))}
-              </div>
             </motion.div>
           )}
 
