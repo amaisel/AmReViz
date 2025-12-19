@@ -1279,6 +1279,7 @@ body.dark-mode {
   scrollbar-width: none;
   -ms-overflow-style: none;
   background: transparent;
+  box-shadow: none;
 }
 
 .scrolly-sections::-webkit-scrollbar {
