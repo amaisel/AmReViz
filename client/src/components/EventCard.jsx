@@ -41,7 +41,11 @@ export default function EventCard({ event, darkMode }) {
         
         <div className="event-card-meta">
           <span className="event-card-date">{formattedDate}</span>
-          <span className="event-card-location">{event.location}</span>
+          <span className="event-card-location">
+            {event.location.split('\n').map((line, i) => (
+              <span key={i}>{line}{i < event.location.split('\n').length - 1 && <br />}</span>
+            ))}
+          </span>
         </div>
         
         <p className="event-card-description">{event.description}</p>
