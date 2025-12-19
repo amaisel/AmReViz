@@ -15,6 +15,8 @@ export const events = [
   {
     id: 2,
     date: "1774-09-05",
+    endDate: "1774-10-26",
+    duration: "52 days",
     year: 1774,
     title: "First Continental Congress",
     location: "Carpenters' Hall, Philadelphia",
@@ -41,6 +43,8 @@ export const events = [
   {
     id: 4,
     date: "1775-05-10",
+    endDate: "1781-03-01",
+    duration: "~6 years (until Articles ratified)",
     year: 1775,
     title: "Second Continental Congress Convenes",
     location: "Independence Hall, Philadelphia",
@@ -106,6 +110,8 @@ export const events = [
   {
     id: 9,
     date: "1776-08-27",
+    endDate: "1776-08-30",
+    duration: "4 days (battle to evacuation)",
     year: 1776,
     title: "Battle of Long Island",
     location: "Brooklyn Heights, New York",
@@ -132,6 +138,8 @@ export const events = [
   {
     id: 11,
     date: "1777-10-17",
+    endDate: null,
+    duration: "Campaign: Sept 19 - Oct 17 (battles Sept 19 & Oct 7)",
     year: 1777,
     title: "British Surrender at Saratoga",
     location: "Saratoga, New York",
@@ -158,6 +166,8 @@ export const events = [
   {
     id: 13,
     date: "1777-12-19",
+    endDate: "1778-06-19",
+    duration: "6 months",
     year: 1777,
     title: "Valley Forge Winter Encampment",
     location: "Valley Forge, Pennsylvania",
@@ -184,6 +194,8 @@ export const events = [
   {
     id: 15,
     date: "1780-09-21",
+    endDate: "1780-09-25",
+    duration: "5 days (meeting to Arnold's escape)",
     year: 1780,
     title: "Arnold's Treason Discovered",
     location: "West Point, New York",
@@ -197,6 +209,8 @@ export const events = [
   {
     id: 16,
     date: "1781-10-19",
+    endDate: null,
+    duration: "Siege: Sept 28 - Oct 19 (3 weeks)",
     year: 1781,
     title: "Siege of Yorktown",
     location: "Yorktown, Virginia",

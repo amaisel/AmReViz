@@ -87,6 +87,24 @@ Runs on port 5000.
 - Removed duplicate popup from map markers - event details only show in the side card
 - Event card positioned over the Atlantic Ocean (380px wide)
 
+## Multi-Day Events Reference
+Some events span more than a single day. These have optional `endDate` and `duration` fields:
+
+| Event | Start Date | End Date | Duration |
+|-------|-----------|----------|----------|
+| First Continental Congress | 1774-09-05 | 1774-10-26 | 52 days |
+| Second Continental Congress | 1775-05-10 | 1781-03-01 | ~6 years |
+| Battle of Long Island | 1776-08-27 | 1776-08-30 | 4 days |
+| Saratoga Campaign | 1777-09-19 | 1777-10-17 | ~1 month |
+| Valley Forge | 1777-12-19 | 1778-06-19 | 6 months |
+| Arnold's Treason | 1780-09-21 | 1780-09-25 | 5 days |
+| Siege of Yorktown | 1781-09-28 | 1781-10-19 | 3 weeks |
+
+Future enhancement ideas:
+- Show duration visually on timeline (wider markers or spans)
+- Display date ranges in event cards when applicable
+- Add animation showing event progression over time
+
 ## User Preferences
 - Explain code relative to Python concepts when possible
 - Minimal color usage, clear and sleek design
