@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lethargy } from 'lethargy';
 import Map from './Map';
 import EventCard from './EventCard';
 
@@ -16,9 +15,7 @@ export default function ScrollytellingView({
   const scrollContainerRef = useRef(null);
   const eventSectionsRef = useRef([]);
   const isScrolling = useRef(false);
-  
-  // Lethargy filters out inertial/momentum scrolling from trackpads
-  const lethargy = useMemo(() => new Lethargy(), []);
+  const accumulatedDelta = useRef(0);
   
   const currentEvent = events[currentEventIndex];
   const currentYear = currentEvent?.year || 1773;
@@ -26,27 +23,27 @@ export default function ScrollytellingView({
   // Events visible up to current point in time
   const visibleEvents = events.slice(0, currentEventIndex + 1);
   
-  // Handle wheel events with Lethargy to filter momentum scrolling
+  // Handle wheel events - accumulate delta to require intentional scrolling
   useEffect(() => {
+    const SCROLL_THRESHOLD = 80; // Pixels of scroll needed to change event
+    
     const handleWheel = (e) => {
       if (isPaused || isScrolling.current) return;
       
-      // Lethargy returns false for inertial scrolling, 1/-1 for real scrolls
-      const scrollCheck = lethargy.check(e);
-      if (scrollCheck === false) return;
+      accumulatedDelta.current += e.deltaY;
       
-      isScrolling.current = true;
-      
-      if (scrollCheck === 1) {
-        // Scroll down - next event
-        setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-      } else if (scrollCheck === -1) {
-        // Scroll up - previous event
-        setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+      if (Math.abs(accumulatedDelta.current) >= SCROLL_THRESHOLD) {
+        isScrolling.current = true;
+        
+        if (accumulatedDelta.current > 0) {
+          setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+        } else {
+          setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+        }
+        
+        accumulatedDelta.current = 0;
+        setTimeout(() => { isScrolling.current = false; }, 400);
       }
-      
-      // Brief cooldown to prevent rapid changes
-      setTimeout(() => { isScrolling.current = false; }, 300);
     };
     
     const container = scrollContainerRef.current;
@@ -54,7 +51,7 @@ export default function ScrollytellingView({
       container.addEventListener('wheel', handleWheel, { passive: true });
       return () => container.removeEventListener('wheel', handleWheel);
     }
-  }, [events.length, isPaused, lethargy]);
+  }, [events.length, isPaused]);
   
   // Scroll to specific event
   const scrollToEvent = useCallback((index) => {
