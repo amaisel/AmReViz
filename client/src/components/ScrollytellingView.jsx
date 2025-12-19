@@ -73,34 +73,14 @@ export default function ScrollytellingView({
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault();
-        setCurrentEventIndex(prev => {
-          const nextIndex = Math.min(prev + 1, events.length - 1);
-          if (nextIndex !== prev) {
-            isKeyboardScrolling.current = true;
-            const container = scrollContainerRef.current;
-            if (container) {
-              const sectionHeight = window.innerHeight * 0.8;
-              container.scrollTop = nextIndex * sectionHeight;
-            }
-            setTimeout(() => { isKeyboardScrolling.current = false; }, 100);
-          }
-          return nextIndex;
-        });
+        isScrolling.current = true;
+        setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+        setTimeout(() => { isScrolling.current = false; }, 300);
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
-        setCurrentEventIndex(prev => {
-          const prevIndex = Math.max(prev - 1, 0);
-          if (prevIndex !== prev) {
-            isKeyboardScrolling.current = true;
-            const container = scrollContainerRef.current;
-            if (container) {
-              const sectionHeight = window.innerHeight * 0.8;
-              container.scrollTop = prevIndex * sectionHeight;
-            }
-            setTimeout(() => { isKeyboardScrolling.current = false; }, 100);
-          }
-          return prevIndex;
-        });
+        isScrolling.current = true;
+        setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+        setTimeout(() => { isScrolling.current = false; }, 300);
       }
     };
 
