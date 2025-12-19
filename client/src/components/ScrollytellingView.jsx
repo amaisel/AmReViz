@@ -170,21 +170,7 @@ export default function ScrollytellingView({
         <div className="story-section-end" />
       </div>
       
-      {/* Timeline Dots */}
-      <div className="scrolly-timeline-dots">
-        {events.map((event, index) => (
-          <button
-            key={event.id}
-            className={`timeline-dot ${index === currentEventIndex ? 'active' : ''} ${index < currentEventIndex ? 'passed' : ''}`}
-            onClick={() => {
-              setCurrentEventIndex(index);
-              scrollToEvent(index);
-            }}
-            title={`${event.year}: ${event.title}`}
-          />
-        ))}
-      </div>
-      
+            
       {/* Navigation Hints */}
       {currentEventIndex === 0 && (
         <motion.div 
