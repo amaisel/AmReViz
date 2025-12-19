@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Map from './components/Map';
 import HorizontalTimeline from './components/HorizontalTimeline';
 import EventCard from './components/EventCard';
+import WelcomeScreen from './components/WelcomeScreen';
+import ScrollytellingView from './components/ScrollytellingView';
 import { ArmyChart, TradeChart } from './components/Charts';
 import { events, armyData, economicData } from './data/events';
 import { colonyBoundaries } from './data/colonyBoundaries';
@@ -23,6 +25,12 @@ function ModeToggle({ darkMode, onToggle }) {
 function ViewToggle({ view, onViewChange }) {
   return (
     <div className="view-toggle">
+      <button 
+        className={view === 'story' ? 'active' : ''}
+        onClick={() => onViewChange('story')}
+      >
+        Story
+      </button>
       <button 
         className={view === 'timeline' ? 'active' : ''}
         onClick={() => onViewChange('timeline')}
@@ -82,7 +90,7 @@ function DataView({ activeYear, darkMode }) {
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [activeEventId, setActiveEventId] = useState(null);
-  const [view, setView] = useState('timeline');
+  const [view, setView] = useState('welcome');
   const [showColonies, setShowColonies] = useState(true);
   const [hideFutureEvents, setHideFutureEvents] = useState(false);
   
@@ -92,21 +100,66 @@ export default function App() {
     document.body.className = darkMode ? 'dark-mode' : 'light-mode';
   }, [darkMode]);
 
+  const handleBeginJourney = () => {
+    setView('story');
+  };
+
+  const handleExitToWelcome = () => {
+    setView('welcome');
+  };
+
+  const showHeader = view !== 'welcome';
+
   return (
     <div className={`app ${darkMode ? 'dark' : 'light'}`}>
-      <header className="app-header">
-        <div className="header-content">
-          <h1>The American Revolution</h1>
-          <p>An Interactive Journey Through Independence</p>
-        </div>
-        <div className="header-controls">
-          <ViewToggle view={view} onViewChange={setView} />
-          <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(!darkMode)} />
-        </div>
-      </header>
+      <AnimatePresence>
+        {showHeader && (
+          <motion.header 
+            className="app-header"
+            initial={{ y: -64, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -64, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="header-content">
+              <h1>The American Revolution</h1>
+              <p>An Interactive Journey Through Independence</p>
+            </div>
+            <div className="header-controls">
+              <ViewToggle view={view} onViewChange={setView} />
+              <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(!darkMode)} />
+            </div>
+          </motion.header>
+        )}
+      </AnimatePresence>
 
-      <main className="app-main">
+      <main className={`app-main ${view === 'welcome' ? 'no-header' : ''}`}>
         <AnimatePresence mode="wait">
+          {view === 'welcome' && (
+            <WelcomeScreen 
+              key="welcome"
+              onBegin={handleBeginJourney} 
+              darkMode={darkMode} 
+            />
+          )}
+
+          {view === 'story' && (
+            <motion.div
+              key="story"
+              className="story-view-wrapper"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <ScrollytellingView
+                events={events}
+                colonyBoundaries={colonyBoundaries}
+                darkMode={darkMode}
+                onExitToWelcome={handleExitToWelcome}
+              />
+            </motion.div>
+          )}
+
           {view === 'timeline' && (
             <motion.div 
               className="timeline-view"
