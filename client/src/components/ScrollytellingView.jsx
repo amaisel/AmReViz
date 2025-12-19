@@ -15,6 +15,8 @@ export default function ScrollytellingView({
   const scrollContainerRef = useRef(null);
   const eventSectionsRef = useRef([]);
   const isKeyboardScrolling = useRef(false);
+  const scrollTimeoutRef = useRef(null);
+  const lastScrollTime = useRef(0);
   
   const currentEvent = events[currentEventIndex];
   const currentYear = currentEvent?.year || 1773;
@@ -22,31 +24,49 @@ export default function ScrollytellingView({
   // Events visible up to current point in time
   const visibleEvents = events.slice(0, currentEventIndex + 1);
   
-  // Handle scroll to update current event
+  // Handle scroll to update current event with debouncing for trackpad
   useEffect(() => {
     const handleScroll = () => {
       if (isPaused || isKeyboardScrolling.current) return;
       
-      const container = scrollContainerRef.current;
-      if (!container) return;
+      const now = Date.now();
+      const timeSinceLastScroll = now - lastScrollTime.current;
       
-      const scrollTop = container.scrollTop;
-      const sectionHeight = window.innerHeight * 0.8;
-      
-      const newIndex = Math.min(
-        Math.floor(scrollTop / sectionHeight),
-        events.length - 1
-      );
-      
-      if (newIndex !== currentEventIndex && newIndex >= 0) {
-        setCurrentEventIndex(newIndex);
+      // Clear any pending timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
       }
+      
+      // Debounce: wait for scroll to settle before updating index
+      scrollTimeoutRef.current = setTimeout(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        
+        const scrollTop = container.scrollTop;
+        const sectionHeight = window.innerHeight * 0.8;
+        
+        const newIndex = Math.min(
+          Math.floor((scrollTop + sectionHeight * 0.3) / sectionHeight),
+          events.length - 1
+        );
+        
+        if (newIndex !== currentEventIndex && newIndex >= 0) {
+          setCurrentEventIndex(newIndex);
+        }
+        
+        lastScrollTime.current = Date.now();
+      }, timeSinceLastScroll < 50 ? 100 : 30); // Longer debounce for rapid scrolling
     };
     
     const container = scrollContainerRef.current;
     if (container) {
       container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => container.removeEventListener('scroll', handleScroll);
+      return () => {
+        container.removeEventListener('scroll', handleScroll);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      };
     }
   }, [currentEventIndex, events.length, isPaused]);
   
