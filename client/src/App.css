@@ -602,19 +602,25 @@ body.dark-mode {
   position: absolute;
   top: 80px;
   right: 20px;
-  width: 380px;
+  width: 340px;
   max-height: calc(100% - 120px);
   overflow-y: auto;
-  background: var(--color-white);
+  background: rgba(255, 254, 245, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
   padding: 1.25rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(30, 58, 95, 0.12);
   z-index: 500;
 }
 
 .event-card-fixed.dark {
-  background: #1a1a2e;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  background: rgba(26, 26, 46, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(139, 163, 196, 0.15);
 }
 
 .event-card-type-badge {
