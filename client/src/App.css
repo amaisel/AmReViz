@@ -1290,6 +1290,10 @@ body.dark-mode {
   box-shadow: none;
 }
 
+.scrolly-sections.paused {
+  pointer-events: none;
+}
+
 .scrolly-sections::-webkit-scrollbar {
   display: none;
 }

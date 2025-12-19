@@ -186,7 +186,7 @@ export default function ScrollytellingView({
       
       {/* Scrollable Story Sections */}
       <div 
-        className="scrolly-sections"
+        className={`scrolly-sections ${isPaused ? 'paused' : ''}`}
         ref={scrollContainerRef}
       >
         {events.map((event, index) => (
