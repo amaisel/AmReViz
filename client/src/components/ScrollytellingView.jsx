@@ -12,6 +12,7 @@ export default function ScrollytellingView({
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
+  const [fillColonies, setFillColonies] = useState(false);
   const scrollContainerRef = useRef(null);
   const eventSectionsRef = useRef([]);
   const isScrolling = useRef(false);
@@ -112,6 +113,7 @@ export default function ScrollytellingView({
             }
           }}
           showColonies={true}
+          fillColonies={fillColonies}
           darkMode={darkMode}
           hideFutureEvents={false}
         />
@@ -149,6 +151,15 @@ export default function ScrollytellingView({
         >
           {isPaused ? 'Resume Story' : 'Pause & Explore'}
         </button>
+        
+        <label className="checkbox-label">
+          <input 
+            type="checkbox"
+            checked={fillColonies}
+            onChange={() => setFillColonies(!fillColonies)}
+          />
+          Color colonies
+        </label>
         
         {isPaused && (
           <motion.div 

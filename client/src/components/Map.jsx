@@ -103,17 +103,49 @@ function MapController({ center, zoom, autoFly }) {
   return null;
 }
 
-function ColonyBoundaries({ boundaries, darkMode }) {
+const colonyColors = {
+  'Massachusetts': '#8B0000',
+  'New Hampshire': '#2F4F4F',
+  'Connecticut': '#4169E1',
+  'Rhode Island': '#9932CC',
+  'New York': '#FF8C00',
+  'New Jersey': '#DAA520',
+  'Pennsylvania': '#228B22',
+  'Delaware': '#20B2AA',
+  'Maryland': '#CD853F',
+  'Virginia': '#DC143C',
+  'North Carolina': '#6B8E23',
+  'South Carolina': '#4682B4',
+  'Georgia': '#D2691E'
+};
+
+function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
   const [hoveredColony, setHoveredColony] = useState(null);
 
-  const style = (feature) => ({
-    fillColor: darkMode ? 'rgba(139, 35, 35, 0.15)' : 'rgba(30, 58, 95, 0.08)',
-    weight: 2,
-    opacity: 0.8,
-    color: darkMode ? 'rgba(200, 180, 160, 0.6)' : 'rgba(101, 67, 33, 0.5)',
-    fillOpacity: hoveredColony === feature.properties.name ? 0.3 : 0.1,
-    dashArray: '4, 4'
-  });
+  const style = (feature) => {
+    const colonyName = feature.properties.name;
+    const baseColor = colonyColors[colonyName] || (darkMode ? 'rgba(139, 35, 35, 0.15)' : 'rgba(30, 58, 95, 0.08)');
+    
+    if (fillColonies) {
+      return {
+        fillColor: baseColor,
+        weight: 2,
+        opacity: 0.9,
+        color: darkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.4)',
+        fillOpacity: hoveredColony === colonyName ? 0.5 : 0.35,
+        dashArray: null
+      };
+    }
+    
+    return {
+      fillColor: darkMode ? 'rgba(139, 35, 35, 0.15)' : 'rgba(30, 58, 95, 0.08)',
+      weight: 2,
+      opacity: 0.8,
+      color: darkMode ? 'rgba(200, 180, 160, 0.6)' : 'rgba(101, 67, 33, 0.5)',
+      fillOpacity: hoveredColony === colonyName ? 0.3 : 0.1,
+      dashArray: '4, 4'
+    };
+  };
 
   const onEachFeature = (feature, layer) => {
     const props = feature.properties;
@@ -149,9 +181,9 @@ function ColonyBoundaries({ boundaries, darkMode }) {
       mouseout: (e) => {
         setHoveredColony(null);
         e.target.setStyle({
-          fillOpacity: 0.1,
+          fillOpacity: fillColonies ? 0.35 : 0.1,
           weight: 2,
-          dashArray: '4, 4'
+          dashArray: fillColonies ? null : '4, 4'
         });
       }
     });
@@ -197,6 +229,7 @@ export default function Map({
   activeEventId, 
   onEventClick,
   showColonies,
+  fillColonies = false,
   darkMode,
   autoFly = true,
   hideFutureEvents = false
@@ -254,7 +287,7 @@ export default function Map({
         
         {showColonies && colonyBoundaries && (
           <>
-            <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} />
+            <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
             <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} />
           </>
         )}
