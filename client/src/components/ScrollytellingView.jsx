@@ -12,7 +12,7 @@ export default function ScrollytellingView({
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
-  const [fillColonies, setFillColonies] = useState(false);
+  const [fillColonies, setFillColonies] = useState(true);
   const scrollContainerRef = useRef(null);
   const eventSectionsRef = useRef([]);
   const isScrolling = useRef(false);

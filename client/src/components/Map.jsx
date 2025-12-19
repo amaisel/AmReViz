@@ -105,6 +105,8 @@ function MapController({ center, zoom, autoFly }) {
 
 const colonyColors = {
   'Massachusetts': '#8B0000',
+  'Maine': '#8B0000',
+  'District of Maine': '#8B0000',
   'New Hampshire': '#2F4F4F',
   'Connecticut': '#4169E1',
   'Rhode Island': '#9932CC',
