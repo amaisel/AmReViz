@@ -1,6 +1,44 @@
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 export default function WelcomeScreen({ onBegin, darkMode }) {
+  const scrollThreshold = useRef(0);
+  const hasTriggered = useRef(false);
+
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (hasTriggered.current) return;
+      
+      if (e.deltaY > 0) {
+        scrollThreshold.current += e.deltaY;
+        
+        if (scrollThreshold.current > 100) {
+          hasTriggered.current = true;
+          onBegin();
+        }
+      } else {
+        scrollThreshold.current = Math.max(0, scrollThreshold.current + e.deltaY);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (hasTriggered.current) return;
+      
+      if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'Enter') {
+        hasTriggered.current = true;
+        onBegin();
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onBegin]);
+
   return (
     <motion.div 
       className={`welcome-screen ${darkMode ? 'dark' : ''}`}

@@ -10,15 +10,20 @@ client/                     # React frontend application
 │   ├── components/
 │   │   ├── Map.jsx              # Interactive Leaflet map with vintage styling
 │   │   ├── HorizontalTimeline.jsx  # Horizontal scrolling timeline (time flows left to right)
+│   │   ├── WelcomeScreen.jsx    # Intro screen with scroll-to-start
+│   │   ├── ScrollytellingView.jsx  # Scroll-driven story progression
+│   │   ├── EventCard.jsx        # Event details card
 │   │   └── Charts.jsx           # Recharts visualizations for army/trade data
 │   ├── data/
 │   │   └── events.js            # Historical events, army data, economic data
-│   ├── App.jsx                  # Main app with view switching
+│   ├── App.jsx                  # Main app with view switching (welcome → story → timeline/map/data)
 │   └── App.css                  # Vintage colonial styling
 └── vite.config.js               # Vite configuration
 ```
 
 ## Features
+- **Welcome Screen**: Intro page with project description, scroll or click to begin
+- **Story View**: Scrollytelling experience - scroll advances through events chronologically with map auto-flying to each location
 - **Timeline View**: Map on top with horizontal scrolling timeline at bottom (1773→1783)
 - **Event Card**: Fixed card on right side showing selected event details (positioned over Atlantic)
 - **State Boundaries**: Accurate colonial boundary polygons with hover tooltips (population, exports, trade data)
@@ -27,6 +32,7 @@ client/                     # React frontend application
 - **Light/Dark Mode**: Toggle between light (vintage sepia) and dark themes
 - **Vintage Styling**: Colonial-inspired design with Playfair Display font and period-appropriate colors
 - **Historical Accuracy**: Label-free map tiles (no modern city names), all 13 colonial boundaries
+- **Pause & Explore**: In story mode, pause to explore the map at current time period
 
 ## Color Scheme
 - **Blue (#1e3a5f)**: American/Colonial forces
@@ -47,6 +53,12 @@ cd client && npm run dev
 Runs on port 5000.
 
 ## Recent Changes
+- Dec 2024: Added scrollytelling experience inspired by The Upshot/FiveThirtyEight
+  - Welcome screen with animated intro and scroll-to-start
+  - Story view with scroll-linked event progression
+  - Year counter and progress indicator
+  - Pause & Explore mode to examine map at current time
+  - Navigation dots for jumping between events
 - Dec 2024: Switched to ESRI Shaded Relief tiles for terrain-focused colonial aesthetic
 - Added accurate GeoJSON polygon boundaries for all 13 colonies with dashed borders
 - Added colonial-style labels on map (Playfair Display italic font, 2-letter abbreviations for all colonies)
