@@ -14,6 +14,7 @@ export default function ScrollytellingView({
   const [showAllEvents, setShowAllEvents] = useState(false);
   const scrollContainerRef = useRef(null);
   const eventSectionsRef = useRef([]);
+  const isKeyboardScrolling = useRef(false);
   
   const currentEvent = events[currentEventIndex];
   const currentYear = currentEvent?.year || 1773;
@@ -24,7 +25,7 @@ export default function ScrollytellingView({
   // Handle scroll to update current event
   useEffect(() => {
     const handleScroll = () => {
-      if (isPaused) return;
+      if (isPaused || isKeyboardScrolling.current) return;
       
       const container = scrollContainerRef.current;
       if (!container) return;
@@ -68,15 +69,19 @@ export default function ScrollytellingView({
         e.preventDefault();
         const nextIndex = Math.min(currentEventIndex + 1, events.length - 1);
         if (nextIndex !== currentEventIndex) {
+          isKeyboardScrolling.current = true;
           setCurrentEventIndex(nextIndex);
           scrollToEvent(nextIndex);
+          setTimeout(() => { isKeyboardScrolling.current = false; }, 500);
         }
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
         const prevIndex = Math.max(currentEventIndex - 1, 0);
         if (prevIndex !== currentEventIndex) {
+          isKeyboardScrolling.current = true;
           setCurrentEventIndex(prevIndex);
           scrollToEvent(prevIndex);
+          setTimeout(() => { isKeyboardScrolling.current = false; }, 500);
         }
       }
     };
