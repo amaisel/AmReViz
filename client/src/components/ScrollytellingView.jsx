@@ -44,7 +44,7 @@ export default function ScrollytellingView({
       const timeSinceLastChange = now - lastScrollTime.current;
       
       if (newIndex !== currentEventIndex && newIndex >= 0) {
-        if (timeSinceLastChange > 150) { // Only update if 150ms since last change
+        if (timeSinceLastChange > 250) { // Only update if 250ms since last change
           setCurrentEventIndex(newIndex);
           lastScrollTime.current = now;
         }
