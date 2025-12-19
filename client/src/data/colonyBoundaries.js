@@ -30,7 +30,7 @@ export const colonyBoundaries = {
       "type": "Feature",
       "properties": {
         "name": "District of Maine",
-        "abbrev": "ME",
+        "abbrev": "ME (MA)",
         "population": 30000,
         "exports": 50000,
         "mainExport": "Lumber & Fish",
@@ -90,8 +90,8 @@ export const colonyBoundaries = {
         "mainExport": "Rum & Trade",
         "founded": 1636,
         "capital": "Providence",
-        "labelLat": 41.7,
-        "labelLng": -71.5
+        "labelLat": 41.55,
+        "labelLng": -71.45
       },
       "geometry": {
         "type": "Polygon",
@@ -220,7 +220,7 @@ export const colonyBoundaries = {
         "mainExport": "Grain & Flour",
         "founded": 1638,
         "capital": "Dover",
-        "labelLat": 39.0,
+        "labelLat": 39.15,
         "labelLng": -75.5
       },
       "geometry": {
@@ -244,8 +244,8 @@ export const colonyBoundaries = {
         "mainExport": "Tobacco",
         "founded": 1634,
         "capital": "Annapolis",
-        "labelLat": 39.0,
-        "labelLng": -77.0
+        "labelLat": 39.3,
+        "labelLng": -76.6
       },
       "geometry": {
         "type": "Polygon",
