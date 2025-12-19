@@ -60,6 +60,30 @@ export default function ScrollytellingView({
       });
     }
   }, []);
+
+  // Arrow key navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextIndex = Math.min(currentEventIndex + 1, events.length - 1);
+        if (nextIndex !== currentEventIndex) {
+          setCurrentEventIndex(nextIndex);
+          scrollToEvent(nextIndex);
+        }
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prevIndex = Math.max(currentEventIndex - 1, 0);
+        if (prevIndex !== currentEventIndex) {
+          setCurrentEventIndex(prevIndex);
+          scrollToEvent(prevIndex);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentEventIndex, events.length, scrollToEvent]);
   
   // Handle pause mode toggle
   const togglePause = () => {
