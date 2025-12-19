@@ -67,28 +67,40 @@ export default function ScrollytellingView({
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault();
-        const nextIndex = Math.min(currentEventIndex + 1, events.length - 1);
-        if (nextIndex !== currentEventIndex) {
-          isKeyboardScrolling.current = true;
-          setCurrentEventIndex(nextIndex);
-          scrollToEvent(nextIndex);
-          setTimeout(() => { isKeyboardScrolling.current = false; }, 500);
-        }
+        setCurrentEventIndex(prev => {
+          const nextIndex = Math.min(prev + 1, events.length - 1);
+          if (nextIndex !== prev) {
+            isKeyboardScrolling.current = true;
+            const container = scrollContainerRef.current;
+            if (container) {
+              const sectionHeight = window.innerHeight * 0.8;
+              container.scrollTop = nextIndex * sectionHeight;
+            }
+            setTimeout(() => { isKeyboardScrolling.current = false; }, 100);
+          }
+          return nextIndex;
+        });
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
-        const prevIndex = Math.max(currentEventIndex - 1, 0);
-        if (prevIndex !== currentEventIndex) {
-          isKeyboardScrolling.current = true;
-          setCurrentEventIndex(prevIndex);
-          scrollToEvent(prevIndex);
-          setTimeout(() => { isKeyboardScrolling.current = false; }, 500);
-        }
+        setCurrentEventIndex(prev => {
+          const prevIndex = Math.max(prev - 1, 0);
+          if (prevIndex !== prev) {
+            isKeyboardScrolling.current = true;
+            const container = scrollContainerRef.current;
+            if (container) {
+              const sectionHeight = window.innerHeight * 0.8;
+              container.scrollTop = prevIndex * sectionHeight;
+            }
+            setTimeout(() => { isKeyboardScrolling.current = false; }, 100);
+          }
+          return prevIndex;
+        });
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentEventIndex, events.length, scrollToEvent]);
+  }, [events.length]);
   
   // Handle pause mode toggle
   const togglePause = () => {
