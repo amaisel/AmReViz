@@ -12,6 +12,7 @@
   "description": "",
   "dependencies": {
     "@doist/todoist-api-typescript": "^6.2.1",
-    "@octokit/rest": "^22.0.1"
+    "@octokit/rest": "^22.0.1",
+    "lethargy": "^1.0.9"
   }
 }

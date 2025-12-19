@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Lethargy } from 'lethargy';
 import Map from './Map';
 import EventCard from './EventCard';
 
@@ -14,8 +15,10 @@ export default function ScrollytellingView({
   const [showAllEvents, setShowAllEvents] = useState(false);
   const scrollContainerRef = useRef(null);
   const eventSectionsRef = useRef([]);
-  const isKeyboardScrolling = useRef(false);
-  const lastScrollTime = useRef(0);
+  const isScrolling = useRef(false);
+  
+  // Lethargy filters out inertial/momentum scrolling from trackpads
+  const lethargy = useMemo(() => new Lethargy(), []);
   
   const currentEvent = events[currentEventIndex];
   const currentYear = currentEvent?.year || 1773;
@@ -23,40 +26,35 @@ export default function ScrollytellingView({
   // Events visible up to current point in time
   const visibleEvents = events.slice(0, currentEventIndex + 1);
   
-  // Handle scroll to update current event
+  // Handle wheel events with Lethargy to filter momentum scrolling
   useEffect(() => {
-    const handleScroll = () => {
-      if (isPaused || isKeyboardScrolling.current) return;
+    const handleWheel = (e) => {
+      if (isPaused || isScrolling.current) return;
       
-      const container = scrollContainerRef.current;
-      if (!container) return;
+      // Lethargy returns false for inertial scrolling, 1/-1 for real scrolls
+      const scrollCheck = lethargy.check(e);
+      if (scrollCheck === false) return;
       
-      const scrollTop = container.scrollTop;
-      const sectionHeight = window.innerHeight * 0.8;
+      isScrolling.current = true;
       
-      const newIndex = Math.min(
-        Math.floor(scrollTop / sectionHeight),
-        events.length - 1
-      );
-      
-      // Prevent too-fast index changes (double-scroll protection)
-      const now = Date.now();
-      const timeSinceLastChange = now - lastScrollTime.current;
-      
-      if (newIndex !== currentEventIndex && newIndex >= 0) {
-        if (timeSinceLastChange > 250) { // Only update if 250ms since last change
-          setCurrentEventIndex(newIndex);
-          lastScrollTime.current = now;
-        }
+      if (scrollCheck === 1) {
+        // Scroll down - next event
+        setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+      } else if (scrollCheck === -1) {
+        // Scroll up - previous event
+        setCurrentEventIndex(prev => Math.max(prev - 1, 0));
       }
+      
+      // Brief cooldown to prevent rapid changes
+      setTimeout(() => { isScrolling.current = false; }, 300);
     };
     
     const container = scrollContainerRef.current;
     if (container) {
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => container.removeEventListener('scroll', handleScroll);
+      container.addEventListener('wheel', handleWheel, { passive: true });
+      return () => container.removeEventListener('wheel', handleWheel);
     }
-  }, [currentEventIndex, events.length, isPaused]);
+  }, [events.length, isPaused, lethargy]);
   
   // Scroll to specific event
   const scrollToEvent = useCallback((index) => {
