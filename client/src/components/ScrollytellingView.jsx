@@ -210,8 +210,10 @@ export default function ScrollytellingView({
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          <p>Independence Secured</p>
-          <button onClick={onExitToWelcome}>Start Over</button>
+          <p>End of Timeline</p>
+          <div className="story-end-actions">
+            <button onClick={onExitToWelcome}>Start Over</button>
+          </div>
         </motion.div>
       )}
     </div>
