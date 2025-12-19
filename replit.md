@@ -1,7 +1,7 @@
 # Visualize AmRev - American Revolution Visualization
 
 ## Overview
-An interactive visualization of the American Revolution, featuring a horizontal timeline of key events from the Boston Tea Party (1773) through Washington resigning his commission (1783). Built with React, Leaflet maps, and Framer Motion animations.
+An interactive visualization of the American Revolution, featuring a horizontal timeline of 18 key events from the Boston Tea Party (1773) through Washington resigning his commission (1783). Events include battles, political milestones, cultural moments, and military operations. Built with React, Leaflet maps, and Framer Motion animations.
 
 ## Project Structure
 ```
@@ -53,6 +53,16 @@ cd client && npm run dev
 Runs on port 5000.
 
 ## Recent Changes
+- Dec 2024: Expanded timeline from 9 to 18 events with diverse event types:
+  - First Continental Congress (1774) - political
+  - Second Continental Congress Convenes (1775) - political
+  - Publication of Common Sense (1776) - political/cultural
+  - British Evacuation of Boston (1776) - military
+  - Battle of Long Island (1776) - battle
+  - Articles of Confederation Adopted (1777) - political
+  - Battle of Monmouth (1778) - battle
+  - Arnold's Treason Discovered (1780) - political
+  - British Evacuation of New York (1783) - military
 - Dec 2024: Added scrollytelling experience inspired by The Upshot/FiveThirtyEight
   - Welcome screen with animated intro and scroll-to-start
   - Story view with scroll-linked event progression

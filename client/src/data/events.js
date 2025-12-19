@@ -14,6 +14,19 @@ export const events = [
   },
   {
     id: 2,
+    date: "1774-09-05",
+    year: 1774,
+    title: "First Continental Congress",
+    location: "Carpenters' Hall, Philadelphia",
+    lat: 39.9471,
+    lng: -75.1475,
+    type: "political",
+    side: "american",
+    description: "Delegates from 12 colonies (Georgia abstained) met at Carpenters' Hall to coordinate a response to the Intolerable Acts. They created the Continental Association to boycott British goods and drafted a Declaration of Rights outlining colonial grievances to King George III.",
+    significance: "First unified colonial action; established framework for intercolonial cooperation that would become the foundation of American government."
+  },
+  {
+    id: 3,
     date: "1775-04-19",
     year: 1775,
     title: "Battles of Lexington and Concord",
@@ -26,7 +39,20 @@ export const events = [
     significance: "First military engagements of the Revolutionary War; proved colonists would fight."
   },
   {
-    id: 3,
+    id: 4,
+    date: "1775-05-10",
+    year: 1775,
+    title: "Second Continental Congress Convenes",
+    location: "Independence Hall, Philadelphia",
+    lat: 39.9489,
+    lng: -75.1500,
+    type: "political",
+    side: "american",
+    description: "Delegates reconvened in Philadelphia just weeks after Lexington and Concord. On June 14, they voted to create the Continental Army, and on June 15, unanimously elected George Washington as Commander-in-Chief. John Hancock served as president of this Congress.",
+    significance: "Created the Continental Army and unified military command; established the governing body that would declare independence."
+  },
+  {
+    id: 5,
     date: "1775-06-17",
     year: 1775,
     title: "Battle of Bunker Hill",
@@ -39,7 +65,33 @@ export const events = [
     significance: "Though a British victory, it proved American forces could stand against professional soldiers."
   },
   {
-    id: 4,
+    id: 6,
+    date: "1776-01-10",
+    year: 1776,
+    title: "Publication of Common Sense",
+    location: "Philadelphia, Pennsylvania",
+    lat: 39.9526,
+    lng: -75.1652,
+    type: "political",
+    side: "american",
+    description: "Thomas Paine anonymously published his 47-page pamphlet arguing for complete independence from Britain. Written in plain language accessible to common colonists, it sold 120,000 copies in three months and 500,000 by year's end—the best-selling American publication relative to population.",
+    significance: "Transformed the debate from colonial rights to full independence; galvanized public support for revolution."
+  },
+  {
+    id: 7,
+    date: "1776-03-17",
+    year: 1776,
+    title: "British Evacuation of Boston",
+    location: "Dorchester Heights, Boston",
+    lat: 42.3314,
+    lng: -71.0535,
+    type: "military",
+    side: "american",
+    description: "After Washington's forces secretly fortified Dorchester Heights with cannons hauled from Fort Ticonderoga, the British position became untenable. General Howe evacuated 11,000 troops and 1,000 Loyalists on 120 ships to Halifax, ending the 11-month Siege of Boston.",
+    significance: "First major American victory; liberated Boston and drove the British from New England."
+  },
+  {
+    id: 8,
     date: "1776-07-04",
     year: 1776,
     title: "Declaration of Independence",
@@ -52,7 +104,20 @@ export const events = [
     significance: "Birth of the United States as an independent nation; defined American ideals of liberty and equality."
   },
   {
-    id: 5,
+    id: 9,
+    date: "1776-08-27",
+    year: 1776,
+    title: "Battle of Long Island",
+    location: "Brooklyn Heights, New York",
+    lat: 40.6892,
+    lng: -73.9975,
+    type: "battle",
+    side: "british",
+    description: "The largest battle of the Revolutionary War, with 40,000 troops engaged. British forces outflanked Washington's army, inflicting over 1,000 casualties. The Maryland 400 made a heroic stand at Gowanus Creek. Washington masterfully evacuated his entire army across the East River under cover of fog.",
+    significance: "Largest battle of the war; British captured New York City for seven years, but Washington's army survived to fight on."
+  },
+  {
+    id: 10,
     date: "1776-12-26",
     year: 1776,
     title: "Battle of Trenton",
@@ -65,7 +130,7 @@ export const events = [
     significance: "Restored American morale after devastating losses; proved Washington's tactical genius."
   },
   {
-    id: 6,
+    id: 11,
     date: "1777-10-17",
     year: 1777,
     title: "British Surrender at Saratoga",
@@ -78,20 +143,59 @@ export const events = [
     significance: "Turning point of the war; secured crucial French alliance with military and financial support."
   },
   {
-    id: 7,
+    id: 12,
+    date: "1777-11-15",
+    year: 1777,
+    title: "Articles of Confederation Adopted",
+    location: "York, Pennsylvania",
+    lat: 39.9626,
+    lng: -76.7277,
+    type: "political",
+    side: "american",
+    description: "Meeting in York while the British occupied Philadelphia, Congress adopted America's first constitution after 16 months of debate. Written primarily by John Dickinson, the Articles created a loose confederation of sovereign states with a weak central government.",
+    significance: "First framework for American national government; held the states together until replaced by the Constitution in 1789."
+  },
+  {
+    id: 13,
     date: "1777-12-19",
     year: 1777,
     title: "Valley Forge Winter Encampment",
     location: "Valley Forge, Pennsylvania",
     lat: 40.1033,
     lng: -75.4444,
-    type: "political",
+    type: "military",
     side: "american",
     description: "The Continental Army endured a brutal winter at Valley Forge. Despite losing nearly 2,000 men to cold, disease, and starvation, the army emerged stronger. Baron von Steuben drilled the troops into a professional fighting force, transforming them from militia to soldiers.",
     significance: "Crucible that forged the Continental Army into an effective fighting force; symbol of American perseverance."
   },
   {
-    id: 8,
+    id: 14,
+    date: "1778-06-28",
+    year: 1778,
+    title: "Battle of Monmouth",
+    location: "Monmouth Court House, New Jersey",
+    lat: 40.2593,
+    lng: -74.2765,
+    type: "battle",
+    side: "american",
+    description: "In sweltering 100°F heat, the Continental Army engaged retreating British forces in the longest single-day battle of the war. Washington rallied his troops after General Charles Lee ordered a retreat. Legend holds that 'Molly Pitcher' manned a cannon after her husband fell.",
+    significance: "Proved Valley Forge training had transformed the Continental Army; last major battle in the North."
+  },
+  {
+    id: 15,
+    date: "1780-09-21",
+    year: 1780,
+    title: "Arnold's Treason Discovered",
+    location: "West Point, New York",
+    lat: 41.3915,
+    lng: -73.9565,
+    type: "political",
+    side: "british",
+    description: "American General Benedict Arnold's plot to surrender West Point to the British was exposed when Major John André was captured with incriminating papers. Arnold fled to the British ship HMS Vulture just hours before Washington arrived. André was hanged as a spy.",
+    significance: "Most infamous betrayal in American history; 'Benedict Arnold' became synonymous with traitor."
+  },
+  {
+    id: 16,
     date: "1781-10-19",
     year: 1781,
     title: "Siege of Yorktown",
@@ -104,7 +208,20 @@ export const events = [
     significance: "Last major battle; effectively ended the war and British hopes of retaining the colonies."
   },
   {
-    id: 9,
+    id: 17,
+    date: "1783-11-25",
+    year: 1783,
+    title: "British Evacuation of New York",
+    location: "Manhattan, New York",
+    lat: 40.7033,
+    lng: -74.0170,
+    type: "military",
+    side: "american",
+    description: "After seven years of occupation, the last British troops departed Manhattan as Washington and the Continental Army marched in from the north. Over 29,000 Loyalists and 3,000 formerly enslaved people left with the British fleet. Celebrated as 'Evacuation Day' for over a century.",
+    significance: "Final British departure from American soil; marked the true end of the Revolutionary War."
+  },
+  {
+    id: 18,
     date: "1783-12-23",
     year: 1783,
     title: "Washington Resigns Commission",
