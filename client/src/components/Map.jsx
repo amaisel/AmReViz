@@ -200,17 +200,48 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
   );
 }
 
-function ColonyLabels({ boundaries, darkMode }) {
+function ColonyLabels({ boundaries, darkMode, events = [] }) {
+  const getAdjustedPosition = (labelLat, labelLng) => {
+    const PROXIMITY_THRESHOLD = 1.2;
+    const OFFSET_AMOUNT = 0.8;
+    
+    let offsetLat = 0;
+    let offsetLng = 0;
+    
+    for (const event of events) {
+      const latDiff = Math.abs(event.lat - labelLat);
+      const lngDiff = Math.abs(event.lng - labelLng);
+      
+      if (latDiff < PROXIMITY_THRESHOLD && lngDiff < PROXIMITY_THRESHOLD) {
+        if (event.lat > labelLat) {
+          offsetLat -= OFFSET_AMOUNT;
+        } else {
+          offsetLat += OFFSET_AMOUNT;
+        }
+        if (event.lng > labelLng) {
+          offsetLng -= OFFSET_AMOUNT * 0.5;
+        } else {
+          offsetLng += OFFSET_AMOUNT * 0.5;
+        }
+        break;
+      }
+    }
+    
+    return [labelLat + offsetLat, labelLng + offsetLng];
+  };
+  
   return (
     <>
       {boundaries.features.map((feature) => {
         const props = feature.properties;
         if (!props.labelLat || !props.labelLng) return null;
         
+        const position = getAdjustedPosition(props.labelLat, props.labelLng);
+        
         return (
           <Marker
             key={`label-${props.name}`}
-            position={[props.labelLat, props.labelLng]}
+            position={position}
             icon={createColonyLabel(props.abbrev, darkMode)}
             interactive={false}
           />
@@ -290,7 +321,7 @@ export default function Map({
         {showColonies && colonyBoundaries && (
           <>
             <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
-            <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} />
+            <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} events={visibleEvents} />
           </>
         )}
         
