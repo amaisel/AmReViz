@@ -8,7 +8,7 @@ const createEventIcon = (type, side, isActive, isFuture = false) => {
     american: '#1e3a5f',
     british: '#8b2323'
   };
-  
+
   const symbols = {
     battle: '⚔',
     political: '📜',
@@ -21,7 +21,7 @@ const createEventIcon = (type, side, isActive, isFuture = false) => {
   const bgColor = isActive ? borderColor : '#fffef5';
   const textColor = isActive ? '#fffef5' : borderColor;
   const shadowOpacity = isFuture ? 0.15 : 0.35;
-  
+
   return L.divIcon({
     className: 'custom-marker',
     html: `
@@ -44,14 +44,14 @@ const createEventIcon = (type, side, isActive, isFuture = false) => {
       </div>
     `,
     iconSize: [size, size],
-    iconAnchor: [size/2, size/2]
+    iconAnchor: [size / 2, size / 2]
   });
 };
 
 const createColonyLabel = (abbrev, darkMode) => {
   const textColor = darkMode ? 'rgba(220, 200, 180, 0.9)' : 'rgba(60, 40, 20, 0.85)';
   const shadowColor = darkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
-  
+
   return L.divIcon({
     className: 'colony-label',
     html: `
@@ -82,14 +82,14 @@ const createColonyLabel = (abbrev, darkMode) => {
 function MapController({ center, zoom, autoFly }) {
   const map = useMap();
   const prevCenterRef = useRef(null);
-  
+
   useEffect(() => {
     if (autoFly && center) {
       const prevCenter = prevCenterRef.current;
-      const centerChanged = !prevCenter || 
-        prevCenter[0] !== center[0] || 
+      const centerChanged = !prevCenter ||
+        prevCenter[0] !== center[0] ||
         prevCenter[1] !== center[1];
-      
+
       if (centerChanged) {
         map.setView(center, zoom, {
           animate: true,
@@ -99,7 +99,7 @@ function MapController({ center, zoom, autoFly }) {
       }
     }
   }, [center, zoom, map, autoFly]);
-  
+
   return null;
 }
 
@@ -126,34 +126,43 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
 
   const style = (feature) => {
     const colonyName = feature.properties.name;
-    const baseColor = colonyColors[colonyName] || (darkMode ? 'rgba(139, 35, 35, 0.15)' : 'rgba(30, 58, 95, 0.08)');
-    
+    const isHovered = hoveredColony === colonyName;
+
+    // Sleek & Deep Palette Integration
+    const strokeColorLight = '#0A244A'; // Deep Navy
+    const strokeColorDark = '#C5A02F';  // Muted Gold
+
+    const fillColorLight = '#1e3a5f';
+    const fillColorDark = '#E0C060';
+
     if (fillColonies) {
       return {
-        fillColor: baseColor,
-        weight: 2,
-        opacity: 0.9,
-        color: darkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.4)',
-        fillOpacity: hoveredColony === colonyName ? 0.5 : 0.35,
+        fillColor: colonyColors[colonyName] || (darkMode ? fillColorDark : fillColorLight),
+        weight: isHovered ? 2 : 1,
+        opacity: 1,
+        color: darkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.8)',
+        fillOpacity: isHovered ? 0.6 : 0.4,
         dashArray: null
       };
     }
-    
+
+    // Outline Mode (Default)
     return {
-      fillColor: darkMode ? 'rgba(139, 35, 35, 0.15)' : 'rgba(30, 58, 95, 0.08)',
-      weight: 2,
-      opacity: 0.8,
-      color: darkMode ? 'rgba(200, 180, 160, 0.6)' : 'rgba(101, 67, 33, 0.5)',
-      fillOpacity: hoveredColony === colonyName ? 0.3 : 0.1,
-      dashArray: '4, 4'
+      fillColor: darkMode ? '#C5A02F' : '#0A244A',
+      weight: isHovered ? 2.5 : 1.5,
+      opacity: isHovered ? 1 : 0.6,
+      color: darkMode ? strokeColorDark : strokeColorLight,
+      fillOpacity: isHovered ? 0.15 : 0.02, // Subtle tint for depth
+      dashArray: null, // Solid lines for sleeker look
+      className: 'colony-boundary' // For potential CSS transitions
     };
   };
 
   const onEachFeature = (feature, layer) => {
     const props = feature.properties;
-    
+
     const partOfText = props.partOf ? `<div style="font-style: italic; color: #888;">(Part of ${props.partOf})</div>` : '';
-    
+
     layer.bindTooltip(
       `<div class="colony-tooltip">
         <strong>${props.name}</strong>
@@ -192,8 +201,8 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
   };
 
   return (
-    <GeoJSON 
-      data={boundaries} 
+    <GeoJSON
+      data={boundaries}
       style={style}
       onEachFeature={onEachFeature}
     />
@@ -204,14 +213,14 @@ function ColonyLabels({ boundaries, darkMode, events = [] }) {
   const getAdjustedPosition = (labelLat, labelLng) => {
     const PROXIMITY_THRESHOLD = 1.2;
     const OFFSET_AMOUNT = 0.8;
-    
+
     let offsetLat = 0;
     let offsetLng = 0;
-    
+
     for (const event of events) {
       const latDiff = Math.abs(event.lat - labelLat);
       const lngDiff = Math.abs(event.lng - labelLng);
-      
+
       if (latDiff < PROXIMITY_THRESHOLD && lngDiff < PROXIMITY_THRESHOLD) {
         if (event.lat > labelLat) {
           offsetLat -= OFFSET_AMOUNT;
@@ -226,18 +235,18 @@ function ColonyLabels({ boundaries, darkMode, events = [] }) {
         break;
       }
     }
-    
+
     return [labelLat + offsetLat, labelLng + offsetLng];
   };
-  
+
   return (
     <>
       {boundaries.features.map((feature) => {
         const props = feature.properties;
         if (!props.labelLat || !props.labelLng) return null;
-        
+
         const position = getAdjustedPosition(props.labelLat, props.labelLng);
-        
+
         return (
           <Marker
             key={`label-${props.name}`}
@@ -256,10 +265,10 @@ const easternSeaboardBounds = [
   [48.0, -60.0]
 ];
 
-export default function Map({ 
-  events, 
+export default function Map({
+  events,
   colonyBoundaries,
-  activeEventId, 
+  activeEventId,
   onEventClick,
   showColonies,
   fillColonies = false,
@@ -269,8 +278,8 @@ export default function Map({
 }) {
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
-  const center = activeEvent 
-    ? [activeEvent.lat, activeEvent.lng + 3] 
+  const center = activeEvent
+    ? [activeEvent.lat, activeEvent.lng + 3]
     : [40.0, -74.0];
   const zoom = activeEvent ? 6 : 5;
 
@@ -319,13 +328,13 @@ export default function Map({
             className="colonial-tiles"
           />
         )}
-        
+
         <MapController center={center} zoom={zoom} autoFly={autoFly} />
-        
+
         {showColonies && colonyBoundaries && (
           <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
         )}
-        
+
         {visibleEvents.map((event) => (
           <Marker
             key={event.id}

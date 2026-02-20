@@ -12,37 +12,56 @@ import './App.css';
 
 function ModeToggle({ darkMode, onToggle }) {
   return (
-    <button 
+    <button
       className="mode-toggle"
       onClick={onToggle}
       aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
     >
-      {darkMode ? '☀' : '☾'}
+      {darkMode ? (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+      )}
     </button>
   );
 }
 
 function ViewToggle({ view, onViewChange }) {
+  const views = [
+    { id: 'story', label: 'Story' },
+    { id: 'timeline', label: 'Timeline' },
+    { id: 'data', label: 'Data' }
+  ];
+
   return (
     <div className="view-toggle">
-      <button 
-        className={view === 'story' ? 'active' : ''}
-        onClick={() => onViewChange('story')}
-      >
-        Story
-      </button>
-      <button 
-        className={view === 'timeline' ? 'active' : ''}
-        onClick={() => onViewChange('timeline')}
-      >
-        Timeline
-      </button>
-      <button 
-        className={view === 'data' ? 'active' : ''}
-        onClick={() => onViewChange('data')}
-      >
-        Data
-      </button>
+      {views.map((item) => (
+        <button
+          key={item.id}
+          className={view === item.id ? 'active' : ''}
+          onClick={() => onViewChange(item.id)}
+          style={{ position: 'relative' }}
+        >
+          {view === item.id && (
+            <motion.div
+              layoutId="activeView"
+              className="active-bg"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '6px',
+                background: 'var(--color-bg-light)',
+                boxShadow: 'var(--shadow-sm)',
+                zIndex: 0
+              }}
+            />
+          )}
+          <span style={{ position: 'relative', zIndex: 1 }}>
+            {item.label}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -56,10 +75,10 @@ function DataView({ activeYear, darkMode }) {
           Visualizing the Revolution through numbers
         </p>
       </div>
-      
+
       <ArmyChart data={armyData} activeYear={activeYear} darkMode={darkMode} />
       <TradeChart data={economicData} darkMode={darkMode} />
-      
+
       <div className="data-insights">
         <div className="insight-card">
           <h4>Peak Continental Army</h4>
@@ -87,7 +106,7 @@ export default function App() {
   const [view, setView] = useState('welcome');
   const [showColonies, setShowColonies] = useState(true);
   const [hideFutureEvents, setHideFutureEvents] = useState(false);
-  
+
   const activeEvent = events.find(e => e.id === activeEventId);
 
   useEffect(() => {
@@ -104,11 +123,18 @@ export default function App() {
 
   const showHeader = view !== 'welcome';
 
+  const pageVariants = {
+    initial: { opacity: 0, y: 20, scale: 0.99 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, y: -20, scale: 0.99 },
+    transition: { duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }
+  };
+
   return (
     <div className={`app ${darkMode ? 'dark' : 'light'}`}>
       <AnimatePresence>
         {showHeader && (
-          <motion.header 
+          <motion.header
             className="app-header"
             initial={{ y: -64, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -130,10 +156,10 @@ export default function App() {
       <main className={`app-main ${view === 'welcome' ? 'no-header' : ''}`}>
         <AnimatePresence mode="wait">
           {view === 'welcome' && (
-            <WelcomeScreen 
+            <WelcomeScreen
               key="welcome"
-              onBegin={handleBeginJourney} 
-              darkMode={darkMode} 
+              onBegin={handleBeginJourney}
+              darkMode={darkMode}
             />
           )}
 
@@ -141,9 +167,7 @@ export default function App() {
             <motion.div
               key="story"
               className="story-view-wrapper"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              {...pageVariants}
             >
               <ScrollytellingView
                 events={events}
@@ -155,15 +179,13 @@ export default function App() {
           )}
 
           {view === 'timeline' && (
-            <motion.div 
+            <motion.div
               className="timeline-view"
               key="timeline"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              {...pageVariants}
             >
               <div className="map-area">
-                <Map 
+                <Map
                   events={events}
                   colonyBoundaries={colonyBoundaries}
                   activeEventId={activeEventId}
@@ -174,7 +196,7 @@ export default function App() {
                 />
                 <EventCard event={activeEvent} darkMode={darkMode} />
               </div>
-              <HorizontalTimeline 
+              <HorizontalTimeline
                 events={events}
                 activeEventId={activeEventId}
                 onEventClick={setActiveEventId}
@@ -184,12 +206,10 @@ export default function App() {
           )}
 
           {view === 'data' && (
-            <motion.div 
+            <motion.div
               className="data-view-container"
               key="data"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              {...pageVariants}
             >
               <DataView activeYear={activeEvent?.year} darkMode={darkMode} />
             </motion.div>
