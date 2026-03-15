@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -22,25 +22,46 @@ const createEventIcon = (type, side, isActive, isFuture = false) => {
   const textColor = isActive ? '#fffef5' : borderColor;
   const shadowOpacity = isFuture ? 0.15 : 0.35;
 
+  const pulseSize = size + 16;
+  const pulseRing = isActive ? `
+    <div class="marker-pulse-ring" style="
+      position: absolute;
+      top: ${-(pulseSize - size) / 2}px;
+      left: ${-(pulseSize - size) / 2}px;
+      width: ${pulseSize}px;
+      height: ${pulseSize}px;
+      border-radius: 50%;
+      border: 2px solid ${borderColor};
+      animation: markerPulse 2s ease-out infinite;
+    "></div>
+  ` : '';
+
   return L.divIcon({
     className: 'custom-marker',
     html: `
       <div style="
+        position: relative;
         width: ${size}px;
         height: ${size}px;
-        border-radius: 50%;
-        background: ${bgColor};
-        border: 3px solid ${borderColor};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: ${size * 0.45}px;
-        box-shadow: 0 3px 10px rgba(0,0,0,${shadowOpacity});
-        transition: all 0.3s ease;
-        cursor: pointer;
-        opacity: ${opacity};
       ">
-        <span style="color: ${textColor};">${symbols[type] || '●'}</span>
+        ${pulseRing}
+        <div style="
+          width: ${size}px;
+          height: ${size}px;
+          border-radius: 50%;
+          background: ${bgColor};
+          border: 3px solid ${borderColor};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: ${size * 0.45}px;
+          box-shadow: 0 3px 10px rgba(0,0,0,${shadowOpacity});
+          transition: all 0.3s ease;
+          cursor: pointer;
+          opacity: ${opacity};
+        ">
+          <span style="color: ${textColor};">${symbols[type] || '●'}</span>
+        </div>
       </div>
     `,
     iconSize: [size, size],
@@ -260,6 +281,59 @@ function ColonyLabels({ boundaries, darkMode, events = [] }) {
   );
 }
 
+function TroopMovementLines({ events, activeEventId, darkMode }) {
+  const activeIndex = events.findIndex(e => e.id === activeEventId);
+  if (activeIndex < 1) return null;
+
+  const visibleEvents = events.slice(0, activeIndex + 1);
+  const positions = visibleEvents.map(e => [e.lat, e.lng]);
+
+  return (
+    <Polyline
+      positions={positions}
+      pathOptions={{
+        color: darkMode ? '#C5A02F' : '#0A244A',
+        weight: 2,
+        opacity: 0.4,
+        dashArray: '8, 8',
+        className: 'troop-line-animated'
+      }}
+    />
+  );
+}
+
+function MapLegend({ darkMode }) {
+  const items = [
+    { symbol: '\u2694', label: 'Battle', border: '#7A1212' },
+    { symbol: '\uD83D\uDCDC', label: 'Political', border: '#0A244A' },
+    { symbol: '\uD83E\uDD1D', label: 'Diplomatic', border: '#C5A02F' },
+  ];
+
+  const sides = [
+    { color: '#1e3a5f', label: 'American' },
+    { color: '#8b2323', label: 'British' },
+  ];
+
+  return (
+    <div className={`map-legend ${darkMode ? 'dark' : ''}`}>
+      <h4>Legend</h4>
+      {items.map((item, i) => (
+        <div key={i} className="legend-item">
+          <span className="legend-symbol" style={{ borderColor: item.border }}>{item.symbol}</span>
+          <span className="legend-label">{item.label}</span>
+        </div>
+      ))}
+      <div className="legend-divider" />
+      {sides.map((s, i) => (
+        <div key={i} className="legend-item">
+          <span className="legend-dot" style={{ background: s.color }} />
+          <span className="legend-label">{s.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const easternSeaboardBounds = [
   [28.0, -85.0],
   [48.0, -60.0]
@@ -335,6 +409,8 @@ export default function Map({
           <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
         )}
 
+        <TroopMovementLines events={events} activeEventId={activeEventId} darkMode={darkMode} />
+
         {visibleEvents.map((event) => (
           <Marker
             key={event.id}
@@ -346,6 +422,7 @@ export default function Map({
           />
         ))}
       </MapContainer>
+      <MapLegend darkMode={darkMode} />
     </div>
   );
 }

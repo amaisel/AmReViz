@@ -37,6 +37,10 @@ export const events = [
     lng: -71.2310,
     type: "battle",
     side: "american",
+    casualties: { american: 95, british: 273 },
+    forces: { american: 3800, british: 700 },
+    outcome: "american",
+    campaign: "New England",
     description: "The 'shot heard round the world.' British troops marched to seize colonial weapons at Concord. Colonial militiamen confronted them at Lexington Green, and fighting erupted. By day's end, colonists had inflicted 273 British casualties while suffering 95 of their own.",
     significance: "First military engagements of the Revolutionary War; proved colonists would fight."
   },
@@ -65,6 +69,10 @@ export const events = [
     lng: -71.0608,
     type: "battle",
     side: "british",
+    casualties: { american: 450, british: 1054 },
+    forces: { american: 1500, british: 2400 },
+    outcome: "british",
+    campaign: "New England",
     description: "Colonial forces fortified Breed's Hill overlooking Boston. British forces launched three frontal assaults, finally taking the position but suffering over 1,000 casualties—nearly half their attacking force. The famous order 'Don't fire until you see the whites of their eyes' came from this battle.",
     significance: "Though a British victory, it proved American forces could stand against professional soldiers."
   },
@@ -119,6 +127,10 @@ export const events = [
     lng: -73.9975,
     type: "battle",
     side: "british",
+    casualties: { american: 1407, british: 392 },
+    forces: { american: 10000, british: 20000 },
+    outcome: "british",
+    campaign: "New York & New Jersey",
     description: "The largest battle of the Revolutionary War, with 40,000 troops engaged. British forces outflanked Washington's army, inflicting over 1,000 casualties. The Maryland 400 made a heroic stand at Gowanus Creek. Washington masterfully evacuated his entire army across the East River under cover of fog.",
     significance: "Largest battle of the war; British captured New York City for seven years, but Washington's army survived to fight on."
   },
@@ -132,6 +144,10 @@ export const events = [
     lng: -74.7597,
     type: "battle",
     side: "american",
+    casualties: { american: 5, british: 918 },
+    forces: { american: 2400, british: 1400 },
+    outcome: "american",
+    campaign: "New York & New Jersey",
     description: "After crossing the ice-choked Delaware River on Christmas night, Washington launched a surprise attack on Hessian mercenaries. The Americans captured nearly 900 prisoners with minimal casualties, reviving a cause that had seemed lost after months of defeat.",
     significance: "Restored American morale after devastating losses; proved Washington's tactical genius."
   },
@@ -147,6 +163,10 @@ export const events = [
     lng: -73.6260,
     type: "battle",
     side: "american",
+    casualties: { american: 800, british: 1500 },
+    forces: { american: 12000, british: 6000 },
+    outcome: "american",
+    campaign: "Saratoga",
     description: "British General John Burgoyne surrendered his entire army of 6,000 men after being surrounded by American forces. This was the first major British defeat and the war's turning point, as it convinced France to formally ally with the United States.",
     significance: "Turning point of the war; secured crucial French alliance with military and financial support."
   },
@@ -188,6 +208,10 @@ export const events = [
     lng: -74.2765,
     type: "battle",
     side: "american",
+    casualties: { american: 500, british: 1100 },
+    forces: { american: 13000, british: 10000 },
+    outcome: "indecisive",
+    campaign: "Philadelphia",
     description: "In sweltering 100°F heat, the Continental Army engaged retreating British forces in the longest single-day battle of the war. Washington rallied his troops after General Charles Lee ordered a retreat. Legend holds that 'Molly Pitcher' manned a cannon after her husband fell.",
     significance: "Proved Valley Forge training had transformed the Continental Army; last major battle in the North."
   },
@@ -218,6 +242,10 @@ export const events = [
     lng: -76.5097,
     type: "battle",
     side: "american",
+    casualties: { american: 389, british: 552 },
+    forces: { american: 17000, british: 8000 },
+    outcome: "american",
+    campaign: "Yorktown",
     description: "Washington and French General Rochambeau trapped British General Cornwallis at Yorktown while the French fleet blocked escape by sea. After a three-week siege, Cornwallis surrendered 8,000 troops. The British band reportedly played 'The World Turned Upside Down.'",
     significance: "Last major battle; effectively ended the war and British hopes of retaining the colonies."
   },
@@ -271,4 +299,27 @@ export const economicData = [
   { year: 1776, colonialExports: 1.2, colonialImports: 0.1, teaImports: 0.00, label: "Independence" },
   { year: 1777, colonialExports: 0.8, colonialImports: 0.5, teaImports: 0.00, label: "Wartime" },
   { year: 1778, colonialExports: 1.0, colonialImports: 1.2, teaImports: 0.00, label: "French Alliance" }
+];
+
+export const battleData = events
+  .filter(e => e.casualties)
+  .map(e => ({
+    id: e.id,
+    title: e.title.replace('Battles of ', '').replace('Battle of ', '').replace('British Surrender at ', '').replace('Siege of ', ''),
+    year: e.year,
+    americanCasualties: e.casualties.american,
+    britishCasualties: e.casualties.british,
+    americanForces: e.forces.american,
+    britishForces: e.forces.british,
+    outcome: e.outcome,
+    campaign: e.campaign
+  }));
+
+export const campaignData = [
+  { name: "New England Campaign", start: "1775-04-19", end: "1776-03-17", region: "north" },
+  { name: "New York & New Jersey", start: "1776-08-27", end: "1777-01-03", region: "mid" },
+  { name: "Saratoga Campaign", start: "1777-06-01", end: "1777-10-17", region: "north" },
+  { name: "Philadelphia Campaign", start: "1777-09-11", end: "1778-06-28", region: "mid" },
+  { name: "Southern Campaign", start: "1780-05-12", end: "1781-10-19", region: "south" },
+  { name: "Yorktown", start: "1781-08-19", end: "1781-10-19", region: "south" }
 ];

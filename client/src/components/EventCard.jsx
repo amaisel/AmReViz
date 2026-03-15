@@ -25,10 +25,12 @@ export default function EventCard({ event, darkMode }) {
     <AnimatePresence mode="wait">
       <motion.div
         className={`event-card-fixed ${darkMode ? 'dark' : ''}`}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 20 }}
+        initial={{ opacity: 0, rotateY: -8, x: 30, scale: 0.95 }}
+        animate={{ opacity: 1, rotateY: 0, x: 0, scale: 1 }}
+        exit={{ opacity: 0, rotateY: 8, x: -20, scale: 0.95 }}
+        transition={{ duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }}
         key={event.id}
+        style={{ perspective: 1000, transformStyle: 'preserve-3d' }}
       >
         <div
           className="event-card-type-badge"

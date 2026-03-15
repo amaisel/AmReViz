@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Map from './components/Map';
-import HorizontalTimeline from './components/HorizontalTimeline';
-import EventCard from './components/EventCard';
 import WelcomeScreen from './components/WelcomeScreen';
-import ScrollytellingView from './components/ScrollytellingView';
-import { ArmyChart, TradeChart } from './components/Charts';
-import { events, armyData, economicData } from './data/events';
+import ExploreView from './components/ExploreView';
+import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './components/Charts';
+import BattleComparison from './components/BattleComparison';
+import AnimatedCounter from './components/AnimatedCounter';
+import { events, armyData, economicData, battleData, campaignData } from './data/events';
 import { colonyBoundaries } from './data/colonyBoundaries';
+import KeyboardShortcuts from './components/KeyboardShortcuts';
+import useHashRouter from './hooks/useHashRouter';
 import './App.css';
 
 function ModeToggle({ darkMode, onToggle }) {
@@ -28,8 +29,7 @@ function ModeToggle({ darkMode, onToggle }) {
 
 function ViewToggle({ view, onViewChange }) {
   const views = [
-    { id: 'story', label: 'Story' },
-    { id: 'timeline', label: 'Timeline' },
+    { id: 'explore', label: 'Explore' },
     { id: 'data', label: 'Data' }
   ];
 
@@ -66,7 +66,9 @@ function ViewToggle({ view, onViewChange }) {
   );
 }
 
-function DataView({ activeYear, darkMode }) {
+function DataView({ darkMode }) {
+  const battles = events.filter(e => e.casualties);
+
   return (
     <div className="data-view">
       <div className="data-section">
@@ -76,45 +78,63 @@ function DataView({ activeYear, darkMode }) {
         </p>
       </div>
 
-      <ArmyChart data={armyData} activeYear={activeYear} darkMode={darkMode} />
-      <TradeChart data={economicData} darkMode={darkMode} />
-
       <div className="data-insights">
         <div className="insight-card">
           <h4>Peak Continental Army</h4>
-          <span className="insight-value">35,000</span>
+          <AnimatedCounter value={35000} className="insight-value" />
           <p>troops in 1778 after Valley Forge training</p>
         </div>
         <div className="insight-card">
           <h4>Trade Collapse</h4>
-          <span className="insight-value">-75%</span>
+          <AnimatedCounter value={75} prefix="-" suffix="%" className="insight-value" />
           <p>drop in British imports 1774-1776</p>
         </div>
         <div className="insight-card">
           <h4>War Deaths</h4>
-          <span className="insight-value">25,000</span>
+          <AnimatedCounter value={25000} className="insight-value" />
           <p>American casualties (combat + disease)</p>
         </div>
       </div>
+
+      <ArmyChart data={armyData} darkMode={darkMode} />
+      <TradeChart data={economicData} darkMode={darkMode} />
+      <CasualtiesChart data={battleData} darkMode={darkMode} />
+      <CampaignTimeline data={campaignData} darkMode={darkMode} />
+      <BattleComparison battles={battles} darkMode={darkMode} />
     </div>
   );
 }
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [activeEventId, setActiveEventId] = useState(null);
-  const [view, setView] = useState('welcome');
-  const [showColonies, setShowColonies] = useState(true);
-  const [hideFutureEvents, setHideFutureEvents] = useState(false);
+  const [view, setView] = useHashRouter('welcome');
 
-  const activeEvent = events.find(e => e.id === activeEventId);
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if (e.key === 'd' || e.key === 'D') {
+        if (!e.ctrlKey && !e.metaKey) setDarkMode(prev => !prev);
+      }
+      if (e.key === '1') setView('explore');
+      if (e.key === '2') setView('data');
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [setView]);
+
+  // Track view direction for transitions
+  const viewOrder = { welcome: 0, explore: 1, data: 2 };
+  const prevViewRef = useRef(view);
+  const direction = viewOrder[view] >= viewOrder[prevViewRef.current] ? 1 : -1;
+  useEffect(() => { prevViewRef.current = view; }, [view]);
 
   useEffect(() => {
     document.body.className = darkMode ? 'dark-mode' : 'light-mode';
   }, [darkMode]);
 
   const handleBeginJourney = () => {
-    setView('story');
+    setView('explore');
   };
 
   const handleExitToWelcome = () => {
@@ -124,9 +144,9 @@ export default function App() {
   const showHeader = view !== 'welcome';
 
   const pageVariants = {
-    initial: { opacity: 0, y: 20, scale: 0.99 },
+    initial: { opacity: 0, y: direction * 30, scale: 0.98 },
     animate: { opacity: 1, y: 0, scale: 1 },
-    exit: { opacity: 0, y: -20, scale: 0.99 },
+    exit: { opacity: 0, y: direction * -30, scale: 0.98 },
     transition: { duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }
   };
 
@@ -163,44 +183,17 @@ export default function App() {
             />
           )}
 
-          {view === 'story' && (
+          {view === 'explore' && (
             <motion.div
-              key="story"
+              key="explore"
               className="story-view-wrapper"
               {...pageVariants}
             >
-              <ScrollytellingView
+              <ExploreView
                 events={events}
                 colonyBoundaries={colonyBoundaries}
                 darkMode={darkMode}
                 onExitToWelcome={handleExitToWelcome}
-              />
-            </motion.div>
-          )}
-
-          {view === 'timeline' && (
-            <motion.div
-              className="timeline-view"
-              key="timeline"
-              {...pageVariants}
-            >
-              <div className="map-area">
-                <Map
-                  events={events}
-                  colonyBoundaries={colonyBoundaries}
-                  activeEventId={activeEventId}
-                  onEventClick={setActiveEventId}
-                  showColonies={showColonies}
-                  darkMode={darkMode}
-                  hideFutureEvents={hideFutureEvents}
-                />
-                <EventCard event={activeEvent} darkMode={darkMode} />
-              </div>
-              <HorizontalTimeline
-                events={events}
-                activeEventId={activeEventId}
-                onEventClick={setActiveEventId}
-                darkMode={darkMode}
               />
             </motion.div>
           )}
@@ -211,11 +204,12 @@ export default function App() {
               key="data"
               {...pageVariants}
             >
-              <DataView activeYear={activeEvent?.year} darkMode={darkMode} />
+              <DataView darkMode={darkMode} />
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+      <KeyboardShortcuts darkMode={darkMode} />
     </div>
   );
 }
