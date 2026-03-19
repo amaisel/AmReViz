@@ -7,7 +7,7 @@ export default function EventCard({ event, darkMode }) {
   if (!event) return null;
 
   const date = new Date(event.date);
-  const formattedDate = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  const formattedDate = `${monthNames[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 
   const typeColors = {
     battle: darkMode ? '#A33030' : '#7A1212',

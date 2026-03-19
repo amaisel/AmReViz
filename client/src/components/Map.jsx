@@ -320,7 +320,7 @@ function TroopMovementLines({ events, activeEventId, darkMode }) {
     );
 
     // Year markers at year transitions
-    const eventYear = new Date(visibleEvents[i].date).getFullYear();
+    const eventYear = new Date(visibleEvents[i].date).getUTCFullYear();
     if (lastYear !== null && eventYear !== lastYear) {
       yearMarkers.push(
         <Marker

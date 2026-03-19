@@ -30,7 +30,7 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
 
   const getMonth = (dateStr) => {
     const date = new Date(dateStr);
-    return monthNames[date.getMonth()];
+    return monthNames[date.getUTCMonth()];
   };
 
   return (

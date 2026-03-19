@@ -1,3 +1,11 @@
+/**
+ * American Revolution event data.
+ *
+ * Battle statistics (casualties, forces, outcomes) sourced from
+ * the American Battlefield Trust (battlefields.org).
+ * Political and diplomatic event details cross-referenced with
+ * the National Park Service (nps.gov).
+ */
 export const events = [
   {
     id: 1,
@@ -37,11 +45,11 @@ export const events = [
     lng: -71.2310,
     type: "battle",
     side: "american",
-    casualties: { american: 95, british: 273 },
-    forces: { american: 3800, british: 700 },
+    casualties: { american: 93, british: 300 },
+    forces: { american: 3800, british: 1500 },
     outcome: "american",
     campaign: "New England",
-    description: "The 'shot heard round the world.' British troops marched to seize colonial weapons at Concord. Colonial militiamen confronted them at Lexington Green, and fighting erupted. By day's end, colonists had inflicted 273 British casualties while suffering 95 of their own.",
+    description: "The 'shot heard round the world.' British troops marched to seize colonial weapons at Concord. Colonial militiamen confronted them at Lexington Green, and fighting erupted. By day's end, colonists had inflicted some 300 British casualties while suffering 93 of their own.",
     significance: "First military engagements of the Revolutionary War; proved colonists would fight."
   },
   {
@@ -70,7 +78,7 @@ export const events = [
     type: "battle",
     side: "british",
     casualties: { american: 450, british: 1054 },
-    forces: { american: 1500, british: 2400 },
+    forces: { american: 2400, british: 2200 },
     outcome: "british",
     campaign: "New England",
     description: "Colonial forces fortified Breed's Hill overlooking Boston. British forces launched three frontal assaults, finally taking the position but suffering over 1,000 casualties—nearly half their attacking force. The famous order 'Don't fire until you see the whites of their eyes' came from this battle.",
@@ -86,7 +94,7 @@ export const events = [
     lng: -75.1652,
     type: "political",
     side: "american",
-    description: "Thomas Paine anonymously published his 47-page pamphlet arguing for complete independence from Britain. Written in plain language accessible to common colonists, it sold 120,000 copies in three months and 500,000 by year's end—the best-selling American publication relative to population.",
+    description: "Thomas Paine anonymously published his 47-page pamphlet arguing for complete independence from Britain. Written in plain language accessible to common colonists, it sold an estimated 100,000 copies within months and as many as 500,000 over the course of the war—the best-selling American title per capita of its era.",
     significance: "Transformed the debate from colonial rights to full independence; galvanized public support for revolution."
   },
   {
@@ -99,7 +107,7 @@ export const events = [
     lng: -71.0535,
     type: "military",
     side: "american",
-    description: "After Washington's forces secretly fortified Dorchester Heights with cannons hauled from Fort Ticonderoga, the British position became untenable. General Howe evacuated 11,000 troops and 1,000 Loyalists on 120 ships to Halifax, ending the 11-month Siege of Boston.",
+    description: "After Washington's forces secretly fortified Dorchester Heights with cannons hauled from Fort Ticonderoga, the British position became untenable. General Howe evacuated some 9,000 troops and 1,000 Loyalists on 120 ships to Halifax, ending the 11-month Siege of Boston.",
     significance: "First major American victory; liberated Boston and drove the British from New England."
   },
   {
@@ -127,11 +135,11 @@ export const events = [
     lng: -73.9975,
     type: "battle",
     side: "british",
-    casualties: { american: 1407, british: 392 },
+    casualties: { american: 2000, british: 388 },
     forces: { american: 10000, british: 20000 },
     outcome: "british",
     campaign: "New York & New Jersey",
-    description: "The largest battle of the Revolutionary War, with 40,000 troops engaged. British forces outflanked Washington's army, inflicting over 1,000 casualties. The Maryland 400 made a heroic stand at Gowanus Creek. Washington masterfully evacuated his entire army across the East River under cover of fog.",
+    description: "The largest battle of the Revolutionary War, with over 30,000 troops engaged. British forces outflanked Washington's army, inflicting some 2,000 casualties, including over 1,000 captured. The Maryland 400 made a heroic stand at Gowanus Creek. Washington masterfully evacuated his entire army across the East River under cover of fog.",
     significance: "Largest battle of the war; British captured New York City for seven years, but Washington's army survived to fight on."
   },
   {
@@ -144,11 +152,11 @@ export const events = [
     lng: -74.7597,
     type: "battle",
     side: "american",
-    casualties: { american: 5, british: 918 },
+    casualties: { american: 5, british: 905 },
     forces: { american: 2400, british: 1400 },
     outcome: "american",
     campaign: "New York & New Jersey",
-    description: "After crossing the ice-choked Delaware River on Christmas night, Washington launched a surprise attack on Hessian mercenaries. The Americans captured nearly 900 prisoners with minimal casualties, reviving a cause that had seemed lost after months of defeat.",
+    description: "After crossing the ice-choked Delaware River on Christmas night, Washington launched a surprise attack on Hessian mercenaries. The Americans captured some 800 prisoners with minimal casualties, reviving a cause that had seemed lost after months of defeat.",
     significance: "Restored American morale after devastating losses; proved Washington's tactical genius."
   },
   {
@@ -167,7 +175,7 @@ export const events = [
     forces: { american: 12000, british: 6000 },
     outcome: "american",
     campaign: "Saratoga",
-    description: "British General John Burgoyne surrendered his entire army of 6,000 men after being surrounded by American forces. This was the first major British defeat and the war's turning point, as it convinced France to formally ally with the United States.",
+    description: "British General John Burgoyne surrendered his entire army of 6,000 men after being surrounded by American forces. This was the first surrender of an entire British army and the war's turning point, as it convinced France to formally ally with the United States.",
     significance: "Turning point of the war; secured crucial French alliance with military and financial support."
   },
   {
@@ -208,11 +216,11 @@ export const events = [
     lng: -74.2765,
     type: "battle",
     side: "american",
-    casualties: { american: 500, british: 1100 },
+    casualties: { american: 362, british: 381 },
     forces: { american: 13000, british: 10000 },
     outcome: "indecisive",
     campaign: "Philadelphia",
-    description: "In sweltering 100°F heat, the Continental Army engaged retreating British forces in the longest single-day battle of the war. Washington rallied his troops after General Charles Lee ordered a retreat. Legend holds that 'Molly Pitcher' manned a cannon after her husband fell.",
+    description: "In extreme heat, the Continental Army engaged retreating British forces in the longest single-day battle of the war. Washington rallied his troops after General Charles Lee ordered a retreat. Legend holds that 'Molly Pitcher' manned a cannon after her husband fell.",
     significance: "Proved Valley Forge training had transformed the Continental Army; last major battle in the North."
   },
   {
@@ -246,7 +254,7 @@ export const events = [
     forces: { american: 17000, british: 8000 },
     outcome: "american",
     campaign: "Yorktown",
-    description: "Washington and French General Rochambeau trapped British General Cornwallis at Yorktown while the French fleet blocked escape by sea. After a three-week siege, Cornwallis surrendered 8,000 troops. The British band reportedly played 'The World Turned Upside Down.'",
+    description: "Washington and Rochambeau, commanding a combined American and French force of 17,000, trapped British General Cornwallis at Yorktown while the French fleet blocked escape by sea. After a three-week siege, Cornwallis surrendered 8,000 troops. Allied casualties totaled 389 killed and wounded, including French losses. The British band reportedly played 'The World Turned Upside Down.'",
     significance: "Last major battle; effectively ended the war and British hopes of retaining the colonies."
   },
   {
