@@ -30,31 +30,36 @@ function FilterBar({ activeFilters, onToggle }) {
   );
 }
 
+const SPEED_PRESETS = [
+  { label: '1x', ms: 4000 },
+  { label: '1.5x', ms: 2500 },
+  { label: '2x', ms: 1500 },
+];
+
 export default function ExploreView({
   events,
   colonyBoundaries,
   darkMode,
   onExitToWelcome
 }) {
-  // Mode: 'guided' (sequential story) or 'free' (open exploration)
-  const [mode, setMode] = useState('guided');
-
-  // Guided mode state
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [playSpeed, setPlaySpeed] = useState(4000);
   const [fillColonies, setFillColonies] = useState(true);
-  const isScrolling = useRef(false);
-  const accumulatedDelta = useRef(0);
-
-  // Free mode state
-  const [activeEventId, setActiveEventId] = useState(null);
   const [activeFilters, setActiveFilters] = useState(
     new Set(['battle', 'political', 'diplomatic', 'military'])
   );
 
+  const isScrolling = useRef(false);
+  const accumulatedDelta = useRef(0);
+  const accumulatedDeltaX = useRef(0);
+  const touchStart = useRef(null);
+
   // Derived state
   const currentEvent = events[currentEventIndex];
   const currentYear = currentEvent?.year || 1773;
-  const visibleEvents = events.slice(0, currentEventIndex + 1);
   const progress = ((currentEventIndex + 1) / events.length) * 100;
 
   const filteredEvents = useMemo(
@@ -62,33 +67,40 @@ export default function ExploreView({
     [events, activeFilters]
   );
 
-  // In guided mode, active event is the current sequential event
-  // In free mode, it's whatever was clicked
-  const displayEvent = mode === 'guided'
-    ? currentEvent
-    : events.find(e => e.id === activeEventId) || null;
+  const mapEvents = filteredEvents.filter((_, i) => {
+    const originalIndex = events.indexOf(filteredEvents[i]);
+    return originalIndex <= currentEventIndex;
+  });
 
-  // Events to show on the map
-  const mapEvents = mode === 'guided' ? visibleEvents : filteredEvents;
+  const mapActiveId = currentEvent?.id;
+  const displayEvent = currentEvent;
 
-  // Map active event ID
-  const mapActiveId = mode === 'guided' ? currentEvent?.id : activeEventId;
+  const speedIndex = SPEED_PRESETS.findIndex(s => s.ms === playSpeed);
+  const speedLabel = SPEED_PRESETS[speedIndex]?.label || '1x';
 
-  // --- Mode toggling ---
-  const toggleMode = useCallback(() => {
-    if (mode === 'guided') {
-      // Guided → Free: keep current event selected
-      setActiveEventId(currentEvent?.id || null);
-      setMode('free');
-    } else {
-      // Free → Guided: jump to selected event's index
-      if (activeEventId) {
-        const idx = events.findIndex(e => e.id === activeEventId);
-        if (idx !== -1) setCurrentEventIndex(idx);
-      }
-      setMode('guided');
-    }
-  }, [mode, currentEvent?.id, activeEventId, events]);
+  // --- Play/Pause auto-advance ---
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      setCurrentEventIndex(prev => {
+        if (prev >= events.length - 1) {
+          setIsPlaying(false);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, playSpeed);
+    return () => clearInterval(interval);
+  }, [isPlaying, playSpeed, events.length]);
+
+  // --- Speed cycle ---
+  const cycleSpeed = useCallback(() => {
+    setPlaySpeed(prev => {
+      const idx = SPEED_PRESETS.findIndex(s => s.ms === prev);
+      const next = (idx + 1) % SPEED_PRESETS.length;
+      return SPEED_PRESETS[next].ms;
+    });
+  }, []);
 
   // --- Filter toggle ---
   const toggleFilter = useCallback((type) => {
@@ -103,58 +115,108 @@ export default function ExploreView({
     });
   }, []);
 
-  // --- Guided mode: wheel navigation ---
+  // --- Wheel navigation ---
   useEffect(() => {
-    if (mode !== 'guided') return;
-    const SCROLL_THRESHOLD = 80;
+    const THRESHOLD_X = 30;
+    const THRESHOLD_Y = 50;
+    const LOCKOUT_MS = 350;
 
     const handleWheel = (e) => {
+      e.preventDefault();
       if (isScrolling.current) return;
 
-      accumulatedDelta.current += e.deltaY;
+      const useHorizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5;
 
-      if (Math.abs(accumulatedDelta.current) >= SCROLL_THRESHOLD) {
+      if (useHorizontal) {
+        accumulatedDeltaX.current += e.deltaX;
+        accumulatedDelta.current = 0;
+      } else {
+        accumulatedDelta.current += e.deltaY;
+        accumulatedDeltaX.current = 0;
+      }
+
+      const triggered = useHorizontal
+        ? Math.abs(accumulatedDeltaX.current) >= THRESHOLD_X
+        : Math.abs(accumulatedDelta.current) >= THRESHOLD_Y;
+
+      if (triggered) {
         isScrolling.current = true;
+        setIsPlaying(false);
+        const delta = useHorizontal ? accumulatedDeltaX.current : accumulatedDelta.current;
 
-        if (accumulatedDelta.current > 0) {
+        if (delta > 0) {
           setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
         } else {
           setCurrentEventIndex(prev => Math.max(prev - 1, 0));
         }
 
         accumulatedDelta.current = 0;
-        setTimeout(() => { isScrolling.current = false; }, 400);
+        accumulatedDeltaX.current = 0;
+        setTimeout(() => { isScrolling.current = false; }, LOCKOUT_MS);
       }
     };
 
-    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('wheel', handleWheel, { passive: false });
     return () => window.removeEventListener('wheel', handleWheel);
-  }, [events.length, mode]);
+  }, [events.length]);
+
+  // --- Touch swipe navigation ---
+  useEffect(() => {
+    const SWIPE_THRESHOLD = 40;
+
+    const handleTouchStart = (e) => {
+      touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    };
+
+    const handleTouchEnd = (e) => {
+      if (!touchStart.current || isScrolling.current) return;
+      const dx = touchStart.current.x - e.changedTouches[0].clientX;
+      const dy = touchStart.current.y - e.changedTouches[0].clientY;
+      touchStart.current = null;
+
+      const useHorizontal = Math.abs(dx) > Math.abs(dy) * 0.5;
+      const delta = useHorizontal ? dx : dy;
+
+      if (Math.abs(delta) >= SWIPE_THRESHOLD) {
+        isScrolling.current = true;
+        setIsPlaying(false);
+        if (delta > 0) {
+          setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+        } else {
+          setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+        }
+        setTimeout(() => { isScrolling.current = false; }, 350);
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [events.length]);
 
   // --- Keyboard navigation ---
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
-      // F key: toggle mode
-      if (e.key === 'f' || e.key === 'F') {
-        if (!e.ctrlKey && !e.metaKey) {
-          e.preventDefault();
-          toggleMode();
-          return;
-        }
+      if (e.key === ' ') {
+        e.preventDefault();
+        setIsPlaying(prev => !prev);
+        return;
       }
-
-      // Arrow keys: only in guided mode
-      if (mode !== 'guided') return;
 
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         e.preventDefault();
+        setIsPlaying(false);
         isScrolling.current = true;
         setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
         setTimeout(() => { isScrolling.current = false; }, 300);
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
+        setIsPlaying(false);
         isScrolling.current = true;
         setCurrentEventIndex(prev => Math.max(prev - 1, 0));
         setTimeout(() => { isScrolling.current = false; }, 300);
@@ -163,22 +225,37 @@ export default function ExploreView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [events.length, mode, toggleMode]);
+  }, [events.length]);
 
   // --- Map event click handler ---
   const handleMapEventClick = useCallback((id) => {
-    if (mode === 'guided') {
-      const idx = events.findIndex(e => e.id === id);
-      if (idx !== -1) setCurrentEventIndex(idx);
-    } else {
-      setActiveEventId(id);
-    }
-  }, [mode, events]);
+    setIsPlaying(false);
+    const idx = events.findIndex(e => e.id === id);
+    if (idx !== -1) setCurrentEventIndex(idx);
+  }, [events]);
+
+  // --- Timeline click handler ---
+  const handleTimelineClick = useCallback((id) => {
+    setIsPlaying(false);
+    const idx = events.findIndex(e => e.id === id);
+    if (idx !== -1) setCurrentEventIndex(idx);
+  }, [events]);
 
   // --- Search select handler ---
   const handleSearchSelect = useCallback((id) => {
-    setActiveEventId(id);
+    setIsPlaying(false);
+    const idx = events.findIndex(e => e.id === id);
+    if (idx !== -1) setCurrentEventIndex(idx);
+  }, [events]);
+
+  // --- Replay handler ---
+  const handleReplay = useCallback(() => {
+    setCurrentEventIndex(0);
+    setIsPlaying(true);
   }, []);
+
+  const activeFilterCount = activeFilters.size;
+  const isAtEnd = currentEventIndex === events.length - 1;
 
   return (
     <div className={`scrollytelling-view ${darkMode ? 'dark' : ''}`}>
@@ -190,125 +267,123 @@ export default function ExploreView({
           activeEventId={mapActiveId}
           onEventClick={handleMapEventClick}
           showColonies={true}
-          fillColonies={mode === 'guided' ? fillColonies : false}
+          fillColonies={fillColonies}
           darkMode={darkMode}
           hideFutureEvents={false}
+          scrollWheelZoom={false}
         />
       </div>
 
-      {/* Guided mode: Year Counter */}
-      <AnimatePresence>
-        {mode === 'guided' && (
-          <motion.div
-            key="year-counter"
-            className="year-counter"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <span className="year-label">Year</span>
-            <motion.span
-              className="year-value"
-              key={currentYear}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {currentYear}
-            </motion.span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Year Counter — always visible */}
+      <div className="year-counter">
+        <span className="year-label">Year</span>
+        <motion.span
+          className="year-value"
+          key={currentYear}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {currentYear}
+        </motion.span>
+      </div>
 
-      {/* Guided mode: Progress Bar */}
-      <AnimatePresence>
-        {mode === 'guided' && (
+      {/* Progress Bar — always visible */}
+      <div className="scrolly-progress">
+        <div className="progress-track">
           <motion.div
-            key="progress-bar"
-            className="scrolly-progress"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="progress-fill"
+            animate={{ width: `${progress}%` }}
             transition={{ duration: 0.3 }}
-          >
-            <div className="progress-track">
-              <motion.div
-                className="progress-fill"
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          />
+        </div>
+        <span className="progress-counter">{currentEventIndex + 1} of {events.length}</span>
+      </div>
 
       {/* Controls bar */}
-      <motion.div
-        className="explore-controls"
-        layout
-        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      >
+      <div className="explore-controls">
         <button
-          className={`explore-mode-toggle ${mode}`}
-          onClick={toggleMode}
+          className={`explore-btn ${isPlaying ? 'active' : ''}`}
+          onClick={() => setIsPlaying(prev => !prev)}
         >
-          {mode === 'guided' ? (
+          {isPlaying ? (
             <>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Free Explore
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              Pause
             </>
           ) : (
             <>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Guided Tour
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Play
             </>
           )}
         </button>
 
-        {mode === 'guided' && (
-          <motion.label
-            className="checkbox-label"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-          >
-            <input
-              type="checkbox"
-              checked={fillColonies}
-              onChange={() => setFillColonies(!fillColonies)}
-            />
-            Color colonies
-          </motion.label>
-        )}
+        <button className="speed-indicator" onClick={cycleSpeed}>
+          {speedLabel}
+        </button>
 
-        <AnimatePresence>
-          {mode === 'free' && (
-            <motion.div
-              className="free-mode-controls"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.25 }}
-            >
-              <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
-              <SearchBar
-                events={events}
-                onEventSelect={handleSearchSelect}
-                darkMode={darkMode}
-              />
-            </motion.div>
+        <span className="controls-divider" />
+
+        <button
+          className={`explore-btn ${timelineOpen ? 'active' : ''}`}
+          onClick={() => setTimelineOpen(prev => !prev)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+          Timeline
+        </button>
+
+        <span className="controls-divider" />
+
+        <button
+          className={`explore-btn ${filtersOpen ? 'active' : ''}`}
+          onClick={() => setFiltersOpen(prev => !prev)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filter
+          {activeFilterCount < 4 && (
+            <span className="filter-count-badge">{activeFilterCount}</span>
           )}
-        </AnimatePresence>
-      </motion.div>
+        </button>
+
+        <SearchBar
+          events={events}
+          onEventSelect={handleSearchSelect}
+          darkMode={darkMode}
+        />
+
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={fillColonies}
+            onChange={() => setFillColonies(!fillColonies)}
+          />
+          Color colonies
+        </label>
+      </div>
+
+      {/* Filters panel — floating above controls */}
+      <AnimatePresence>
+        {filtersOpen && (
+          <motion.div
+            className="filters-panel"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Event Card */}
       <AnimatePresence mode="wait">
         <EventCard event={displayEvent} darkMode={darkMode} />
       </AnimatePresence>
 
-      {/* Free mode: Horizontal Timeline at bottom */}
+      {/* Collapsible Timeline */}
       <AnimatePresence>
-        {mode === 'free' && (
+        {timelineOpen && (
           <motion.div
             className="explore-timeline-container"
             initial={{ opacity: 0, y: 60 }}
@@ -318,34 +393,16 @@ export default function ExploreView({
           >
             <HorizontalTimeline
               events={filteredEvents}
-              activeEventId={activeEventId}
-              onEventClick={setActiveEventId}
+              activeEventId={currentEvent?.id}
+              onEventClick={handleTimelineClick}
               darkMode={darkMode}
             />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Guided mode: Scroll hint on first event */}
-      {mode === 'guided' && currentEventIndex === 0 && (
-        <motion.div
-          className="scroll-hint-bottom"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.7 }}
-          transition={{ delay: 1 }}
-        >
-          <span>Scroll to advance through history</span>
-          <motion.span
-            animate={{ y: [0, 5, 0] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-          >
-            ↓
-          </motion.span>
-        </motion.div>
-      )}
-
-      {/* Guided mode: End of Timeline */}
-      {mode === 'guided' && currentEventIndex === events.length - 1 && (
+      {/* End of Timeline overlay */}
+      {isAtEnd && (
         <motion.div
           className="story-end"
           initial={{ opacity: 0 }}
@@ -354,8 +411,8 @@ export default function ExploreView({
         >
           <p>End of Timeline</p>
           <div className="story-end-actions">
-            <button onClick={onExitToWelcome}>Start Over</button>
-            <button onClick={toggleMode}>Explore Freely</button>
+            <button className="explore-btn" onClick={handleReplay}>Replay</button>
+            <button className="explore-btn" onClick={onExitToWelcome}>Start Over</button>
           </div>
         </motion.div>
       )}

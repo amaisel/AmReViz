@@ -12,13 +12,15 @@ export default function EventCard({ event, darkMode }) {
   const typeColors = {
     battle: darkMode ? '#A33030' : '#7A1212',
     political: darkMode ? '#2C4B7A' : '#0A244A',
-    diplomatic: darkMode ? '#E0C060' : '#C5A02F'
+    diplomatic: darkMode ? '#E0C060' : '#C5A02F',
+    military: darkMode ? '#2E8B57' : '#228B22'
   };
 
   const typeLabels = {
     battle: 'Battle',
     political: 'Political',
-    diplomatic: 'Diplomatic'
+    diplomatic: 'Diplomatic',
+    military: 'Military'
   };
 
   return (

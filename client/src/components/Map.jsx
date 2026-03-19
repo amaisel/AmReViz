@@ -286,20 +286,55 @@ function TroopMovementLines({ events, activeEventId, darkMode }) {
   if (activeIndex < 1) return null;
 
   const visibleEvents = events.slice(0, activeIndex + 1);
-  const positions = visibleEvents.map(e => [e.lat, e.lng]);
+  const color = darkMode ? '#C5A02F' : '#0A244A';
+  const headColor = darkMode ? '#E0C060' : '#1e3a5f';
 
-  return (
-    <Polyline
-      positions={positions}
-      pathOptions={{
-        color: darkMode ? '#C5A02F' : '#0A244A',
-        weight: 2,
-        opacity: 0.4,
-        dashArray: '8, 8',
-        className: 'troop-line-animated'
-      }}
-    />
-  );
+  // Build segments with age-based opacity
+  const segments = [];
+  const yearMarkers = [];
+  let lastYear = null;
+
+  for (let i = 1; i < visibleEvents.length; i++) {
+    const age = (visibleEvents.length - 1 - i) / Math.max(visibleEvents.length - 1, 1);
+    const opacity = 0.15 + (1 - age) * 0.55; // fades from 0.7 (newest) to 0.15 (oldest)
+    const weight = i === visibleEvents.length - 1 ? 3.5 : 2;
+    const segColor = i === visibleEvents.length - 1 ? headColor : color;
+
+    segments.push(
+      <Polyline
+        key={`seg-${i}`}
+        positions={[[visibleEvents[i - 1].lat, visibleEvents[i - 1].lng], [visibleEvents[i].lat, visibleEvents[i].lng]]}
+        pathOptions={{
+          color: segColor,
+          weight,
+          opacity,
+          dashArray: i === visibleEvents.length - 1 ? null : '6, 6',
+          lineCap: 'round',
+        }}
+      />
+    );
+
+    // Year markers at year transitions
+    const eventYear = new Date(visibleEvents[i].date).getFullYear();
+    if (lastYear !== null && eventYear !== lastYear) {
+      yearMarkers.push(
+        <Marker
+          key={`year-${eventYear}-${i}`}
+          position={[visibleEvents[i].lat, visibleEvents[i].lng]}
+          icon={L.divIcon({
+            className: 'trail-year-marker',
+            html: `<span class="${darkMode ? 'dark' : ''}">${eventYear}</span>`,
+            iconSize: [36, 16],
+            iconAnchor: [18, -6],
+          })}
+          interactive={false}
+        />
+      );
+    }
+    lastYear = eventYear;
+  }
+
+  return <>{segments}{yearMarkers}</>;
 }
 
 function MapLegend({ darkMode }) {
@@ -348,7 +383,8 @@ export default function Map({
   fillColonies = false,
   darkMode,
   autoFly = true,
-  hideFutureEvents = false
+  hideFutureEvents = false,
+  scrollWheelZoom = false
 }) {
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
@@ -382,7 +418,7 @@ export default function Map({
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
         attributionControl={false}
-        scrollWheelZoom={true}
+        scrollWheelZoom={scrollWheelZoom}
         dragging={true}
         doubleClickZoom={true}
         touchZoom={true}

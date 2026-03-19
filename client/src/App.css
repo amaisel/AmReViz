@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+Pro:wght@400;600&display=swap');
 
 :root {
+  /* Layout */
+  --header-height: 64px;
+
   /* -- Palette: Sleek & Deep -- */
 
   /* Primary Forces */
@@ -204,7 +207,7 @@ body.dark-mode {
   display: flex;
   flex-direction: column;
   width: 100vw;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--header-height));
   overflow: hidden;
 }
 
@@ -688,7 +691,7 @@ body.dark-mode {
   padding: 1.5rem;
   box-shadow: var(--shadow-xl);
   border: 1px solid rgba(255, 255, 255, 0.4);
-  z-index: 500;
+  z-index: 600;
 }
 
 .event-card-fixed.dark {
@@ -934,7 +937,7 @@ body.dark-mode {
 
 .full-map-view {
   width: 100vw;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--header-height));
   position: relative;
 }
 
@@ -1043,7 +1046,7 @@ body.dark-mode {
   margin: 0 auto;
   padding: 2rem;
   overflow-y: auto;
-  height: calc(100vh - 80px);
+  height: calc(100vh - var(--header-height));
 }
 
 .data-view {
@@ -1351,7 +1354,7 @@ body.dark-mode {
 .scrollytelling-view {
   position: relative;
   width: 100%;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--header-height));
   overflow: hidden;
   background: transparent;
 }
@@ -1545,14 +1548,14 @@ body.dark-mode {
   position: absolute;
   bottom: 20px;
   left: 20px;
-  z-index: 1100;
+  z-index: 700;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.explore-mode-toggle {
+.explore-btn {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -1571,41 +1574,106 @@ body.dark-mode {
   white-space: nowrap;
 }
 
-.explore-mode-toggle:hover {
+.explore-btn:hover {
   background: var(--color-american);
   color: white;
 }
 
-.explore-mode-toggle.free {
+.explore-btn.active {
   background: var(--color-american);
   color: white;
 }
 
-.explore-mode-toggle.free:hover {
+.explore-btn.active:hover {
   background: var(--color-american-light);
 }
 
-.scrollytelling-view.dark .explore-mode-toggle {
+.scrollytelling-view.dark .explore-btn {
   background: rgba(26, 26, 46, 0.85);
   border-color: #8ba3c4;
   color: #8ba3c4;
 }
 
-.scrollytelling-view.dark .explore-mode-toggle:hover {
+.scrollytelling-view.dark .explore-btn:hover {
   background: #3a5a8f;
   color: white;
 }
 
-.scrollytelling-view.dark .explore-mode-toggle.free {
+.scrollytelling-view.dark .explore-btn.active {
   background: #3a5a8f;
   color: white;
 }
 
-.free-mode-controls {
+.speed-indicator {
+  background: none;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: var(--color-ink-light);
+  padding: 0.3rem 0.6rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.speed-indicator:hover {
+  border-color: var(--color-american);
+  color: var(--color-american);
+}
+
+.scrollytelling-view.dark .speed-indicator {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #a0a0a0;
+}
+
+.scrollytelling-view.dark .speed-indicator:hover {
+  border-color: #8ba3c4;
+  color: #8ba3c4;
+}
+
+.controls-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
+.scrollytelling-view.dark .controls-divider {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.filter-count-badge {
+  background: var(--color-british);
+  color: white;
+  font-size: 0.65rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  justify-content: center;
+  margin-left: 0.15rem;
+}
+
+.filters-panel {
+  position: absolute;
+  bottom: 64px;
+  left: 20px;
+  z-index: 700;
+  background: var(--color-surface-light);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.scrollytelling-view.dark .filters-panel {
+  background: var(--color-surface-dark);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .explore-timeline-container {
@@ -1613,7 +1681,7 @@ body.dark-mode {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 400;
+  z-index: 500;
 }
 
 /* Timeline Dots */
@@ -1667,9 +1735,9 @@ body.dark-mode {
 /* Scroll Hints */
 .scroll-hint-bottom {
   position: absolute;
-  bottom: 80px;
+  bottom: 70px;
   left: 20px;
-  z-index: 100;
+  z-index: 650;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1717,21 +1785,15 @@ body.dark-mode {
   color: #e5e5e5;
 }
 
-.story-end button {
-  background: none;
-  border: 1px solid var(--color-american);
-  color: var(--color-american);
-  padding: 0.5rem 1.5rem;
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
+.story-end-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
 }
 
-.story-end button:hover {
-  background: var(--color-american);
-  color: white;
+.story-end-actions .explore-btn {
+  font-size: 0.85rem;
+  padding: 0.5rem 1.25rem;
 }
 
 /* ===== MARKER PULSE ANIMATION ===== */
@@ -1750,6 +1812,30 @@ body.dark-mode {
 
 @keyframes dashMove {
   to { stroke-dashoffset: -100; }
+}
+
+/* ===== TRAIL YEAR MARKERS ===== */
+.trail-year-marker {
+  background: none !important;
+  border: none !important;
+}
+
+.trail-year-marker span {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-american);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 1px 5px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.trail-year-marker span.dark {
+  color: #C5A02F;
+  background: rgba(13, 17, 23, 0.8);
 }
 
 /* ===== MAP LEGEND ===== */
@@ -2221,7 +2307,65 @@ body.dark-mode {
   scroll-snap-stop: always;
 }
 
+/* ===== PROGRESS COUNTER ===== */
+.progress-counter {
+  font-size: 0.7rem;
+  color: #666;
+  background: rgba(255, 254, 245, 0.95);
+  padding: 0.15rem 0.6rem;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+
+.scrollytelling-view.dark .progress-counter {
+  background: rgba(26, 26, 46, 0.9);
+  color: #a0a0a0;
+}
+
+/* ===== LANDSCAPE SHORT VIEWPORT ===== */
+@media (max-height: 500px) and (orientation: landscape) {
+  .event-card-fixed {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    left: auto;
+    width: 280px;
+    max-height: calc(100% - 20px);
+    border-radius: 12px;
+  }
+
+  .explore-controls {
+    bottom: 10px;
+    left: 10px;
+  }
+
+  .explore-btn span,
+  .checkbox-label span {
+    display: none;
+  }
+
+  .year-counter {
+    top: 10px;
+    left: 10px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .year-value {
+    font-size: 1.5rem;
+  }
+
+  .scrolly-progress {
+    top: 10px;
+  }
+}
+
 @media (max-width: 768px) {
+  :root {
+    --header-height: 56px;
+  }
+
   .app-header {
     padding: 0.5rem 1rem;
     height: 56px;
@@ -2290,6 +2434,17 @@ body.dark-mode {
     margin: 0;
     z-index: 1000;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  /* When card is showing, push controls above it */
+  .explore-controls {
+    bottom: 16px;
+    transition: bottom 0.3s ease;
+  }
+
+  /* Hide legend on mobile to avoid overlap with bottom sheet */
+  .map-legend {
+    display: none;
   }
 
   .horizontal-timeline {
@@ -2386,6 +2541,10 @@ body.dark-mode {
 }
 
 @media (max-width: 480px) {
+  :root {
+    --header-height: 48px;
+  }
+
   .app-header {
     padding: 0.4rem 0.75rem;
     height: 48px;
