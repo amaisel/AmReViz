@@ -175,12 +175,12 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
     // Outline Mode (Default)
     return {
       fillColor: darkMode ? '#C5A02F' : '#0A244A',
-      weight: isHovered ? 2.5 : 1.5,
-      opacity: isHovered ? 1 : 0.6,
+      weight: isHovered ? 2 : 1,
+      opacity: isHovered ? 0.8 : 0.4,
       color: darkMode ? strokeColorDark : strokeColorLight,
-      fillOpacity: isHovered ? 0.15 : 0.02, // Subtle tint for depth
-      dashArray: null, // Solid lines for sleeker look
-      className: 'colony-boundary' // For potential CSS transitions
+      fillOpacity: isHovered ? 0.15 : 0.02,
+      dashArray: null,
+      className: 'colony-boundary'
     };
   };
 
@@ -231,6 +231,7 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
       data={boundaries}
       style={style}
       onEachFeature={onEachFeature}
+      smoothFactor={1.5}
     />
   );
 }

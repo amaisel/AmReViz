@@ -1,9 +1,16 @@
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-export default function EventCard({ event, darkMode }) {
+export default function EventCard({ event, darkMode, timelineOpen }) {
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    setExpanded(false);
+  }, [event?.id]);
+
   if (!event) return null;
 
   const date = new Date(event.date);
@@ -26,7 +33,7 @@ export default function EventCard({ event, darkMode }) {
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        className={`event-card-fixed ${darkMode ? 'dark' : ''}`}
+        className={`event-card-fixed ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}
         initial={{ opacity: 0, rotateY: -8, x: 30, scale: 0.95 }}
         animate={{ opacity: 1, rotateY: 0, x: 0, scale: 1 }}
         exit={{ opacity: 0, rotateY: 8, x: -20, scale: 0.95 }}
@@ -52,7 +59,12 @@ export default function EventCard({ event, darkMode }) {
           </span>
         </div>
 
-        <p className="event-card-description">{event.description}</p>
+        <p className={`event-card-description ${expanded ? 'expanded' : ''}`}>{event.description}</p>
+        {!expanded && (
+          <button className="event-card-read-more" onClick={() => setExpanded(true)}>
+            Read more
+          </button>
+        )}
 
         <div className="event-card-significance">
           <strong>Historical Significance</strong>

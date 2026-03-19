@@ -300,7 +300,7 @@ export default function ExploreView({
       </div>
 
       {/* Controls bar */}
-      <div className="explore-controls">
+      <div className={`explore-controls ${timelineOpen ? 'timeline-open' : ''}`}>
         <button
           className={`explore-btn ${isPlaying ? 'active' : ''}`}
           onClick={() => setIsPlaying(prev => !prev)}
@@ -350,35 +350,34 @@ export default function ExploreView({
           onEventSelect={handleSearchSelect}
           darkMode={darkMode}
         />
-
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={fillColonies}
-            onChange={() => setFillColonies(!fillColonies)}
-          />
-          Color colonies
-        </label>
       </div>
 
       {/* Filters panel — floating above controls */}
       <AnimatePresence>
         {filtersOpen && (
           <motion.div
-            className="filters-panel"
+            className={`filters-panel ${timelineOpen ? 'timeline-open' : ''}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
           >
             <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+            <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
+              <input
+                type="checkbox"
+                checked={fillColonies}
+                onChange={() => setFillColonies(!fillColonies)}
+              />
+              Color colonies
+            </label>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Event Card */}
       <AnimatePresence mode="wait">
-        <EventCard event={displayEvent} darkMode={darkMode} />
+        <EventCard event={displayEvent} darkMode={darkMode} timelineOpen={timelineOpen} />
       </AnimatePresence>
 
       {/* Collapsible Timeline */}
