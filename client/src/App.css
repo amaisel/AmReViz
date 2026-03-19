@@ -684,22 +684,30 @@ body.dark-mode {
   width: 360px;
   max-height: calc(100% - 120px);
   overflow-y: auto;
-  background: var(--color-surface-light);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-radius: 20px;
   padding: 1.5rem;
-  box-shadow: var(--shadow-xl);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 8px 16px rgba(0, 0, 0, 0.06),
+    0 24px 48px rgba(0, 0, 0, 0.10),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  border: 1px solid rgba(255, 255, 255, 0.45);
   z-index: 600;
 }
 
 .event-card-fixed.dark {
-  background: var(--color-surface-dark);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(18, 22, 30, 0.82);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.15),
+    0 8px 16px rgba(0, 0, 0, 0.2),
+    0 24px 48px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .event-card-type-badge {
@@ -1368,6 +1376,32 @@ body.dark-mode {
   z-index: 1;
 }
 
+/* Vignette overlay — darkens edges for focal depth */
+.scrolly-map-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 65% at 45% 50%,
+    transparent 0%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.12) 80%,
+    rgba(0, 0, 0, 0.30) 100%
+  );
+}
+
+.scrollytelling-view.dark .scrolly-map-container::after {
+  background: radial-gradient(
+    ellipse 70% 65% at 45% 50%,
+    transparent 0%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.25) 80%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
 .scrolly-sections {
   position: absolute;
   top: 0;
@@ -1408,18 +1442,28 @@ body.dark-mode {
   top: 20px;
   left: 70px;
   z-index: 100;
-  background: var(--color-white);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .scrollytelling-view.dark .year-counter {
-  background: #1a1a2e;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  background: rgba(26, 26, 46, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .year-label {
@@ -2294,7 +2338,8 @@ body.dark-mode {
 /* ===== 3D CARD TRANSITIONS ===== */
 .event-card-fixed {
   transform-style: preserve-3d;
-  perspective: 1000px;
+  perspective: 1200px;
+  will-change: transform, opacity;
 }
 
 /* ===== SCROLL SNAP ===== */

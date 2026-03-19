@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, GeoJSON } from 'reac
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const createEventIcon = (type, side, isActive, isFuture = false) => {
+const createEventIcon = (type, side, isActive, isFuture = false, proximity = 1.0) => {
   const colors = {
     american: '#1e3a5f',
     british: '#8b2323'
@@ -15,12 +15,16 @@ const createEventIcon = (type, side, isActive, isFuture = false) => {
     diplomatic: '🤝'
   };
 
-  const size = isActive ? 44 : 34;
-  const opacity = isFuture ? 0.35 : 1;
+  // Depth-of-field: markers far from active shrink and fade
+  const depthScale = isActive ? 1 : (0.65 + 0.35 * proximity);
+  const baseSize = isActive ? 44 : 34;
+  const size = Math.round(baseSize * depthScale);
+  const depthOpacity = isFuture ? 0.25 : (isActive ? 1 : (0.4 + 0.6 * proximity));
   const borderColor = colors[side] || '#1e3a5f';
   const bgColor = isActive ? borderColor : '#fffef5';
   const textColor = isActive ? '#fffef5' : borderColor;
-  const shadowOpacity = isFuture ? 0.15 : 0.35;
+  const shadowOpacity = isFuture ? 0.1 : (isActive ? 0.5 : 0.15 * proximity);
+  const shadowBlur = isActive ? 16 : Math.round(6 * proximity);
 
   const pulseSize = size + 16;
   const pulseRing = isActive ? `
@@ -50,15 +54,16 @@ const createEventIcon = (type, side, isActive, isFuture = false) => {
           height: ${size}px;
           border-radius: 50%;
           background: ${bgColor};
-          border: 3px solid ${borderColor};
+          border: ${isActive ? 3 : Math.max(2, Math.round(3 * depthScale))}px solid ${borderColor};
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: ${size * 0.45}px;
-          box-shadow: 0 3px 10px rgba(0,0,0,${shadowOpacity});
+          box-shadow: 0 ${isActive ? 4 : 2}px ${shadowBlur}px rgba(0,0,0,${shadowOpacity});
           transition: all 0.3s ease;
           cursor: pointer;
-          opacity: ${opacity};
+          opacity: ${depthOpacity};
+          filter: ${isActive ? 'none' : `blur(${Math.round((1 - proximity) * 0.5)}px)`};
         ">
           <span style="color: ${textColor};">${symbols[type] || '●'}</span>
         </div>
@@ -125,21 +130,21 @@ function MapController({ center, zoom, autoFly }) {
 }
 
 const colonyColors = {
-  'Massachusetts': '#8B0000',
-  'Maine': '#8B0000',
-  'District of Maine': '#8B0000',
-  'New Hampshire': '#2F4F4F',
-  'Connecticut': '#4169E1',
-  'Rhode Island': '#9932CC',
-  'New York': '#FF8C00',
-  'New Jersey': '#DAA520',
-  'Pennsylvania': '#228B22',
-  'Delaware': '#20B2AA',
-  'Maryland': '#CD853F',
-  'Virginia': '#DC143C',
-  'North Carolina': '#6B8E23',
-  'South Carolina': '#4682B4',
-  'Georgia': '#D2691E'
+  'Massachusetts': '#A08070',
+  'Maine': '#A08070',
+  'District of Maine': '#A08070',
+  'New Hampshire': '#7A9088',
+  'Connecticut': '#8090A8',
+  'Rhode Island': '#9088A0',
+  'New York': '#B0A080',
+  'New Jersey': '#A09870',
+  'Pennsylvania': '#809880',
+  'Delaware': '#80A098',
+  'Maryland': '#A09080',
+  'Virginia': '#A08080',
+  'North Carolina': '#90987A',
+  'South Carolina': '#809098',
+  'Georgia': '#A09078'
 };
 
 function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
@@ -161,8 +166,8 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
         fillColor: colonyColors[colonyName] || (darkMode ? fillColorDark : fillColorLight),
         weight: isHovered ? 2 : 1,
         opacity: 1,
-        color: darkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.8)',
-        fillOpacity: isHovered ? 0.6 : 0.4,
+        color: darkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.6)',
+        fillOpacity: isHovered ? 0.35 : 0.22,
         dashArray: null
       };
     }
@@ -296,8 +301,8 @@ function TroopMovementLines({ events, activeEventId, darkMode }) {
 
   for (let i = 1; i < visibleEvents.length; i++) {
     const age = (visibleEvents.length - 1 - i) / Math.max(visibleEvents.length - 1, 1);
-    const opacity = 0.15 + (1 - age) * 0.55; // fades from 0.7 (newest) to 0.15 (oldest)
-    const weight = i === visibleEvents.length - 1 ? 3.5 : 2;
+    const opacity = 0.06 + (1 - age) * 0.54; // fades from 0.6 (newest) to 0.06 (oldest)
+    const weight = i === visibleEvents.length - 1 ? 3.5 : Math.max(1, 2 * (1 - age * 0.6));
     const segColor = i === visibleEvents.length - 1 ? headColor : color;
 
     segments.push(
@@ -447,16 +452,26 @@ export default function Map({
 
         <TroopMovementLines events={events} activeEventId={activeEventId} darkMode={darkMode} />
 
-        {visibleEvents.map((event) => (
-          <Marker
-            key={event.id}
-            position={[event.lat, event.lng]}
-            icon={createEventIcon(event.type, event.side, event.id === activeEventId, isFutureEvent(event))}
-            eventHandlers={{
-              click: () => onEventClick(event.id)
-            }}
-          />
-        ))}
+        {visibleEvents.map((event) => {
+          // Compute proximity to active event (0 = far, 1 = close)
+          let proximity = 1.0;
+          if (activeEvent && event.id !== activeEventId) {
+            const dLat = event.lat - activeEvent.lat;
+            const dLng = event.lng - activeEvent.lng;
+            const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+            proximity = Math.max(0, Math.min(1, 1 - dist / 12));
+          }
+          return (
+            <Marker
+              key={event.id}
+              position={[event.lat, event.lng]}
+              icon={createEventIcon(event.type, event.side, event.id === activeEventId, isFutureEvent(event), proximity)}
+              eventHandlers={{
+                click: () => onEventClick(event.id)
+              }}
+            />
+          );
+        })}
       </MapContainer>
       <MapLegend darkMode={darkMode} />
     </div>

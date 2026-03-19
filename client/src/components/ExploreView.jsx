@@ -47,7 +47,7 @@ export default function ExploreView({
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(4000);
-  const [fillColonies, setFillColonies] = useState(true);
+  const [fillColonies, setFillColonies] = useState(false);
   const [activeFilters, setActiveFilters] = useState(
     new Set(['battle', 'political', 'diplomatic', 'military'])
   );
