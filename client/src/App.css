@@ -681,33 +681,31 @@ body.dark-mode {
   position: absolute;
   top: 80px;
   right: 20px;
-  width: 320px;
-  max-height: calc(100% - 220px);
+  width: 340px;
+  max-height: calc(100% - 160px);
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border-radius: 20px;
   padding: 1.25rem;
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.04),
-    0 8px 16px rgba(0, 0, 0, 0.06),
-    0 24px 48px rgba(0, 0, 0, 0.10),
-    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 8px 16px rgba(0, 0, 0, 0.08),
+    0 24px 48px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   z-index: 600;
 }
 
 .event-card-fixed.dark {
-  background: rgba(18, 22, 30, 0.82);
+  background: rgba(18, 22, 30, 0.95);
   backdrop-filter: blur(24px) saturate(1.3);
   -webkit-backdrop-filter: blur(24px) saturate(1.3);
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.15),
-    0 8px 16px rgba(0, 0, 0, 0.2),
-    0 24px 48px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 8px 16px rgba(0, 0, 0, 0.25),
+    0 24px 48px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .event-card-type-badge {
@@ -1232,10 +1230,11 @@ body.dark-mode {
 
 .welcome-title {
   font-family: var(--font-display);
-  font-size: 3.5rem;
+  font-size: clamp(1.8rem, 5vw, 3.5rem);
   font-weight: 700;
   color: var(--color-american);
   margin-bottom: 0.5rem;
+  text-wrap: balance;
   letter-spacing: 0.02em;
 }
 
@@ -1374,6 +1373,22 @@ body.dark-mode {
   height: calc(100vh - var(--header-height));
   overflow: hidden;
   background: transparent;
+}
+
+/* Desktop: show absolute-positioned elements, hide mobile panel */
+.mobile-bottom-panel {
+  display: none;
+}
+
+.desktop-event-card,
+.desktop-controls,
+.desktop-timeline {
+  display: block;
+}
+
+/* The desktop-event-card wrapper shouldn't add any styling */
+.desktop-event-card {
+  display: contents;
 }
 
 .scrolly-map-container {
@@ -1599,18 +1614,29 @@ body.dark-mode {
 /* ===== EXPLORE CONTROLS ===== */
 .explore-controls {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 700;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
   transition: bottom 0.3s ease;
 }
 
+.scrollytelling-view.dark .explore-controls {
+  background: rgba(13, 17, 23, 0.92);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .explore-controls.timeline-open {
-  bottom: 180px;
+  bottom: 160px;
 }
 
 .explore-btn {
@@ -1716,7 +1742,7 @@ body.dark-mode {
 }
 
 .event-card-fixed.timeline-open {
-  max-height: calc(100% - 380px);
+  max-height: calc(100% - 320px);
 }
 
 .event-card-read-more {
@@ -1846,9 +1872,10 @@ body.dark-mode {
 /* Story End */
 .story-end {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
-  z-index: 100;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 800;
   text-align: center;
   background: var(--color-white);
   padding: 1.5rem 2.5rem;
@@ -1928,8 +1955,9 @@ body.dark-mode {
 /* ===== MAP LEGEND ===== */
 .map-legend {
   position: absolute;
-  bottom: 16px;
-  right: 16px;
+  bottom: 70px;
+  left: 20px;
+  right: auto;
   z-index: 500;
   background: var(--color-surface-light);
   backdrop-filter: blur(12px);
@@ -1939,6 +1967,11 @@ body.dark-mode {
   box-shadow: var(--shadow-md);
   border: 1px solid rgba(255, 255, 255, 0.4);
   font-size: 0.8rem;
+  transition: bottom 0.3s ease;
+}
+
+.map-legend.timeline-open {
+  bottom: 240px;
 }
 
 .map-legend.dark {
@@ -2507,27 +2540,96 @@ body.dark-mode {
     min-height: 50vh;
   }
 
-  /* Event card → bottom sheet on mobile */
-  .event-card-fixed {
-    position: fixed;
+  /* Hide desktop absolute-positioned elements on mobile */
+  .desktop-event-card,
+  .desktop-controls,
+  .desktop-timeline {
+    display: none !important;
+  }
+
+  /* Show mobile bottom panel */
+  .mobile-bottom-panel {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
+    z-index: 700;
+    max-height: 50vh;
+  }
+
+  /* Event card inside mobile panel — scrollable, takes available space */
+  .mobile-bottom-panel .event-card-fixed {
+    position: relative;
     top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
     width: 100%;
     max-width: 100%;
-    max-height: 50vh;
+    max-height: none;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     border-radius: 16px 16px 0 0;
     margin: 0;
-    z-index: 1000;
+    z-index: 1;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 1rem;
   }
 
-  /* When card is showing, push controls above it */
-  .explore-controls {
-    bottom: 16px;
-    transition: bottom 0.3s ease;
+  /* Controls inside mobile panel — fixed height, always visible */
+  .mobile-bottom-panel .explore-controls {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    z-index: 2;
+    padding: 8px 12px;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 0;
+  }
+
+  .mobile-bottom-panel .explore-controls.timeline-open {
+    bottom: auto;
+  }
+
+  /* Timeline inside mobile panel */
+  .mobile-bottom-panel .explore-timeline-container {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    flex-shrink: 0;
+    z-index: 1;
+    overflow: hidden;
+    max-height: 150px;
+  }
+
+  .explore-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  .explore-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .speed-indicator {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .controls-divider {
+    display: none;
+  }
+
+  .search-bar-wrapper {
+    flex-basis: 100%;
   }
 
   /* Hide legend on mobile to avoid overlap with bottom sheet */
@@ -2546,14 +2648,6 @@ body.dark-mode {
 
   .h-timeline-event.active {
     width: 220px;
-  }
-
-  /* Map legend */
-  .map-legend {
-    bottom: 8px;
-    right: 8px;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.7rem;
   }
 
   /* Data view */
@@ -2576,10 +2670,6 @@ body.dark-mode {
   }
 
   /* Welcome screen */
-  .welcome-title {
-    font-size: 2.5rem;
-  }
-
   .welcome-subtitle {
     font-size: 1.2rem;
   }
@@ -2607,8 +2697,19 @@ body.dark-mode {
 
   .scrolly-progress {
     left: auto;
-    right: 20px;
+    right: 12px;
+    top: 12px;
     transform: none;
+  }
+
+  .year-counter {
+    top: 12px;
+    left: 56px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .year-value {
+    font-size: 1.5rem;
   }
 
   .scrolly-controls {
@@ -2658,10 +2759,6 @@ body.dark-mode {
 
   .filter-btn .filter-icon {
     display: none;
-  }
-
-  .welcome-title {
-    font-size: 1.8rem;
   }
 
   .welcome-subtitle {

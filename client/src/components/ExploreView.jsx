@@ -5,12 +5,27 @@ import EventCard from './EventCard';
 import HorizontalTimeline from './HorizontalTimeline';
 import SearchBar from './SearchBar';
 
+function FilterIcon({ type }) {
+  switch (type) {
+    case 'battle':
+      return <svg viewBox="0 0 16 16" width="14" height="14"><line x1="4" y1="4" x2="12" y2="12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><line x1="12" y1="4" x2="4" y2="12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>;
+    case 'political':
+      return <svg viewBox="0 0 16 16" width="14" height="14"><rect x="3.5" y="2" width="9" height="12" rx="1" stroke="currentColor" strokeWidth="1.6" fill="none"/><line x1="5.5" y1="5.5" x2="10.5" y2="5.5" stroke="currentColor" strokeWidth="1.2"/><line x1="5.5" y1="8" x2="10.5" y2="8" stroke="currentColor" strokeWidth="1.2"/></svg>;
+    case 'diplomatic':
+      return <svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.6" fill="none"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>;
+    case 'military':
+      return <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 2L13 5V10C13 12.5 10.5 14.5 8 15C5.5 14.5 3 12.5 3 10V5L8 2Z" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinejoin="round"/></svg>;
+    default:
+      return null;
+  }
+}
+
 function FilterBar({ activeFilters, onToggle }) {
   const types = [
-    { id: 'battle', label: 'Battles', icon: '\u2694\uFE0F', color: '#7A1212' },
-    { id: 'political', label: 'Political', icon: '\uD83D\uDCDC', color: '#0A244A' },
-    { id: 'diplomatic', label: 'Diplomatic', icon: '\uD83E\uDD1D', color: '#C5A02F' },
-    { id: 'military', label: 'Military', icon: '\uD83C\uDFF0', color: '#228B22' },
+    { id: 'battle', label: 'Battles', color: '#7A1212' },
+    { id: 'political', label: 'Political', color: '#0A244A' },
+    { id: 'diplomatic', label: 'Diplomatic', color: '#C5A02F' },
+    { id: 'military', label: 'Military', color: '#228B22' },
   ];
 
   return (
@@ -22,7 +37,7 @@ function FilterBar({ activeFilters, onToggle }) {
           onClick={() => onToggle(t.id)}
           style={{ '--filter-color': t.color }}
         >
-          <span className="filter-icon">{t.icon}</span>
+          <span className="filter-icon"><FilterIcon type={t.id} /></span>
           {t.label}
         </button>
       ))}
@@ -257,6 +272,60 @@ export default function ExploreView({
   const activeFilterCount = activeFilters.size;
   const isAtEnd = currentEventIndex === events.length - 1;
 
+  const controlsContent = (
+    <>
+      <button
+        className={`explore-btn ${isPlaying ? 'active' : ''}`}
+        onClick={() => setIsPlaying(prev => !prev)}
+      >
+        {isPlaying ? (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            Pause
+          </>
+        ) : (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Play
+          </>
+        )}
+      </button>
+
+      <button className="speed-indicator" onClick={cycleSpeed}>
+        {speedLabel}
+      </button>
+
+      <span className="controls-divider" />
+
+      <button
+        className={`explore-btn ${timelineOpen ? 'active' : ''}`}
+        onClick={() => setTimelineOpen(prev => !prev)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+        Timeline
+      </button>
+
+      <span className="controls-divider" />
+
+      <button
+        className={`explore-btn ${filtersOpen ? 'active' : ''}`}
+        onClick={() => setFiltersOpen(prev => !prev)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filter
+        {activeFilterCount < 4 && (
+          <span className="filter-count-badge">{activeFilterCount}</span>
+        )}
+      </button>
+
+      <SearchBar
+        events={events}
+        onEventSelect={handleSearchSelect}
+        darkMode={darkMode}
+      />
+    </>
+  );
+
   return (
     <div className={`scrollytelling-view ${darkMode ? 'dark' : ''}`}>
       {/* Full-screen Map */}
@@ -271,6 +340,7 @@ export default function ExploreView({
           darkMode={darkMode}
           hideFutureEvents={false}
           scrollWheelZoom={false}
+          timelineOpen={timelineOpen}
         />
       </div>
 
@@ -299,57 +369,9 @@ export default function ExploreView({
         <span className="progress-counter">{currentEventIndex + 1} of {events.length}</span>
       </div>
 
-      {/* Controls bar */}
-      <div className={`explore-controls ${timelineOpen ? 'timeline-open' : ''}`}>
-        <button
-          className={`explore-btn ${isPlaying ? 'active' : ''}`}
-          onClick={() => setIsPlaying(prev => !prev)}
-        >
-          {isPlaying ? (
-            <>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-              Pause
-            </>
-          ) : (
-            <>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Play
-            </>
-          )}
-        </button>
-
-        <button className="speed-indicator" onClick={cycleSpeed}>
-          {speedLabel}
-        </button>
-
-        <span className="controls-divider" />
-
-        <button
-          className={`explore-btn ${timelineOpen ? 'active' : ''}`}
-          onClick={() => setTimelineOpen(prev => !prev)}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
-          Timeline
-        </button>
-
-        <span className="controls-divider" />
-
-        <button
-          className={`explore-btn ${filtersOpen ? 'active' : ''}`}
-          onClick={() => setFiltersOpen(prev => !prev)}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-          Filter
-          {activeFilterCount < 4 && (
-            <span className="filter-count-badge">{activeFilterCount}</span>
-          )}
-        </button>
-
-        <SearchBar
-          events={events}
-          onEventSelect={handleSearchSelect}
-          darkMode={darkMode}
-        />
+      {/* Desktop: absolute-positioned controls */}
+      <div className={`explore-controls desktop-controls ${timelineOpen ? 'timeline-open' : ''}`}>
+        {controlsContent}
       </div>
 
       {/* Filters panel — floating above controls */}
@@ -375,16 +397,18 @@ export default function ExploreView({
         )}
       </AnimatePresence>
 
-      {/* Event Card */}
-      <AnimatePresence mode="wait">
-        <EventCard event={displayEvent} darkMode={darkMode} timelineOpen={timelineOpen} />
-      </AnimatePresence>
+      {/* Desktop: absolute-positioned event card */}
+      <div className="desktop-event-card">
+        <AnimatePresence mode="wait">
+          <EventCard event={displayEvent} darkMode={darkMode} timelineOpen={timelineOpen} />
+        </AnimatePresence>
+      </div>
 
-      {/* Collapsible Timeline */}
+      {/* Desktop: Collapsible Timeline */}
       <AnimatePresence>
         {timelineOpen && (
           <motion.div
-            className="explore-timeline-container"
+            className="explore-timeline-container desktop-timeline"
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 60 }}
@@ -399,6 +423,36 @@ export default function ExploreView({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Mobile/Tablet: bottom panel with proper flow layout */}
+      <div className="mobile-bottom-panel">
+        <AnimatePresence mode="wait">
+          <EventCard event={displayEvent} darkMode={darkMode} timelineOpen={timelineOpen} />
+        </AnimatePresence>
+
+        <div className="explore-controls mobile-controls">
+          {controlsContent}
+        </div>
+
+        <AnimatePresence>
+          {timelineOpen && (
+            <motion.div
+              className="explore-timeline-container mobile-timeline"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <HorizontalTimeline
+                events={filteredEvents}
+                activeEventId={currentEvent?.id}
+                onEventClick={handleTimelineClick}
+                darkMode={darkMode}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* End of Timeline overlay */}
       {isAtEnd && (

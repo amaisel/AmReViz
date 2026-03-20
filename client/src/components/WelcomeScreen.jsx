@@ -90,23 +90,41 @@ function ParticleCanvas({ darkMode }) {
 }
 
 function TypewriterTitle({ text, delay = 0.3 }) {
+  const words = text.split(' ');
+  let charIndex = 0;
+
   return (
     <h1 className="welcome-title">
-      {text.split('').map((char, i) => (
-        <motion.span
-          key={i}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            delay: delay + i * 0.04,
-            duration: 0.4,
-            ease: [0.43, 0.13, 0.23, 0.96],
-          }}
-          style={{ display: 'inline-block', whiteSpace: char === ' ' ? 'pre' : 'normal' }}
-        >
-          {char}
-        </motion.span>
-      ))}
+      {words.map((word, wi) => {
+        const wordChars = word.split('').map((char, ci) => {
+          const idx = charIndex++;
+          return (
+            <motion.span
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: delay + idx * 0.04,
+                duration: 0.4,
+                ease: [0.43, 0.13, 0.23, 0.96],
+              }}
+              style={{ display: 'inline-block' }}
+            >
+              {char}
+            </motion.span>
+          );
+        });
+        // Count the space between words
+        if (wi < words.length - 1) charIndex++;
+        return (
+          <span key={wi} style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
+            {wordChars}
+            {wi < words.length - 1 && (
+              <span style={{ display: 'inline-block', width: '0.3em' }}>{' '}</span>
+            )}
+          </span>
+        );
+      })}
     </h1>
   );
 }

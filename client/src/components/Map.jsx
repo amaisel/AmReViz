@@ -3,16 +3,25 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, GeoJSON } from 'reac
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+const getSymbolSvg = (type, color) => {
+  switch (type) {
+    case 'battle':
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><line x1="4" y1="4" x2="12" y2="12" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="4" x2="4" y2="12" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+    case 'political':
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><rect x="3.5" y="2" width="9" height="12" rx="1" stroke="${color}" stroke-width="1.6" fill="none"/><line x1="5.5" y1="5.5" x2="10.5" y2="5.5" stroke="${color}" stroke-width="1.2"/><line x1="5.5" y1="8" x2="10.5" y2="8" stroke="${color}" stroke-width="1.2"/><line x1="5.5" y1="10.5" x2="8.5" y2="10.5" stroke="${color}" stroke-width="1.2"/></svg>`;
+    case 'diplomatic':
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="5" stroke="${color}" stroke-width="1.6" fill="none"/><circle cx="8" cy="8" r="2" fill="${color}"/></svg>`;
+    case 'military':
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><path d="M8 2L13 5V10C13 12.5 10.5 14.5 8 15C5.5 14.5 3 12.5 3 10V5L8 2Z" stroke="${color}" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>`;
+    default:
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="4" fill="${color}"/></svg>`;
+  }
+};
+
 const createEventIcon = (type, side, isActive, isFuture = false, proximity = 1.0) => {
   const colors = {
     american: '#1e3a5f',
     british: '#8b2323'
-  };
-
-  const symbols = {
-    battle: '⚔',
-    political: '📜',
-    diplomatic: '🤝'
   };
 
   // Depth-of-field: markers far from active shrink and fade
@@ -25,6 +34,7 @@ const createEventIcon = (type, side, isActive, isFuture = false, proximity = 1.0
   const textColor = isActive ? '#fffef5' : borderColor;
   const shadowOpacity = isFuture ? 0.1 : (isActive ? 0.5 : 0.15 * proximity);
   const shadowBlur = isActive ? 16 : Math.round(6 * proximity);
+  const symbolSize = Math.round(size * 0.5);
 
   const pulseSize = size + 16;
   const pulseRing = isActive ? `
@@ -58,14 +68,13 @@ const createEventIcon = (type, side, isActive, isFuture = false, proximity = 1.0
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: ${size * 0.45}px;
           box-shadow: 0 ${isActive ? 4 : 2}px ${shadowBlur}px rgba(0,0,0,${shadowOpacity});
           transition: all 0.3s ease;
           cursor: pointer;
           opacity: ${depthOpacity};
           filter: ${isActive ? 'none' : `blur(${Math.round((1 - proximity) * 0.5)}px)`};
         ">
-          <span style="color: ${textColor};">${symbols[type] || '●'}</span>
+          <div style="width: ${symbolSize}px; height: ${symbolSize}px;">${getSymbolSvg(type, textColor)}</div>
         </div>
       </div>
     `,
@@ -343,11 +352,12 @@ function TroopMovementLines({ events, activeEventId, darkMode }) {
   return <>{segments}{yearMarkers}</>;
 }
 
-function MapLegend({ darkMode }) {
+function MapLegend({ darkMode, timelineOpen }) {
   const items = [
-    { symbol: '\u2694', label: 'Battle', border: '#7A1212' },
-    { symbol: '\uD83D\uDCDC', label: 'Political', border: '#0A244A' },
-    { symbol: '\uD83E\uDD1D', label: 'Diplomatic', border: '#C5A02F' },
+    { type: 'battle', label: 'Battle', border: '#7A1212' },
+    { type: 'political', label: 'Political', border: '#0A244A' },
+    { type: 'diplomatic', label: 'Diplomatic', border: '#C5A02F' },
+    { type: 'military', label: 'Military', border: '#228B22' },
   ];
 
   const sides = [
@@ -355,12 +365,54 @@ function MapLegend({ darkMode }) {
     { color: '#8b2323', label: 'British' },
   ];
 
+  const getLegendSymbol = (type, color) => {
+    switch (type) {
+      case 'battle':
+        return (
+          <svg viewBox="0 0 16 16" width="14" height="14">
+            <line x1="4" y1="4" x2="12" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
+            <line x1="12" y1="4" x2="4" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+        );
+      case 'political':
+        return (
+          <svg viewBox="0 0 16 16" width="14" height="14">
+            <rect x="3.5" y="2" width="9" height="12" rx="1" stroke={color} strokeWidth="1.6" fill="none"/>
+            <line x1="5.5" y1="5.5" x2="10.5" y2="5.5" stroke={color} strokeWidth="1.2"/>
+            <line x1="5.5" y1="8" x2="10.5" y2="8" stroke={color} strokeWidth="1.2"/>
+            <line x1="5.5" y1="10.5" x2="8.5" y2="10.5" stroke={color} strokeWidth="1.2"/>
+          </svg>
+        );
+      case 'diplomatic':
+        return (
+          <svg viewBox="0 0 16 16" width="14" height="14">
+            <circle cx="8" cy="8" r="5" stroke={color} strokeWidth="1.6" fill="none"/>
+            <circle cx="8" cy="8" r="2" fill={color}/>
+          </svg>
+        );
+      case 'military':
+        return (
+          <svg viewBox="0 0 16 16" width="14" height="14">
+            <path d="M8 2L13 5V10C13 12.5 10.5 14.5 8 15C5.5 14.5 3 12.5 3 10V5L8 2Z" stroke={color} strokeWidth="1.6" fill="none" strokeLinejoin="round"/>
+          </svg>
+        );
+      default:
+        return (
+          <svg viewBox="0 0 16 16" width="14" height="14">
+            <circle cx="8" cy="8" r="4" fill={color}/>
+          </svg>
+        );
+    }
+  };
+
   return (
-    <div className={`map-legend ${darkMode ? 'dark' : ''}`}>
+    <div className={`map-legend ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}>
       <h4>Legend</h4>
       {items.map((item, i) => (
         <div key={i} className="legend-item">
-          <span className="legend-symbol" style={{ borderColor: item.border }}>{item.symbol}</span>
+          <span className="legend-symbol" style={{ borderColor: item.border }}>
+            {getLegendSymbol(item.type, item.border)}
+          </span>
           <span className="legend-label">{item.label}</span>
         </div>
       ))}
@@ -390,12 +442,25 @@ export default function Map({
   darkMode,
   autoFly = true,
   hideFutureEvents = false,
-  scrollWheelZoom = false
+  scrollWheelZoom = false,
+  timelineOpen = false
 }) {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' && window.innerWidth <= 768
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
+  const centerOffset = isMobile ? 0 : 3;
   const center = activeEvent
-    ? [activeEvent.lat, activeEvent.lng + 3]
+    ? [activeEvent.lat, activeEvent.lng + centerOffset]
     : [40.0, -74.0];
   const zoom = activeEvent ? 6 : 5;
 
@@ -474,7 +539,7 @@ export default function Map({
           );
         })}
       </MapContainer>
-      <MapLegend darkMode={darkMode} />
+      <MapLegend darkMode={darkMode} timelineOpen={timelineOpen} />
     </div>
   );
 }
