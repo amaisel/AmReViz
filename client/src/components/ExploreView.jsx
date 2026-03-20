@@ -56,7 +56,9 @@ export default function ExploreView({
   events,
   colonyBoundaries,
   darkMode,
-  onExitToWelcome
+  onExitToWelcome,
+  initialEventId,
+  onConsumeInitialEvent,
 }) {
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -70,6 +72,17 @@ export default function ExploreView({
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia('(max-width: 768px)').matches
   );
+
+  useEffect(() => {
+    if (initialEventId != null) {
+      const idx = events.findIndex(e => e.id === initialEventId);
+      if (idx !== -1) {
+        setCurrentEventIndex(idx);
+        setIsPlaying(false);
+      }
+      onConsumeInitialEvent?.();
+    }
+  }, [initialEventId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const mapContainerRef = useRef(null);
   const isScrolling = useRef(false);
@@ -140,6 +153,18 @@ export default function ExploreView({
       }
       return next;
     });
+  }, []);
+
+  // --- Preset filters ---
+  const FILTER_PRESETS = [
+    { label: 'All Events', filters: ['battle', 'political', 'diplomatic', 'military'] },
+    { label: 'Major Battles', filters: ['battle'] },
+    { label: 'Political Milestones', filters: ['political'] },
+    { label: 'Turning Points', filters: ['battle', 'diplomatic'] },
+  ];
+
+  const applyPreset = useCallback((filterIds) => {
+    setActiveFilters(new Set(filterIds));
   }, []);
 
   // --- Wheel navigation ---
@@ -279,10 +304,42 @@ export default function ExploreView({
     if (idx !== -1) setCurrentEventIndex(idx);
   }, [events]);
 
+  // --- Prev/Next handlers ---
+  const handlePrevEvent = useCallback(() => {
+    setIsPlaying(false);
+    setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+  }, []);
+
+  const handleNextEvent = useCallback(() => {
+    setIsPlaying(false);
+    setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+  }, [events.length]);
+
   // --- Replay handler ---
   const handleReplay = useCallback(() => {
     setCurrentEventIndex(0);
     setIsPlaying(true);
+  }, []);
+
+  // --- Onboarding hint (first visit) ---
+  const [showHint, setShowHint] = useState(() => {
+    try {
+      return !sessionStorage.getItem('amreviz-hint-dismissed');
+    } catch { return true; }
+  });
+
+  useEffect(() => {
+    if (!showHint) return;
+    const timer = setTimeout(() => {
+      setShowHint(false);
+      try { sessionStorage.setItem('amreviz-hint-dismissed', '1'); } catch {}
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [showHint]);
+
+  const dismissHint = useCallback(() => {
+    setShowHint(false);
+    try { sessionStorage.setItem('amreviz-hint-dismissed', '1'); } catch {}
   }, []);
 
   const activeFilterCount = activeFilters.size;
@@ -360,29 +417,26 @@ export default function ExploreView({
         />
       </div>
 
-      {/* Year Counter — always visible */}
-      <div className="year-counter">
-        <span className="year-label">Year</span>
+      {/* Compact status chip — year + progress merged */}
+      <div className="explore-status-chip">
         <motion.span
-          className="year-value"
+          className="status-chip-year"
           key={currentYear}
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
         >
           {currentYear}
         </motion.span>
-      </div>
-
-      {/* Progress Bar — always visible */}
-      <div className="scrolly-progress">
-        <div className="progress-track">
-          <motion.div
-            className="progress-fill"
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.3 }}
-          />
+        <div className="status-chip-progress">
+          <div className="status-chip-track">
+            <motion.div
+              className="status-chip-fill"
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+          <span className="status-chip-counter">{currentEventIndex + 1}/{events.length}</span>
         </div>
-        <span className="progress-counter">{currentEventIndex + 1} of {events.length}</span>
       </div>
 
       {/* Desktop: absolute-positioned controls */}
@@ -390,7 +444,7 @@ export default function ExploreView({
         {controlsContent}
       </div>
 
-      {/* Filters panel — floating above controls */}
+      {/* Filters panel — floating above controls, now includes legend */}
       <AnimatePresence>
         {filtersOpen && (
           <motion.div
@@ -400,6 +454,21 @@ export default function ExploreView({
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
           >
+            <div className="filter-presets">
+              {FILTER_PRESETS.map((preset) => {
+                const isActive = preset.filters.length === activeFilters.size &&
+                  preset.filters.every(f => activeFilters.has(f));
+                return (
+                  <button
+                    key={preset.label}
+                    className={`filter-preset-chip ${isActive ? 'active' : ''}`}
+                    onClick={() => applyPreset(preset.filters)}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
             <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
             <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
               <input
@@ -409,6 +478,19 @@ export default function ExploreView({
               />
               Color colonies
             </label>
+            <div className="filters-legend-section">
+              <h4 className="filters-legend-title">Map Legend</h4>
+              <div className="filters-legend-rows">
+                <span className="filters-legend-item">
+                  <span className="legend-dot" style={{ background: '#1e3a5f' }} />
+                  American
+                </span>
+                <span className="filters-legend-item">
+                  <span className="legend-dot" style={{ background: '#8b2323' }} />
+                  British
+                </span>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -416,7 +498,15 @@ export default function ExploreView({
       {/* Desktop: absolute-positioned event card */}
       <div className="desktop-event-card">
         <AnimatePresence mode="wait">
-          <EventCard event={displayEvent} darkMode={darkMode} timelineOpen={timelineOpen} />
+          <EventCard
+            event={displayEvent}
+            darkMode={darkMode}
+            timelineOpen={timelineOpen}
+            onPrev={handlePrevEvent}
+            onNext={handleNextEvent}
+            hasPrev={currentEventIndex > 0}
+            hasNext={currentEventIndex < events.length - 1}
+          />
         </AnimatePresence>
       </div>
 
@@ -457,9 +547,35 @@ export default function ExploreView({
             ) : null
           }
         >
-          <EventCard event={displayEvent} darkMode={darkMode} timelineOpen={timelineOpen} />
+          <EventCard
+            event={displayEvent}
+            darkMode={darkMode}
+            timelineOpen={timelineOpen}
+            onPrev={handlePrevEvent}
+            onNext={handleNextEvent}
+            hasPrev={currentEventIndex > 0}
+            hasNext={currentEventIndex < events.length - 1}
+          />
         </MobileBottomSheet>
       )}
+
+      {/* Onboarding hint */}
+      <AnimatePresence>
+        {showHint && (
+          <motion.div
+            className="explore-onboarding-hint"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.4 }}
+          >
+            <span>Use arrow keys, swipe, or Play to move through events</span>
+            <button className="hint-dismiss" onClick={dismissHint} aria-label="Dismiss hint">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* End of Timeline overlay */}
       {isAtEnd && (

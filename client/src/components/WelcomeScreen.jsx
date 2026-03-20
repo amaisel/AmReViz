@@ -18,7 +18,6 @@ function ParticleCanvas({ darkMode }) {
     resize();
     window.addEventListener('resize', resize);
 
-    // Create particles
     const count = 60;
     particlesRef.current = Array.from({ length: count }, () => ({
       x: Math.random() * canvas.width,
@@ -48,7 +47,6 @@ function ParticleCanvas({ darkMode }) {
         if (p.y > canvas.height) p.y = 0;
       });
 
-      // Draw faint connections between nearby particles
       for (let i = 0; i < particlesRef.current.length; i++) {
         for (let j = i + 1; j < particlesRef.current.length; j++) {
           const a = particlesRef.current[i];
@@ -89,45 +87,12 @@ function ParticleCanvas({ darkMode }) {
   );
 }
 
-function TypewriterTitle({ text, delay = 0.3 }) {
-  const words = text.split(' ');
-  let charIndex = 0;
-
-  return (
-    <h1 className="welcome-title">
-      {words.map((word, wi) => {
-        const wordChars = word.split('').map((char, ci) => {
-          const idx = charIndex++;
-          return (
-            <motion.span
-              key={idx}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                delay: delay + idx * 0.04,
-                duration: 0.4,
-                ease: [0.43, 0.13, 0.23, 0.96],
-              }}
-              style={{ display: 'inline-block' }}
-            >
-              {char}
-            </motion.span>
-          );
-        });
-        // Count the space between words
-        if (wi < words.length - 1) charIndex++;
-        return (
-          <span key={wi} style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
-            {wordChars}
-            {wi < words.length - 1 && (
-              <span style={{ display: 'inline-block', width: '0.3em' }}>{' '}</span>
-            )}
-          </span>
-        );
-      })}
-    </h1>
-  );
-}
+const KEY_STATS = [
+  { value: '18', label: 'Key Events' },
+  { value: '10', label: 'Major Battles' },
+  { value: '13', label: 'Colonies' },
+  { value: '1773–83', label: 'Decade of Change' },
+];
 
 export default function WelcomeScreen({ onBegin, darkMode }) {
   const scrollThreshold = useRef(0);
@@ -186,7 +151,7 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.8 }}
+      transition={{ duration: 0.5 }}
     >
       <ParticleCanvas darkMode={darkMode} />
 
@@ -200,54 +165,56 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
           zIndex: 1,
         }}
       >
-        <TypewriterTitle text="The American Revolution" delay={0.3} />
+        <h1 className="welcome-title">The American Revolution</h1>
 
-        <motion.p
-          className="welcome-subtitle"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.3, duration: 0.8 }}
-        >
+        <p className="welcome-subtitle">
           An Interactive Journey Through Independence
-        </motion.p>
+        </p>
 
-        <motion.div
-          className="welcome-description"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.8, duration: 0.8 }}
-        >
+        <div className="welcome-stat-strip">
+          {KEY_STATS.map((stat) => (
+            <div key={stat.label} className="welcome-stat">
+              <span className="welcome-stat-value">{stat.value}</span>
+              <span className="welcome-stat-label">{stat.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="welcome-description">
           <p>
             Experience the birth of a nation through time and space. This visualization
-            guides you through the key events of the Revolutionary War—from the Boston
-            Tea Party to the British surrender at Yorktown—in both chronological and
+            guides you through the key events of the Revolutionary War — from the Boston
+            Tea Party to the British surrender at Yorktown — in both chronological and
             geospatial order.
           </p>
-          <p className="welcome-credits">
-            Inspired by data journalism from The Upshot, FiveThirtyEight, and the
-            tradition of making complex stories clear through visualization.
-          </p>
-        </motion.div>
+        </div>
 
-        <motion.button
-          className="welcome-begin-btn"
-          onClick={onBegin}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.2, duration: 0.6 }}
-          whileHover={{ scale: 1.03, boxShadow: '0 8px 30px rgba(10, 36, 74, 0.35)' }}
-          whileTap={{ scale: 0.97 }}
-        >
-          Begin the Journey
-        </motion.button>
+        <div className="welcome-modes">
+          <button className="welcome-mode-card" onClick={onBegin}>
+            <span className="welcome-mode-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/></svg>
+            </span>
+            <span className="welcome-mode-label">Explore</span>
+            <span className="welcome-mode-desc">Navigate events on an interactive map with timeline playback</span>
+          </button>
+          <button className="welcome-mode-card" onClick={() => {
+            window.location.hash = '#data';
+          }}>
+            <span className="welcome-mode-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </span>
+            <span className="welcome-mode-label">Data</span>
+            <span className="welcome-mode-desc">Dive into troop strength, trade, casualties, and campaigns</span>
+          </button>
+        </div>
 
         <motion.div
           className="welcome-scroll-hint"
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.6 }}
-          transition={{ delay: 2.8, duration: 0.8 }}
+          transition={{ delay: 1.2, duration: 0.8 }}
         >
-          <span>or scroll to start</span>
+          <span>or scroll to start exploring</span>
           <motion.div
             className="scroll-arrow"
             animate={{ y: [0, 8, 0] }}
@@ -258,11 +225,8 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
         </motion.div>
       </div>
 
-      <motion.div
+      <div
         className="welcome-years"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 2.5, duration: 1 }}
         style={{
           transform: `translate(${-mouseOffset.x * 0.5}px, 0)`,
           transition: 'transform 0.15s ease-out',
@@ -273,7 +237,7 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
         <span className="year-start">1773</span>
         <div className="year-line"></div>
         <span className="year-end">1783</span>
-      </motion.div>
+      </div>
     </motion.div>
   );
 }

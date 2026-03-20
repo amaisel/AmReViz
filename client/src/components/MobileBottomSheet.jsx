@@ -1,8 +1,8 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 
-const SNAP_PEEK = 100;
-const SNAP_HALF_RATIO = 0.4;
+const SNAP_PEEK = 180;
+const SNAP_HALF_RATIO = 0.5;
 const SNAP_FULL_RATIO = 0.85;
 
 function getSnapPoints(vh) {

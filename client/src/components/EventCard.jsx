@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-export default function EventCard({ event, darkMode, timelineOpen }) {
+const SUMMARY_CHAR_LIMIT = 160;
+
+export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNext, hasPrev, hasNext }) {
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -30,6 +32,11 @@ export default function EventCard({ event, darkMode, timelineOpen }) {
     military: 'Military'
   };
 
+  const needsTruncation = event.description.length > SUMMARY_CHAR_LIMIT;
+  const displayDescription = expanded || !needsTruncation
+    ? event.description
+    : event.description.slice(0, SUMMARY_CHAR_LIMIT).replace(/\s+\S*$/, '') + '...';
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -41,35 +48,71 @@ export default function EventCard({ event, darkMode, timelineOpen }) {
         key={event.id}
         style={{ perspective: 1000, transformStyle: 'preserve-3d' }}
       >
-        <div
-          className="event-card-type-badge"
-          style={{ backgroundColor: typeColors[event.type] }}
-        >
-          {typeLabels[event.type]}
+        <div className="event-card-topline">
+          <div
+            className="event-card-type-badge"
+            style={{ backgroundColor: typeColors[event.type] }}
+          >
+            {typeLabels[event.type]}
+          </div>
+          <span className="event-card-date-inline">{formattedDate}</span>
         </div>
 
         <h2 className="event-card-title">{event.title}</h2>
 
-        <div className="event-card-meta">
-          <span className="event-card-date">{formattedDate}</span>
+        <div className="event-card-location-row">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="8" cy="7" r="2.5"/>
+            <path d="M8 14s5-4.5 5-7a5 5 0 1 0-10 0c0 2.5 5 7 5 7z"/>
+          </svg>
           <span className="event-card-location">
             {event.location.split('\n').map((line, i) => (
-              <span key={i}>{line}{i < event.location.split('\n').length - 1 && <br />}</span>
+              <span key={i}>{line}{i < event.location.split('\n').length - 1 && ', '}</span>
             ))}
           </span>
         </div>
 
-        <p className={`event-card-description ${expanded ? 'expanded' : ''}`}>{event.description}</p>
-        {!expanded && (
-          <button className="event-card-read-more" onClick={() => setExpanded(true)}>
-            Read more
+        <p className="event-card-description">{displayDescription}</p>
+        {needsTruncation && (
+          <button
+            className="event-card-read-more"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? 'Show less' : 'Read more'}
           </button>
         )}
 
         <div className="event-card-significance">
-          <strong>Historical Significance</strong>
+          <strong>Why This Matters</strong>
           <p>{event.significance}</p>
         </div>
+
+        {(onPrev || onNext) && (
+          <div className="event-card-nav">
+            <button
+              className="event-card-nav-btn"
+              onClick={onPrev}
+              disabled={!hasPrev}
+              aria-label="Previous event"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="10 12 6 8 10 4"/>
+              </svg>
+              Prev
+            </button>
+            <button
+              className="event-card-nav-btn"
+              onClick={onNext}
+              disabled={!hasNext}
+              aria-label="Next event"
+            >
+              Next
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 4 10 8 6 12"/>
+              </svg>
+            </button>
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );

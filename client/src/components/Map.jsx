@@ -539,7 +539,6 @@ export default function Map({
           );
         })}
       </MapContainer>
-      <MapLegend darkMode={darkMode} timelineOpen={timelineOpen} />
     </div>
   );
 }

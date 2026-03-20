@@ -66,8 +66,17 @@ function ViewToggle({ view, onViewChange }) {
   );
 }
 
-function DataView({ darkMode }) {
+function DataView({ darkMode, onNavigateToEvent }) {
   const battles = events.filter(e => e.casualties);
+
+  const handleBattleClick = (eventId) => {
+    onNavigateToEvent?.(eventId);
+  };
+
+  const handleYearClick = (year) => {
+    const match = events.find(e => e.year === year);
+    if (match) onNavigateToEvent?.(match.id);
+  };
 
   return (
     <div className="data-view">
@@ -96,9 +105,9 @@ function DataView({ darkMode }) {
         </div>
       </div>
 
-      <ArmyChart data={armyData} darkMode={darkMode} />
+      <ArmyChart data={armyData} darkMode={darkMode} onYearClick={handleYearClick} />
       <TradeChart data={economicData} darkMode={darkMode} />
-      <CasualtiesChart data={battleData} darkMode={darkMode} />
+      <CasualtiesChart data={battleData} darkMode={darkMode} onBattleClick={handleBattleClick} />
       <CampaignTimeline data={campaignData} darkMode={darkMode} />
       <BattleComparison battles={battles} darkMode={darkMode} />
     </div>
@@ -139,6 +148,13 @@ export default function App() {
 
   const handleExitToWelcome = () => {
     setView('welcome');
+  };
+
+  const [pendingEventId, setPendingEventId] = useState(null);
+
+  const handleNavigateToEvent = (eventId) => {
+    setPendingEventId(eventId);
+    setView('explore');
   };
 
   const showHeader = view !== 'welcome';
@@ -194,6 +210,8 @@ export default function App() {
                 colonyBoundaries={colonyBoundaries}
                 darkMode={darkMode}
                 onExitToWelcome={handleExitToWelcome}
+                initialEventId={pendingEventId}
+                onConsumeInitialEvent={() => setPendingEventId(null)}
               />
             </motion.div>
           )}
@@ -204,7 +222,7 @@ export default function App() {
               key="data"
               {...pageVariants}
             >
-              <DataView darkMode={darkMode} />
+              <DataView darkMode={darkMode} onNavigateToEvent={handleNavigateToEvent} />
             </motion.div>
           )}
         </AnimatePresence>
