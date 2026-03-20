@@ -4,6 +4,7 @@ import Map from './Map';
 import EventCard from './EventCard';
 import HorizontalTimeline from './HorizontalTimeline';
 import SearchBar from './SearchBar';
+import MobileBottomSheet from './MobileBottomSheet';
 
 function FilterIcon({ type }) {
   switch (type) {
@@ -66,7 +67,11 @@ export default function ExploreView({
   const [activeFilters, setActiveFilters] = useState(
     new Set(['battle', 'political', 'diplomatic', 'military'])
   );
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia('(max-width: 768px)').matches
+  );
 
+  const mapContainerRef = useRef(null);
   const isScrolling = useRef(false);
   const accumulatedDelta = useRef(0);
   const accumulatedDeltaX = useRef(0);
@@ -107,6 +112,13 @@ export default function ExploreView({
     }, playSpeed);
     return () => clearInterval(interval);
   }, [isPlaying, playSpeed, events.length]);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 768px)');
+    const onChange = (e) => setIsMobile(e.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   // --- Speed cycle ---
   const cycleSpeed = useCallback(() => {
@@ -171,8 +183,10 @@ export default function ExploreView({
       }
     };
 
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    return () => window.removeEventListener('wheel', handleWheel);
+    const el = mapContainerRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
   }, [events.length]);
 
   // --- Touch swipe navigation ---
@@ -204,11 +218,13 @@ export default function ExploreView({
       }
     };
 
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    const el = mapContainerRef.current;
+    if (!el) return;
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
     return () => {
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchend', handleTouchEnd);
     };
   }, [events.length]);
 
@@ -329,7 +345,7 @@ export default function ExploreView({
   return (
     <div className={`scrollytelling-view ${darkMode ? 'dark' : ''}`}>
       {/* Full-screen Map */}
-      <div className="scrolly-map-container">
+      <div className="scrolly-map-container" ref={mapContainerRef}>
         <Map
           events={mapEvents}
           colonyBoundaries={colonyBoundaries}
@@ -424,35 +440,26 @@ export default function ExploreView({
         )}
       </AnimatePresence>
 
-      {/* Mobile/Tablet: bottom panel with proper flow layout */}
-      <div className="mobile-bottom-panel">
-        <AnimatePresence mode="wait">
-          <EventCard event={displayEvent} darkMode={darkMode} timelineOpen={timelineOpen} />
-        </AnimatePresence>
-
-        <div className="explore-controls mobile-controls">
-          {controlsContent}
-        </div>
-
-        <AnimatePresence>
-          {timelineOpen && (
-            <motion.div
-              className="explore-timeline-container mobile-timeline"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+      {/* Mobile/Tablet: draggable bottom sheet */}
+      {isMobile && (
+        <MobileBottomSheet
+          eventId={currentEvent?.id}
+          darkMode={darkMode}
+          controlsContent={controlsContent}
+          timelineContent={
+            timelineOpen ? (
               <HorizontalTimeline
                 events={filteredEvents}
                 activeEventId={currentEvent?.id}
                 onEventClick={handleTimelineClick}
                 darkMode={darkMode}
               />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            ) : null
+          }
+        >
+          <EventCard event={displayEvent} darkMode={darkMode} timelineOpen={timelineOpen} />
+        </MobileBottomSheet>
+      )}
 
       {/* End of Timeline overlay */}
       {isAtEnd && (

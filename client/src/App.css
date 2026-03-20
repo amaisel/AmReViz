@@ -1326,7 +1326,7 @@ body.dark-mode {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 2rem;
   color: #888;
 }
@@ -1336,7 +1336,12 @@ body.dark-mode {
   font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 700;
+  line-height: 1;
   color: var(--color-american);
+}
+
+.year-line {
+  align-self: center;
 }
 
 .welcome-screen.dark .year-start,
@@ -1375,20 +1380,99 @@ body.dark-mode {
   background: transparent;
 }
 
-/* Desktop: show absolute-positioned elements, hide mobile panel */
-.mobile-bottom-panel {
-  display: none;
-}
-
 .desktop-event-card,
 .desktop-controls,
 .desktop-timeline {
   display: block;
 }
 
-/* The desktop-event-card wrapper shouldn't add any styling */
 .desktop-event-card {
   display: contents;
+}
+
+/* ===== MOBILE BOTTOM SHEET ===== */
+.bottom-sheet {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bottom-sheet.dark {
+  background: rgba(18, 22, 30, 0.96);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.bottom-sheet-handle {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 6px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.bottom-sheet-handle:active {
+  cursor: grabbing;
+}
+
+.bottom-sheet-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.bottom-sheet.dark .bottom-sheet-bar {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bottom-sheet-content {
+  flex: 1;
+  min-height: 0;
+  padding: 0 1rem;
+}
+
+.bottom-sheet-content .event-card-fixed {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: 100%;
+  max-width: 100%;
+  max-height: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.bottom-sheet-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.bottom-sheet.dark .bottom-sheet-controls {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.bottom-sheet-timeline {
+  flex-shrink: 0;
+  max-height: 150px;
+  overflow: hidden;
 }
 
 .scrolly-map-container {
@@ -2545,68 +2629,6 @@ body.dark-mode {
   .desktop-controls,
   .desktop-timeline {
     display: none !important;
-  }
-
-  /* Show mobile bottom panel */
-  .mobile-bottom-panel {
-    display: flex;
-    flex-direction: column;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 700;
-    max-height: 50vh;
-  }
-
-  /* Event card inside mobile panel — scrollable, takes available space */
-  .mobile-bottom-panel .event-card-fixed {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    width: 100%;
-    max-width: 100%;
-    max-height: none;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    border-radius: 16px 16px 0 0;
-    margin: 0;
-    z-index: 1;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-    padding: 1rem;
-  }
-
-  /* Controls inside mobile panel — fixed height, always visible */
-  .mobile-bottom-panel .explore-controls {
-    position: relative;
-    bottom: auto;
-    left: auto;
-    right: auto;
-    z-index: 2;
-    padding: 8px 12px;
-    gap: 0.5rem;
-    flex-shrink: 0;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 0;
-  }
-
-  .mobile-bottom-panel .explore-controls.timeline-open {
-    bottom: auto;
-  }
-
-  /* Timeline inside mobile panel */
-  .mobile-bottom-panel .explore-timeline-container {
-    position: relative;
-    bottom: auto;
-    left: auto;
-    right: auto;
-    flex-shrink: 0;
-    z-index: 1;
-    overflow: hidden;
-    max-height: 150px;
   }
 
   .explore-btn {
