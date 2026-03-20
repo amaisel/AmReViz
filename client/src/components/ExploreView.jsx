@@ -496,8 +496,8 @@ export default function ExploreView({
         )}
       </AnimatePresence>
 
-      {/* Desktop: absolute-positioned event card */}
-      <div className="desktop-event-card">
+      {/* Desktop: bottom-positioned event card */}
+      <div className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}>
         <AnimatePresence mode="wait">
           <EventCard
             event={displayEvent}
