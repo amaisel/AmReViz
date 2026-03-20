@@ -1,14 +1,12 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 
-const SNAP_PEEK = 180;
-const SNAP_HALF_RATIO = 0.5;
-const SNAP_FULL_RATIO = 0.85;
+const SNAP_PEEK_RATIO = 0.6;
+const SNAP_FULL_RATIO = 0.9;
 
 function getSnapPoints(vh) {
   return {
-    peek: vh - SNAP_PEEK,
-    half: vh * (1 - SNAP_HALF_RATIO),
+    peek: vh * (1 - SNAP_PEEK_RATIO),
     full: vh * (1 - SNAP_FULL_RATIO),
   };
 }
@@ -80,12 +78,16 @@ export default function MobileBottomSheet({
       onDragEnd={handleDragEnd}
       style={{ position: 'absolute', left: 0, right: 0, height: vh, zIndex: 700, touchAction: 'none' }}
     >
-      <div className="bottom-sheet-handle" onDoubleClick={() => {
-        const next = snapName === 'peek' ? 'half' : 'peek';
+      <div className="bottom-sheet-handle" onClick={() => {
+        const next = snapName === 'peek' ? 'full' : 'peek';
         setSnapName(next);
         sheetControls.start({ y: snaps[next], transition: { type: 'spring', stiffness: 300, damping: 30 } });
       }}>
-        <span className="bottom-sheet-bar" />
+        <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>
+          <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 10 8 6 12 10"/>
+          </svg>
+        </span>
       </div>
 
       <div

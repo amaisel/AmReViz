@@ -1,18 +1,9 @@
-import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-const SUMMARY_CHAR_LIMIT = 160;
-
 export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNext, hasPrev, hasNext }) {
-  const [expanded, setExpanded] = useState(false);
-
-  useEffect(() => {
-    setExpanded(false);
-  }, [event?.id]);
-
   if (!event) return null;
 
   const date = new Date(event.date);
@@ -31,11 +22,6 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
     diplomatic: 'Diplomatic',
     military: 'Military'
   };
-
-  const needsTruncation = event.description.length > SUMMARY_CHAR_LIMIT;
-  const displayDescription = expanded || !needsTruncation
-    ? event.description
-    : event.description.slice(0, SUMMARY_CHAR_LIMIT).replace(/\s+\S*$/, '') + '...';
 
   return (
     <AnimatePresence mode="wait">
@@ -72,15 +58,7 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
           </span>
         </div>
 
-        <p className="event-card-description">{displayDescription}</p>
-        {needsTruncation && (
-          <button
-            className="event-card-read-more"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? 'Show less' : 'Read more'}
-          </button>
-        )}
+        <p className="event-card-description">{event.description}</p>
 
         <div className="event-card-significance">
           <strong>Why This Matters</strong>

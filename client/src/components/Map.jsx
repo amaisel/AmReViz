@@ -458,9 +458,10 @@ export default function Map({
 
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
-  const centerOffset = isMobile ? 0 : 3;
+  const lngOffset = isMobile ? 0 : -3.5; // Push map center to the left so marker appears on the right
+  const latOffset = isMobile ? -1.8 : 0; // Push map center down so marker appears higher on mobile
   const center = activeEvent
-    ? [activeEvent.lat, activeEvent.lng + centerOffset]
+    ? [activeEvent.lat + latOffset, activeEvent.lng + lngOffset]
     : [40.0, -74.0];
   const zoom = activeEvent ? 6 : 5;
 

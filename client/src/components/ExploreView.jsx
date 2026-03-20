@@ -84,6 +84,7 @@ export default function ExploreView({
     }
   }, [initialEventId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const viewRef = useRef(null);
   const mapContainerRef = useRef(null);
   const isScrolling = useRef(false);
   const accumulatedDelta = useRef(0);
@@ -208,7 +209,7 @@ export default function ExploreView({
       }
     };
 
-    const el = mapContainerRef.current;
+    const el = viewRef.current;
     if (!el) return;
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
@@ -400,7 +401,7 @@ export default function ExploreView({
   );
 
   return (
-    <div className={`scrollytelling-view ${darkMode ? 'dark' : ''}`}>
+    <div className={`scrollytelling-view ${darkMode ? 'dark' : ''}`} ref={viewRef}>
       {/* Full-screen Map */}
       <div className="scrolly-map-container" ref={mapContainerRef}>
         <Map

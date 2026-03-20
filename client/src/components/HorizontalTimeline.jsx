@@ -50,7 +50,7 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
                 onClick={() => onEventClick(event.id)}
                 whileHover={{ scale: 1.05, y: -2 }}
                 animate={{
-                  opacity: isActive ? 1 : 0.6
+                  opacity: isActive ? 1 : 0.75
                 }}
               >
                 <div style={{ position: 'relative', height: '24px', display: 'flex', justifyContent: 'center' }}>
