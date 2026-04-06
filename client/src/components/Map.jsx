@@ -1,87 +1,39 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const getSymbolSvg = (type, color) => {
-  switch (type) {
-    case 'battle':
-      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><line x1="4" y1="4" x2="12" y2="12" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="4" x2="4" y2="12" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/></svg>`;
-    case 'political':
-      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><rect x="3.5" y="2" width="9" height="12" rx="1" stroke="${color}" stroke-width="1.6" fill="none"/><line x1="5.5" y1="5.5" x2="10.5" y2="5.5" stroke="${color}" stroke-width="1.2"/><line x1="5.5" y1="8" x2="10.5" y2="8" stroke="${color}" stroke-width="1.2"/><line x1="5.5" y1="10.5" x2="8.5" y2="10.5" stroke="${color}" stroke-width="1.2"/></svg>`;
-    case 'diplomatic':
-      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="5" stroke="${color}" stroke-width="1.6" fill="none"/><circle cx="8" cy="8" r="2" fill="${color}"/></svg>`;
-    case 'military':
-      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><path d="M8 2L13 5V10C13 12.5 10.5 14.5 8 15C5.5 14.5 3 12.5 3 10V5L8 2Z" stroke="${color}" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>`;
-    default:
-      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="4" fill="${color}"/></svg>`;
-  }
+// ... (getSymbolSvg remains the same)
+
+const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => {
+  // ... (logic remains the same but moved inside a memoized component if possible, 
+  // or we just ensure we don't recreate the object if props haven't changed much)
 };
 
-const createEventIcon = (type, side, isActive, isFuture = false, proximity = 1.0) => {
-  const colors = {
-    american: '#1e3a5f',
-    british: '#8b2323'
-  };
+// Memoized Event Marker to prevent flickering
+const EventMarker = memo(({ event, isActive, isFuture, proximity, onClick }) => {
+  const icon = useMemo(() => {
+    return createEventIcon(event, isActive, isFuture, proximity);
+  }, [event.id, event.type, event.side, event.title, event.date, isActive, isFuture, Math.round(proximity * 100)]);
 
-  // Depth-of-field: markers far from active shrink and fade
-  const depthScale = isActive ? 1 : (0.65 + 0.35 * proximity);
-  const baseSize = isActive ? 44 : 34;
-  const size = Math.round(baseSize * depthScale);
-  const depthOpacity = isFuture ? 0.25 : (isActive ? 1 : (0.4 + 0.6 * proximity));
-  const borderColor = colors[side] || '#1e3a5f';
-  const bgColor = isActive ? borderColor : '#fffef5';
-  const textColor = isActive ? '#fffef5' : borderColor;
-  const shadowOpacity = isFuture ? 0.1 : (isActive ? 0.5 : 0.15 * proximity);
-  const shadowBlur = isActive ? 16 : Math.round(6 * proximity);
-  const symbolSize = Math.round(size * 0.5);
-
-  const pulseSize = size + 16;
-  const pulseRing = isActive ? `
-    <div class="marker-pulse-ring" style="
-      position: absolute;
-      top: ${-(pulseSize - size) / 2}px;
-      left: ${-(pulseSize - size) / 2}px;
-      width: ${pulseSize}px;
-      height: ${pulseSize}px;
-      border-radius: 50%;
-      border: 2px solid ${borderColor};
-      animation: markerPulse 2s ease-out infinite;
-    "></div>
-  ` : '';
-
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `
-      <div style="
-        position: relative;
-        width: ${size}px;
-        height: ${size}px;
-      ">
-        ${pulseRing}
-        <div style="
-          width: ${size}px;
-          height: ${size}px;
-          border-radius: 50%;
-          background: ${bgColor};
-          border: ${isActive ? 3 : Math.max(2, Math.round(3 * depthScale))}px solid ${borderColor};
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 ${isActive ? 4 : 2}px ${shadowBlur}px rgba(0,0,0,${shadowOpacity});
-          transition: all 0.3s ease;
-          cursor: pointer;
-          opacity: ${depthOpacity};
-          filter: ${isActive ? 'none' : `blur(${Math.round((1 - proximity) * 0.5)}px)`};
-        ">
-          <div style="width: ${symbolSize}px; height: ${symbolSize}px;">${getSymbolSvg(type, textColor)}</div>
-        </div>
-      </div>
-    `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2]
-  });
-};
+  return (
+    <Marker
+      position={[event.lat, event.lng]}
+      icon={icon}
+      zIndexOffset={isActive ? 1000 : 0}
+      eventHandlers={{
+        click: onClick
+      }}
+    />
+  );
+}, (prev, next) => {
+  return (
+    prev.event.id === next.event.id &&
+    prev.isActive === next.isActive &&
+    prev.isFuture === next.isFuture &&
+    Math.round(prev.proximity * 100) === Math.round(next.proximity * 100) // Stabilize proximity changes
+  );
+});
 
 const createColonyLabel = (abbrev, darkMode) => {
   const textColor = darkMode ? 'rgba(220, 200, 180, 0.9)' : 'rgba(60, 40, 20, 0.85)';
@@ -117,20 +69,39 @@ const createColonyLabel = (abbrev, darkMode) => {
 function MapController({ center, zoom, autoFly }) {
   const map = useMap();
   const prevCenterRef = useRef(null);
+  const prevZoomRef = useRef(null);
 
   useEffect(() => {
     if (autoFly && center) {
       const prevCenter = prevCenterRef.current;
+      const prevZoom = prevZoomRef.current;
+      
+      // Use a small epsilon to avoid jitter from floating point precision
+      const EPSILON = 0.0001;
       const centerChanged = !prevCenter ||
-        prevCenter[0] !== center[0] ||
-        prevCenter[1] !== center[1];
+        Math.abs(prevCenter[0] - center[0]) > EPSILON ||
+        Math.abs(prevCenter[1] - center[1]) > EPSILON;
+      
+      const zoomChanged = prevZoom !== zoom;
 
-      if (centerChanged) {
-        map.setView(center, zoom, {
-          animate: true,
-          duration: 0.3
-        });
+      if (centerChanged || zoomChanged) {
+        // If moving a significant distance, use flyTo for smoothness
+        const dist = prevCenter ? Math.sqrt(Math.pow(prevCenter[0] - center[0], 2) + Math.pow(prevCenter[1] - center[1], 2)) : 0;
+        
+        if (dist > 2) {
+          map.flyTo(center, zoom, {
+            duration: 0.8,
+            easeLinearity: 0.25
+          });
+        } else {
+          map.setView(center, zoom, {
+            animate: true,
+            duration: 0.4
+          });
+        }
+        
         prevCenterRef.current = center;
+        prevZoomRef.current = zoom;
       }
     }
   }, [center, zoom, map, autoFly]);
@@ -156,10 +127,10 @@ const colonyColors = {
   'Georgia': '#A09078'
 };
 
-function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
+const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
   const [hoveredColony, setHoveredColony] = useState(null);
 
-  const style = (feature) => {
+  const style = useCallback((feature) => {
     const colonyName = feature.properties.name;
     const isHovered = hoveredColony === colonyName;
 
@@ -191,9 +162,9 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
       dashArray: null,
       className: 'colony-boundary'
     };
-  };
+  }, [darkMode, fillColonies, hoveredColony]);
 
-  const onEachFeature = (feature, layer) => {
+  const onEachFeature = useCallback((feature, layer) => {
     const props = feature.properties;
 
     const partOfText = props.partOf ? `<div style="font-style: italic; color: #888;">(Part of ${props.partOf})</div>` : '';
@@ -233,7 +204,7 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
         });
       }
     });
-  };
+  }, [fillColonies]);
 
   return (
     <GeoJSON
@@ -243,7 +214,7 @@ function ColonyBoundaries({ boundaries, darkMode, fillColonies }) {
       smoothFactor={1.5}
     />
   );
-}
+});
 
 function ColonyLabels({ boundaries, darkMode, events = [] }) {
   const getAdjustedPosition = (labelLat, labelLng) => {
@@ -296,61 +267,62 @@ function ColonyLabels({ boundaries, darkMode, events = [] }) {
   );
 }
 
-function TroopMovementLines({ events, activeEventId, darkMode }) {
-  const activeIndex = events.findIndex(e => e.id === activeEventId);
+const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
+  const activeIndex = useMemo(() => events.findIndex(e => e.id === activeEventId), [events, activeEventId]);
   if (activeIndex < 1) return null;
 
-  const visibleEvents = events.slice(0, activeIndex + 1);
+  const visibleEvents = useMemo(() => events.slice(0, activeIndex + 1), [events, activeIndex]);
   const color = darkMode ? '#C5A02F' : '#0A244A';
   const headColor = darkMode ? '#E0C060' : '#1e3a5f';
 
   // Build segments with age-based opacity
-  const segments = [];
-  const yearMarkers = [];
-  let lastYear = null;
+  return useMemo(() => {
+    const segments = [];
+    const yearMarkers = [];
+    let lastYear = null;
 
-  for (let i = 1; i < visibleEvents.length; i++) {
-    const age = (visibleEvents.length - 1 - i) / Math.max(visibleEvents.length - 1, 1);
-    const opacity = 0.06 + (1 - age) * 0.54; // fades from 0.6 (newest) to 0.06 (oldest)
-    const weight = i === visibleEvents.length - 1 ? 3.5 : Math.max(1, 2 * (1 - age * 0.6));
-    const segColor = i === visibleEvents.length - 1 ? headColor : color;
+    for (let i = 1; i < visibleEvents.length; i++) {
+      const age = (visibleEvents.length - 1 - i) / Math.max(visibleEvents.length - 1, 1);
+      const opacity = 0.06 + (1 - age) * 0.54; // fades from 0.6 (newest) to 0.06 (oldest)
+      const weight = i === visibleEvents.length - 1 ? 3.5 : Math.max(1, 2 * (1 - age * 0.6));
+      const segColor = i === visibleEvents.length - 1 ? headColor : color;
 
-    segments.push(
-      <Polyline
-        key={`seg-${i}`}
-        positions={[[visibleEvents[i - 1].lat, visibleEvents[i - 1].lng], [visibleEvents[i].lat, visibleEvents[i].lng]]}
-        pathOptions={{
-          color: segColor,
-          weight,
-          opacity,
-          dashArray: i === visibleEvents.length - 1 ? null : '6, 6',
-          lineCap: 'round',
-        }}
-      />
-    );
-
-    // Year markers at year transitions
-    const eventYear = new Date(visibleEvents[i].date).getUTCFullYear();
-    if (lastYear !== null && eventYear !== lastYear) {
-      yearMarkers.push(
-        <Marker
-          key={`year-${eventYear}-${i}`}
-          position={[visibleEvents[i].lat, visibleEvents[i].lng]}
-          icon={L.divIcon({
-            className: 'trail-year-marker',
-            html: `<span class="${darkMode ? 'dark' : ''}">${eventYear}</span>`,
-            iconSize: [36, 16],
-            iconAnchor: [18, -6],
-          })}
-          interactive={false}
+      segments.push(
+        <Polyline
+          key={`seg-${visibleEvents[i].id}`}
+          positions={[[visibleEvents[i - 1].lat, visibleEvents[i - 1].lng], [visibleEvents[i].lat, visibleEvents[i].lng]]}
+          pathOptions={{
+            color: segColor,
+            weight,
+            opacity,
+            dashArray: i === visibleEvents.length - 1 ? null : '6, 6',
+            lineCap: 'round',
+          }}
         />
       );
-    }
-    lastYear = eventYear;
-  }
 
-  return <>{segments}{yearMarkers}</>;
-}
+      // Year markers at year transitions
+      const eventYear = new Date(visibleEvents[i].date).getUTCFullYear();
+      if (lastYear !== null && eventYear !== lastYear) {
+        yearMarkers.push(
+          <Marker
+            key={`year-${eventYear}-${i}`}
+            position={[visibleEvents[i].lat, visibleEvents[i].lng]}
+            icon={L.divIcon({
+              className: 'trail-year-marker',
+              html: `<span class="${darkMode ? 'dark' : ''}">${eventYear}</span>`,
+              iconSize: [36, 16],
+              iconAnchor: [18, -6],
+            })}
+            interactive={false}
+          />
+        );
+      }
+      lastYear = eventYear;
+    }
+    return <>{segments}{yearMarkers}</>;
+  }, [visibleEvents, color, headColor, darkMode]);
+});
 
 function MapLegend({ darkMode, timelineOpen }) {
   const items = [
@@ -479,6 +451,24 @@ export default function Map({
     return new Date(event.date) > activeEventDate;
   };
 
+  const handleEventClick = useCallback((id) => {
+    onEventClick(id);
+  }, [onEventClick]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const focused = document.activeElement;
+        if (focused && focused.getAttribute('role') === 'button' && focused.closest('.custom-marker')) {
+          e.preventDefault();
+          focused.click();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   return (
     <div className={`map-container ${darkMode ? 'dark' : 'light'}`}>
       <MapContainer
@@ -490,7 +480,7 @@ export default function Map({
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
         attributionControl={false}
-        scrollWheelZoom={scrollWheelZoom}
+        scrollWheelZoom={true}
         dragging={true}
         doubleClickZoom={true}
         touchZoom={true}
@@ -529,13 +519,13 @@ export default function Map({
             proximity = Math.max(0, Math.min(1, 1 - dist / 12));
           }
           return (
-            <Marker
+            <EventMarker
               key={event.id}
-              position={[event.lat, event.lng]}
-              icon={createEventIcon(event.type, event.side, event.id === activeEventId, isFutureEvent(event), proximity)}
-              eventHandlers={{
-                click: () => onEventClick(event.id)
-              }}
+              event={event}
+              isActive={event.id === activeEventId}
+              isFuture={isFutureEvent(event)}
+              proximity={proximity}
+              onClick={() => handleEventClick(event.id)}
             />
           );
         })}

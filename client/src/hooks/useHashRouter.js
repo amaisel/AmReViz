@@ -5,33 +5,39 @@ const validViews = ['welcome', 'explore', 'data'];
 // Backward compat: old routes redirect to explore
 const legacyMap = { story: 'explore', timeline: 'explore' };
 
-function getViewFromHash() {
+function parseHash() {
   const hash = window.location.hash.replace('#/', '').replace('#', '');
-  if (legacyMap[hash]) {
-    window.location.hash = `#/${legacyMap[hash]}`;
-    return legacyMap[hash];
-  }
-  return validViews.includes(hash) ? hash : 'welcome';
+  const [viewPart, subPart] = hash.split('/');
+  
+  const view = validViews.includes(viewPart) ? viewPart : 'welcome';
+  const subId = subPart ? parseInt(subPart, 10) : null;
+  
+  return { view, subId };
 }
 
 export default function useHashRouter(defaultView = 'welcome') {
-  const [view, setViewState] = useState(() => {
-    const hashView = getViewFromHash();
-    return hashView !== 'welcome' ? hashView : defaultView;
+  const [route, setRouteState] = useState(() => {
+    const parsed = parseHash();
+    return parsed.view !== 'welcome' ? parsed : { view: defaultView, subId: null };
   });
 
-  const setView = useCallback((newView) => {
-    setViewState(newView);
-    window.location.hash = newView === 'welcome' ? '' : `#/${newView}`;
+  const setView = useCallback((newView, subId = null) => {
+    setRouteState({ view: newView, subId });
+    let newHash = '';
+    if (newView !== 'welcome') {
+      newHash = `#/${newView}`;
+      if (subId != null) newHash += `/${subId}`;
+    }
+    window.location.hash = newHash;
   }, []);
 
   useEffect(() => {
     const handleHashChange = () => {
-      setViewState(getViewFromHash());
+      setRouteState(parseHash());
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  return [view, setView];
+  return [route.view, setView, route.subId];
 }

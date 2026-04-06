@@ -190,17 +190,25 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
         </div>
 
         <div className="welcome-modes">
-          <button className="welcome-mode-card" onClick={onBegin}>
-            <span className="welcome-mode-icon">
+          <button 
+            className="welcome-mode-card" 
+            onClick={onBegin}
+            aria-label="Enter Explore mode: View events on an interactive map"
+          >
+            <span className="welcome-mode-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/></svg>
             </span>
             <span className="welcome-mode-label">Explore</span>
             <span className="welcome-mode-desc">Navigate events on an interactive map with timeline playback</span>
           </button>
-          <button className="welcome-mode-card" onClick={() => {
-            window.location.hash = '#data';
-          }}>
-            <span className="welcome-mode-icon">
+          <button 
+            className="welcome-mode-card" 
+            onClick={() => {
+              window.location.hash = '#data';
+            }}
+            aria-label="Enter Data mode: View statistics and charts"
+          >
+            <span className="welcome-mode-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             </span>
             <span className="welcome-mode-label">Data</span>
@@ -222,6 +230,24 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
           >
             ↓
           </motion.div>
+          <button 
+            className="welcome-help-hint"
+            onClick={() => {
+              const event = new KeyboardEvent('keydown', { key: '?' });
+              window.dispatchEvent(event);
+            }}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: 'inherit', 
+              fontSize: '0.75rem', 
+              marginTop: '1rem',
+              cursor: 'pointer',
+              textDecoration: 'underline'
+            }}
+          >
+            Press ? for keyboard shortcuts
+          </button>
         </motion.div>
       </div>
 

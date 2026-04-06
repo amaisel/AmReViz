@@ -1,0 +1,35 @@
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - heading "The American Revolution" [level=1] [ref=e7]
+      - paragraph [ref=e8]: An Interactive Journey Through Independence
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]: "18"
+          - generic [ref=e12]: Key Events
+        - generic [ref=e13]:
+          - generic [ref=e14]: "10"
+          - generic [ref=e15]: Major Battles
+        - generic [ref=e16]:
+          - generic [ref=e17]: "13"
+          - generic [ref=e18]: Colonies
+        - generic [ref=e19]:
+          - generic [ref=e20]: 1773–83
+          - generic [ref=e21]: Decade of Change
+      - paragraph [ref=e23]: Experience the birth of a nation through time and space. This visualization guides you through the key events of the Revolutionary War — from the Boston Tea Party to the British surrender at Yorktown — in both chronological and geospatial order.
+      - generic [ref=e24]:
+        - 'button "Enter Explore mode: View events on an interactive map" [ref=e25] [cursor=pointer]':
+          - img [ref=e27]
+          - generic [ref=e30]: Explore
+          - generic [ref=e31]: Navigate events on an interactive map with timeline playback
+        - 'button "Enter Data mode: View statistics and charts" [ref=e32] [cursor=pointer]':
+          - img [ref=e34]
+          - generic [ref=e35]: Data
+          - generic [ref=e36]: Dive into troop strength, trade, casualties, and campaigns
+      - generic [ref=e37]:
+        - generic [ref=e38]: or scroll to start exploring
+        - generic [ref=e39]: ↓
+        - button "Press ? for keyboard shortcuts" [ref=e40] [cursor=pointer]
+    - generic [ref=e41]:
+      - generic [ref=e42]: "1773"
+      - generic [ref=e44]: "1783"

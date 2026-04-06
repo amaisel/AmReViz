@@ -27,6 +27,22 @@ function ModeToggle({ darkMode, onToggle }) {
   );
 }
 
+function HelpToggle() {
+  return (
+    <button
+      className="mode-toggle help-toggle"
+      onClick={() => {
+        const event = new KeyboardEvent('keydown', { key: '?' });
+        window.dispatchEvent(event);
+      }}
+      aria-label="Show keyboard shortcuts"
+      title="Keyboard Shortcuts (?)"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </button>
+  );
+}
+
 function ViewToggle({ view, onViewChange }) {
   const views = [
     { id: 'explore', label: 'Explore' },
@@ -80,12 +96,12 @@ function DataView({ darkMode, onNavigateToEvent }) {
 
   return (
     <div className="data-view">
-      <div className="data-section">
+      <header className="data-section">
         <h2>Forces & Economy</h2>
         <p className="data-subtitle">
           Visualizing the Revolution through numbers
         </p>
-      </div>
+      </header>
 
       <div className="data-insights">
         <div className="insight-card">
@@ -105,18 +121,43 @@ function DataView({ darkMode, onNavigateToEvent }) {
         </div>
       </div>
 
-      <ArmyChart data={armyData} darkMode={darkMode} onYearClick={handleYearClick} />
-      <TradeChart data={economicData} darkMode={darkMode} />
-      <CasualtiesChart data={battleData} darkMode={darkMode} onBattleClick={handleBattleClick} />
-      <CampaignTimeline data={campaignData} darkMode={darkMode} />
-      <BattleComparison battles={battles} darkMode={darkMode} />
+      <section className="data-group">
+        <h3 className="data-group-title">Military Strength & Theater</h3>
+        <div className="data-grid">
+          <ArmyChart data={armyData} darkMode={darkMode} onYearClick={handleYearClick} />
+          <CampaignTimeline data={campaignData} darkMode={darkMode} />
+        </div>
+      </section>
+
+      <section className="data-group">
+        <h3 className="data-group-title">Economic Impact</h3>
+        <TradeChart data={economicData} darkMode={darkMode} />
+      </section>
+
+      <section className="data-group">
+        <h3 className="data-group-title">Battle Analysis</h3>
+        <div className="data-grid">
+          <CasualtiesChart data={battleData} darkMode={darkMode} onBattleClick={handleBattleClick} />
+          <BattleComparison battles={battles} darkMode={darkMode} />
+        </div>
+      </section>
     </div>
   );
 }
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(false);
-  const [view, setView] = useHashRouter('welcome');
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      return localStorage.getItem('amreviz-dark-mode') === 'true';
+    } catch { return false; }
+  });
+  
+  const [view, setView, subId] = useHashRouter('welcome');
+
+  useEffect(() => {
+    localStorage.setItem('amreviz-dark-mode', darkMode);
+    document.body.className = darkMode ? 'dark-mode' : 'light-mode';
+  }, [darkMode]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -138,10 +179,6 @@ export default function App() {
   const direction = viewOrder[view] >= viewOrder[prevViewRef.current] ? 1 : -1;
   useEffect(() => { prevViewRef.current = view; }, [view]);
 
-  useEffect(() => {
-    document.body.className = darkMode ? 'dark-mode' : 'light-mode';
-  }, [darkMode]);
-
   const handleBeginJourney = () => {
     setView('explore');
   };
@@ -152,9 +189,15 @@ export default function App() {
 
   const [pendingEventId, setPendingEventId] = useState(null);
 
+  // Sync subId from URL to pendingEventId
+  useEffect(() => {
+    if (view === 'explore' && subId != null) {
+      setPendingEventId(subId);
+    }
+  }, [view, subId]);
+
   const handleNavigateToEvent = (eventId) => {
-    setPendingEventId(eventId);
-    setView('explore');
+    setView('explore', eventId);
   };
 
   const showHeader = view !== 'welcome';
@@ -183,6 +226,7 @@ export default function App() {
             </div>
             <div className="header-controls">
               <ViewToggle view={view} onViewChange={setView} />
+              <HelpToggle />
               <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(!darkMode)} />
             </div>
           </motion.header>
@@ -212,6 +256,7 @@ export default function App() {
                 onExitToWelcome={handleExitToWelcome}
                 initialEventId={pendingEventId}
                 onConsumeInitialEvent={() => setPendingEventId(null)}
+                onEventChange={(eventId) => setView('explore', eventId)}
               />
             </motion.div>
           )}

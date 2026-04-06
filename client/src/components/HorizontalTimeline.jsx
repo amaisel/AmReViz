@@ -48,10 +48,20 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
                 ref={isActive ? activeRef : null}
                 className={`h-timeline-event ${isActive ? 'active' : ''}`}
                 onClick={() => onEventClick(event.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onEventClick(event.id);
+                  }
+                }}
                 whileHover={{ scale: 1.05, y: -2 }}
                 animate={{
                   opacity: isActive ? 1 : 0.75
                 }}
+                role="button"
+                tabIndex={0}
+                aria-label={`${event.title} - ${event.year}`}
+                aria-current={isActive ? 'step' : undefined}
               >
                 <div style={{ position: 'relative', height: '24px', display: 'flex', justifyContent: 'center' }}>
                   {isActive && (

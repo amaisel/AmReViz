@@ -59,6 +59,7 @@ export default function ExploreView({
   onExitToWelcome,
   initialEventId,
   onConsumeInitialEvent,
+  onEventChange, // New prop to sync URL
 }) {
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -73,10 +74,20 @@ export default function ExploreView({
     () => window.matchMedia('(max-width: 768px)').matches
   );
 
+  // Derive the current event
+  const currentEvent = events[currentEventIndex];
+
+  // Sync current event index when it changes
+  useEffect(() => {
+    if (currentEvent) {
+      onEventChange?.(currentEvent.id);
+    }
+  }, [currentEventIndex, onEventChange, currentEvent]);
+
   useEffect(() => {
     if (initialEventId != null) {
       const idx = events.findIndex(e => e.id === initialEventId);
-      if (idx !== -1) {
+      if (idx !== -1 && idx !== currentEventIndex) {
         setCurrentEventIndex(idx);
         setIsPlaying(false);
       }
@@ -91,8 +102,6 @@ export default function ExploreView({
   const accumulatedDeltaX = useRef(0);
   const touchStart = useRef(null);
 
-  // Derived state
-  const currentEvent = events[currentEventIndex];
   const currentYear = currentEvent?.year || 1773;
   const progress = ((currentEventIndex + 1) / events.length) * 100;
 
@@ -515,7 +524,7 @@ export default function ExploreView({
       <AnimatePresence>
         {timelineOpen && (
           <motion.div
-            className="explore-timeline-container desktop-timeline"
+            className={`explore-timeline-container ${isMobile ? 'mobile-fixed-timeline' : 'desktop-timeline'}`}
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 60 }}
@@ -537,16 +546,7 @@ export default function ExploreView({
           eventId={currentEvent?.id}
           darkMode={darkMode}
           controlsContent={controlsContent}
-          timelineContent={
-            timelineOpen ? (
-              <HorizontalTimeline
-                events={filteredEvents}
-                activeEventId={currentEvent?.id}
-                onEventClick={handleTimelineClick}
-                darkMode={darkMode}
-              />
-            ) : null
-          }
+          timelineOpen={timelineOpen}
         >
           <EventCard
             event={displayEvent}

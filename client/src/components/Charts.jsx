@@ -60,14 +60,16 @@ export function ArmyChart({ data, darkMode, onYearClick }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
+      role="region"
+      aria-label="Troop Strength Over Time Chart"
     >
       <h3 className="chart-title">Troop Strength Over Time</h3>
       <p className="chart-takeaway">
         The Continental Army peaked at 35,000 after Valley Forge training in 1778, while British forces
         remained relatively stable before declining after Yorktown.
       </p>
-      <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+      <ResponsiveContainer width="100%" height={280}>
+        <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="colorContinental" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#0A244A" stopOpacity={0.8} />
@@ -81,29 +83,42 @@ export function ArmyChart({ data, darkMode, onYearClick }) {
           <XAxis
             dataKey="year"
             stroke={textColor}
-            tick={{ fontSize: 11, fill: textColor }}
+            tick={{ fontSize: 12, fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
+            label={{ value: 'Year', position: 'insideBottomRight', offset: -5, fontSize: 11, fill: textColor }}
           />
           <YAxis
             stroke={textColor}
-            tick={{ fontSize: 11, fill: textColor }}
+            tick={{ fontSize: 12, fill: textColor }}
             tickFormatter={(value) => `${value / 1000}k`}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
+            label={{ value: 'Troops', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
           />
           <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
-          <Legend wrapperStyle={{ fontSize: '12px' }} />
-          <ReferenceLine x={1778} stroke={darkMode ? '#555' : '#ccc'} strokeDasharray="3 3" label={{ value: 'Valley Forge', position: 'top', fontSize: 10, fill: textColor }} />
+          <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }} />
+          <ReferenceLine 
+            x={1778} 
+            stroke={darkMode ? '#C5A02F' : '#0A244A'} 
+            strokeDasharray="3 3" 
+            label={{ 
+              value: 'Valley Forge', 
+              position: 'top', 
+              fontSize: 11, 
+              fill: darkMode ? '#C5A02F' : '#0A244A',
+              fontWeight: 600
+            }} 
+          />
           <Area
             type="monotone"
             dataKey="continental"
             name="Continental Army"
             stroke="#0A244A"
             fill="url(#colorContinental)"
-            strokeWidth={2.5}
-            dot={{ fill: '#0A244A', r: 3 }}
-            activeDot={{ r: 5, cursor: 'pointer' }}
+            strokeWidth={3}
+            dot={{ fill: '#0A244A', r: 4 }}
+            activeDot={{ r: 6, cursor: 'pointer' }}
             onClick={(data) => onYearClick?.(data?.year)}
           />
           <Area
@@ -112,9 +127,9 @@ export function ArmyChart({ data, darkMode, onYearClick }) {
             name="British Army"
             stroke="#7A1212"
             fill="url(#colorBritish)"
-            strokeWidth={2.5}
-            dot={{ fill: '#7A1212', r: 3 }}
-            activeDot={{ r: 5, cursor: 'pointer' }}
+            strokeWidth={3}
+            dot={{ fill: '#7A1212', r: 4 }}
+            activeDot={{ r: 6, cursor: 'pointer' }}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -131,47 +146,61 @@ export function TradeChart({ data, darkMode }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.15 }}
+      role="region"
+      aria-label="Colonial Trade Chart"
     >
-      <h3 className="chart-title">Colonial Trade (millions)</h3>
+      <h3 className="chart-title">Colonial Trade Impact</h3>
       <p className="chart-takeaway">
         British imports collapsed by 97% between 1771 and 1776 as boycotts and war
-        severed trade. The French alliance in 1778 began to restore export flows.
+        severed trade. Values in millions of British Pounds Sterling (£).
       </p>
-      <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
           <XAxis
             dataKey="year"
             stroke={textColor}
-            tick={{ fontSize: 11, fill: textColor }}
+            tick={{ fontSize: 12, fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
           />
           <YAxis
             stroke={textColor}
-            tick={{ fontSize: 11, fill: textColor }}
+            tick={{ fontSize: 12, fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
+            label={{ value: 'Value (£m)', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
           />
           <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
-          <Legend wrapperStyle={{ fontSize: '12px' }} />
-          <ReferenceLine x={1775} stroke={darkMode ? '#555' : '#ccc'} strokeDasharray="3 3" label={{ value: 'War Begins', position: 'top', fontSize: 10, fill: textColor }} />
+          <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }} />
+          <ReferenceLine 
+            x={1775} 
+            stroke={darkMode ? '#8B949E' : '#666'} 
+            strokeDasharray="3 3" 
+            label={{ 
+              value: 'War Begins', 
+              position: 'top', 
+              fontSize: 11, 
+              fill: textColor,
+              fontWeight: 600
+            }} 
+          />
           <Line
             type="monotone"
             dataKey="colonialExports"
-            name="Exports"
+            name="Colonial Exports"
             stroke="#0A244A"
-            strokeWidth={2.5}
-            dot={{ fill: '#0A244A', r: 4 }}
-            activeDot={{ r: 6 }}
+            strokeWidth={3}
+            dot={{ fill: '#0A244A', r: 5 }}
+            activeDot={{ r: 7 }}
           />
           <Line
             type="monotone"
             dataKey="colonialImports"
             name="Imports from Britain"
             stroke="#7A1212"
-            strokeWidth={2.5}
-            dot={{ fill: '#7A1212', r: 4 }}
-            activeDot={{ r: 6 }}
+            strokeWidth={3}
+            dot={{ fill: '#7A1212', r: 5 }}
+            activeDot={{ r: 7 }}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -188,15 +217,17 @@ export function CasualtiesChart({ data, darkMode, onBattleClick }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.25 }}
+      role="region"
+      aria-label="Casualties by Major Battle Chart"
     >
       <h3 className="chart-title">Casualties by Major Battle</h3>
       <p className="chart-takeaway">
-        Long Island was the deadliest engagement for Americans (2,000 casualties),
-        while Bunker Hill cost the British over 1,000 — nearly half their force.
-        Click a battle to jump to it on the map.
+        Long Island was the deadliest engagement for Americans,
+        while Bunker Hill cost the British nearly half their force.
+        Click a bar to view the battle on the map.
       </p>
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 50 }}
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
           onClick={(state) => {
             if (state?.activePayload?.[0]?.payload?.id) {
               onBattleClick?.(state.activePayload[0].payload.id);
@@ -207,19 +238,20 @@ export function CasualtiesChart({ data, darkMode, onBattleClick }) {
           <XAxis
             dataKey="title"
             stroke={textColor}
-            tick={{ fontSize: 10, fill: textColor, angle: -35, textAnchor: 'end' }}
+            tick={{ fontSize: 11, fill: textColor, angle: -45, textAnchor: 'end' }}
             interval={0}
-            height={60}
+            height={80}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
           />
           <YAxis
             stroke={textColor}
-            tick={{ fontSize: 11, fill: textColor }}
+            tick={{ fontSize: 12, fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
+            label={{ value: 'Casualties', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
           />
-          <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
-          <Legend wrapperStyle={{ fontSize: '12px' }} />
+          <Tooltip content={<CustomTooltip darkMode={darkMode} />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
+          <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '13px' }} />
           <Bar dataKey="americanCasualties" name="American" fill="#0A244A" radius={[4, 4, 0, 0]} />
           <Bar dataKey="britishCasualties" name="British" fill="#7A1212" radius={[4, 4, 0, 0]} />
         </BarChart>
@@ -259,35 +291,39 @@ export function CampaignTimeline({ data, darkMode }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.35 }}
+      role="region"
+      aria-label="Military Campaigns Timeline"
     >
-      <h3 className="chart-title">Overlapping Campaigns</h3>
+      <h3 className="chart-title">Theater of Operations</h3>
       <p className="chart-takeaway">
-        The war shifted geographically — from New England (1775) through the
+        The war's focus shifted from New England (1775) through the
         Mid-Atlantic (1776–78) to the decisive Southern theater (1780–81).
       </p>
-      <div className="campaign-legend">
+      <div className="campaign-legend" style={{ marginBottom: '1rem' }}>
         {Object.entries(regionColors).map(([region, color]) => (
-          <span key={region} className="campaign-legend-item">
-            <span className="campaign-legend-dot" style={{ background: color }} />
+          <span key={region} className="campaign-legend-item" style={{ fontSize: '12px' }}>
+            <span className="campaign-legend-dot" style={{ background: color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block', marginRight: '6px' }} />
             {region === 'north' ? 'Northern' : region === 'mid' ? 'Mid-Atlantic' : 'Southern'}
           </span>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
           <XAxis
             type="number"
             tickFormatter={formatDayOffset}
             stroke={textColor}
-            tick={{ fontSize: 11, fill: textColor }}
+            tick={{ fontSize: 12, fill: textColor }}
             domain={[0, 'dataMax']}
+            axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
           />
           <YAxis
             type="category"
             dataKey="name"
             stroke={textColor}
             tick={{ fontSize: 11, fill: textColor }}
-            width={130}
+            width={140}
+            axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
           />
           <Tooltip
             content={({ active, payload }) => {
@@ -305,7 +341,7 @@ export function CampaignTimeline({ data, darkMode }) {
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                   }}>
                     <p style={{ margin: '0 0 4px', fontWeight: 'bold', color: darkMode ? '#E6EDF5' : '#0A244A' }}>{d.name}</p>
-                    <p style={{ margin: '2px 0', color: textColor }}>{d.startDate} to {d.endDate}</p>
+                    <p style={{ margin: '2px 0', color: textColor }}>{new Date(d.startDate).toLocaleDateString()} to {new Date(d.endDate).toLocaleDateString()}</p>
                     <p style={{ margin: '2px 0', color: textColor }}>{d.duration} days</p>
                   </div>
                 );
