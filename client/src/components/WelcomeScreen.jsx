@@ -104,8 +104,8 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
     setMouseOffset({
-      x: (e.clientX - cx) / cx * 5,
-      y: (e.clientY - cy) / cy * 5,
+      x: (e.clientX - cx) / cx * 2,
+      y: (e.clientY - cy) / cy * 2,
     });
   }, []);
 
@@ -160,7 +160,7 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
         ref={contentRef}
         style={{
           transform: `translate(${mouseOffset.x}px, ${mouseOffset.y}px)`,
-          transition: 'transform 0.15s ease-out',
+          transition: 'transform 0.3s ease-out',
           position: 'relative',
           zIndex: 1,
         }}
@@ -254,8 +254,8 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
       <div
         className="welcome-years"
         style={{
-          transform: `translate(${-mouseOffset.x * 0.5}px, 0)`,
-          transition: 'transform 0.15s ease-out',
+          transform: `translateX(calc(-50% + ${-mouseOffset.x * 0.5}px))`,
+          transition: 'transform 0.3s ease-out',
           position: 'absolute',
           zIndex: 1,
         }}
