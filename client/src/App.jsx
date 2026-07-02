@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
 import ExploreView from './components/ExploreView';
@@ -187,7 +187,8 @@ export default function App() {
     setView('welcome');
   };
 
-  const [pendingEventId, setPendingEventId] = useState(null);
+  // Seed from the URL so a deep link like #/explore/5 survives the first render
+  const [pendingEventId, setPendingEventId] = useState(subId);
 
   // Sync subId from URL to pendingEventId
   useEffect(() => {
@@ -196,9 +197,9 @@ export default function App() {
     }
   }, [view, subId]);
 
-  const handleNavigateToEvent = (eventId) => {
+  const handleNavigateToEvent = useCallback((eventId) => {
     setView('explore', eventId);
-  };
+  }, [setView]);
 
   const showHeader = view !== 'welcome';
 
@@ -256,7 +257,7 @@ export default function App() {
                 onExitToWelcome={handleExitToWelcome}
                 initialEventId={pendingEventId}
                 onConsumeInitialEvent={() => setPendingEventId(null)}
-                onEventChange={(eventId) => setView('explore', eventId)}
+                onEventChange={handleNavigateToEvent}
               />
             </motion.div>
           )}

@@ -22,7 +22,9 @@ export default function useHashRouter(defaultView = 'welcome') {
   });
 
   const setView = useCallback((newView, subId = null) => {
-    setRouteState({ view: newView, subId });
+    setRouteState(prev =>
+      prev.view === newView && prev.subId === subId ? prev : { view: newView, subId }
+    );
     let newHash = '';
     if (newView !== 'welcome') {
       newHash = `#/${newView}`;

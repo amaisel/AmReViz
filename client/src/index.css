@@ -19,13 +19,22 @@ a {
   transition: color 0.2s ease;
 }
 
+/* App shell: all views scroll internally, so lock the document.
+   A scrollable document lets mobile browsers steal touch gestures
+   (page pan) before the app's swipe handlers see them. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
-  min-height: 100vh;
-  overflow-x: hidden;
+}
+
+#root {
+  height: 100%;
 }
 
 h1, h2, h3, h4, h5, h6 {

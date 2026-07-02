@@ -61,7 +61,15 @@ export default function ExploreView({
   onConsumeInitialEvent,
   onEventChange, // New prop to sync URL
 }) {
-  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  // Seed from the deep-linked event so the mount-time URL sync doesn't
+  // clobber the requested event with event 0
+  const [currentEventIndex, setCurrentEventIndex] = useState(() => {
+    if (initialEventId != null) {
+      const idx = events.findIndex(e => e.id === initialEventId);
+      if (idx !== -1) return idx;
+    }
+    return 0;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -100,7 +108,15 @@ export default function ExploreView({
   const isScrolling = useRef(false);
   const accumulatedDelta = useRef(0);
   const accumulatedDeltaX = useRef(0);
-  const touchStart = useRef(null);
+
+  // Track navigation direction so the card can slide in from the correct side
+  const [lastNav, setLastNav] = useState({ index: currentEventIndex, dir: 1 });
+  const navDirection = currentEventIndex === lastNav.index
+    ? lastNav.dir
+    : (currentEventIndex > lastNav.index ? 1 : -1);
+  if (currentEventIndex !== lastNav.index) {
+    setLastNav({ index: currentEventIndex, dir: navDirection });
+  }
 
   const currentYear = currentEvent?.year || 1773;
   const progress = ((currentEventIndex + 1) / events.length) * 100;
@@ -224,45 +240,6 @@ export default function ExploreView({
     return () => el.removeEventListener('wheel', handleWheel);
   }, [events.length]);
 
-  // --- Touch swipe navigation ---
-  useEffect(() => {
-    const SWIPE_THRESHOLD = 40;
-
-    const handleTouchStart = (e) => {
-      touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    };
-
-    const handleTouchEnd = (e) => {
-      if (!touchStart.current || isScrolling.current) return;
-      const dx = touchStart.current.x - e.changedTouches[0].clientX;
-      const dy = touchStart.current.y - e.changedTouches[0].clientY;
-      touchStart.current = null;
-
-      const useHorizontal = Math.abs(dx) > Math.abs(dy) * 0.5;
-      const delta = useHorizontal ? dx : dy;
-
-      if (Math.abs(delta) >= SWIPE_THRESHOLD) {
-        isScrolling.current = true;
-        setIsPlaying(false);
-        if (delta > 0) {
-          setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-        } else {
-          setCurrentEventIndex(prev => Math.max(prev - 1, 0));
-        }
-        setTimeout(() => { isScrolling.current = false; }, 350);
-      }
-    };
-
-    const el = mapContainerRef.current;
-    if (!el) return;
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchend', handleTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [events.length]);
-
   // --- Keyboard navigation ---
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -354,6 +331,48 @@ export default function ExploreView({
 
   const activeFilterCount = activeFilters.size;
   const isAtEnd = currentEventIndex === events.length - 1;
+
+  const filtersPanelContent = (
+    <>
+      <div className="filter-presets">
+        {FILTER_PRESETS.map((preset) => {
+          const isActive = preset.filters.length === activeFilters.size &&
+            preset.filters.every(f => activeFilters.has(f));
+          return (
+            <button
+              key={preset.label}
+              className={`filter-preset-chip ${isActive ? 'active' : ''}`}
+              onClick={() => applyPreset(preset.filters)}
+            >
+              {preset.label}
+            </button>
+          );
+        })}
+      </div>
+      <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+      <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
+        <input
+          type="checkbox"
+          checked={fillColonies}
+          onChange={() => setFillColonies(!fillColonies)}
+        />
+        Color colonies
+      </label>
+      <div className="filters-legend-section">
+        <h4 className="filters-legend-title">Map Legend</h4>
+        <div className="filters-legend-rows">
+          <span className="filters-legend-item">
+            <span className="legend-dot" style={{ background: '#1e3a5f' }} />
+            American
+          </span>
+          <span className="filters-legend-item">
+            <span className="legend-dot" style={{ background: '#8b2323' }} />
+            British
+          </span>
+        </div>
+      </div>
+    </>
+  );
 
   const controlsContent = (
     <>
@@ -454,9 +473,9 @@ export default function ExploreView({
         {controlsContent}
       </div>
 
-      {/* Filters panel — floating above controls, now includes legend */}
+      {/* Filters panel — floating above controls on desktop, inside the sheet on mobile */}
       <AnimatePresence>
-        {filtersOpen && (
+        {filtersOpen && !isMobile && (
           <motion.div
             className={`filters-panel ${timelineOpen ? 'timeline-open' : ''}`}
             initial={{ opacity: 0, y: 10 }}
@@ -464,43 +483,7 @@ export default function ExploreView({
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="filter-presets">
-              {FILTER_PRESETS.map((preset) => {
-                const isActive = preset.filters.length === activeFilters.size &&
-                  preset.filters.every(f => activeFilters.has(f));
-                return (
-                  <button
-                    key={preset.label}
-                    className={`filter-preset-chip ${isActive ? 'active' : ''}`}
-                    onClick={() => applyPreset(preset.filters)}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
-            <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
-            <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
-              <input
-                type="checkbox"
-                checked={fillColonies}
-                onChange={() => setFillColonies(!fillColonies)}
-              />
-              Color colonies
-            </label>
-            <div className="filters-legend-section">
-              <h4 className="filters-legend-title">Map Legend</h4>
-              <div className="filters-legend-rows">
-                <span className="filters-legend-item">
-                  <span className="legend-dot" style={{ background: '#1e3a5f' }} />
-                  American
-                </span>
-                <span className="filters-legend-item">
-                  <span className="legend-dot" style={{ background: '#8b2323' }} />
-                  British
-                </span>
-              </div>
-            </div>
+            {filtersPanelContent}
           </motion.div>
         )}
       </AnimatePresence>
@@ -512,6 +495,7 @@ export default function ExploreView({
             event={displayEvent}
             darkMode={darkMode}
             timelineOpen={timelineOpen}
+            direction={navDirection}
             onPrev={handlePrevEvent}
             onNext={handleNextEvent}
             hasPrev={currentEventIndex > 0}
@@ -522,9 +506,9 @@ export default function ExploreView({
 
       {/* Desktop: Collapsible Timeline */}
       <AnimatePresence>
-        {timelineOpen && (
+        {timelineOpen && !isMobile && (
           <motion.div
-            className={`explore-timeline-container ${isMobile ? 'mobile-fixed-timeline' : 'desktop-timeline'}`}
+            className="explore-timeline-container desktop-timeline"
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 60 }}
@@ -546,12 +530,51 @@ export default function ExploreView({
           eventId={currentEvent?.id}
           darkMode={darkMode}
           controlsContent={controlsContent}
-          timelineOpen={timelineOpen}
+          onPrev={handlePrevEvent}
+          onNext={handleNextEvent}
+          hasPrev={currentEventIndex > 0}
+          hasNext={currentEventIndex < events.length - 1}
+          panelContent={
+            <>
+              <AnimatePresence>
+                {filtersOpen && (
+                  <motion.div
+                    className="sheet-filters-panel"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {filtersPanelContent}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <AnimatePresence>
+                {timelineOpen && (
+                  <motion.div
+                    className="bottom-sheet-timeline"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <HorizontalTimeline
+                      events={filteredEvents}
+                      activeEventId={currentEvent?.id}
+                      onEventClick={handleTimelineClick}
+                      darkMode={darkMode}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
+          }
         >
           <EventCard
             event={displayEvent}
             darkMode={darkMode}
             timelineOpen={timelineOpen}
+            direction={navDirection}
             onPrev={handlePrevEvent}
             onNext={handleNextEvent}
             hasPrev={currentEventIndex > 0}
@@ -570,7 +593,11 @@ export default function ExploreView({
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.4 }}
           >
-            <span>Use arrow keys, swipe, or Play to move through events</span>
+            <span>
+              {isMobile
+                ? 'Swipe the card left or right to move through events'
+                : 'Use arrow keys, scroll, or Play to move through events'}
+            </span>
             <button className="hint-dismiss" onClick={dismissHint} aria-label="Dismiss hint">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
             </button>

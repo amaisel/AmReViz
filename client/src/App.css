@@ -100,7 +100,7 @@ body.dark-mode {
 }
 
 .app {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -190,7 +190,10 @@ body.dark-mode {
   width: 40px;
   height: 40px;
   border-radius: 50%;
+  padding: 0;
+  flex-shrink: 0;
   font-size: 1.25rem;
+  color: inherit; /* buttons don't inherit color; icons use currentColor */
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -1141,7 +1144,7 @@ body.dark-mode {
   margin: 0 auto;
   padding: 2rem;
   overflow-y: auto;
-  height: calc(100vh - var(--header-height));
+  height: 100%;
 }
 
 .data-view {
@@ -1611,7 +1614,7 @@ body.dark-mode {
 
 /* Scrollytelling View */
 .app-main.no-header {
-  height: 100vh;
+  height: 100%;
   overflow: visible;
 }
 
@@ -1625,7 +1628,7 @@ body.dark-mode {
 .scrollytelling-view {
   position: relative;
   width: 100%;
-  height: calc(100vh - var(--header-height));
+  height: 100%;
   overflow: hidden;
   background: transparent;
 }
@@ -1747,19 +1750,36 @@ body.dark-mode {
   align-items: center;
   gap: 0.35rem;
   flex-wrap: wrap;
-  padding: 6px 10px;
+  padding: 2px 10px 8px;
   flex-shrink: 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .bottom-sheet.dark .bottom-sheet-controls {
-  border-top-color: rgba(255, 255, 255, 0.06);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
 .bottom-sheet-timeline {
   flex-shrink: 0;
-  max-height: 150px;
+  max-height: 160px;
   overflow: hidden;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.bottom-sheet.dark .bottom-sheet-timeline {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Filters panel embedded in the bottom sheet */
+.sheet-filters-panel {
+  flex-shrink: 0;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.bottom-sheet.dark .sheet-filters-panel {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
 .scrolly-map-container {
@@ -2395,11 +2415,15 @@ body.dark-mode {
 }
 
 /* Onboarding Hint */
+/* Centered via auto margins: framer-motion owns transform, so translateX(-50%) would be overwritten */
 .explore-onboarding-hint {
   position: absolute;
   bottom: 60px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: calc(100% - 32px);
   z-index: 750;
   display: flex;
   align-items: center;
@@ -3198,12 +3222,47 @@ body.dark-mode {
     height: 56px;
   }
 
+  .header-content {
+    min-width: 0;
+  }
+
   .header-content h1 {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .header-content p {
     display: none;
+  }
+
+  .header-controls {
+    flex-shrink: 0;
+  }
+
+  /* Keyboard shortcuts are meaningless on touch devices */
+  .help-toggle {
+    display: none;
+  }
+
+  /* Keep the hint visible above the bottom sheet */
+  .explore-onboarding-hint {
+    bottom: calc(55vh + 12px);
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* Show the end-of-timeline actions over the map, not the event card */
+  .story-end {
+    bottom: auto;
+    top: 84px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: fit-content;
+    transform: none;
+    padding: 1rem 1.5rem;
   }
 
   .view-toggle button {
