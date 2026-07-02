@@ -225,13 +225,76 @@ body.dark-mode {
   min-height: 0;
 }
 
+/* Period parchment chart — no tile layer; the paper is the map */
 .map-container {
   height: 100%;
   width: 100%;
+  position: relative;
+  background:
+    radial-gradient(ellipse at 18% 12%, rgba(184, 152, 104, 0.18), transparent 55%),
+    radial-gradient(ellipse at 82% 88%, rgba(160, 128, 84, 0.22), transparent 55%),
+    radial-gradient(ellipse at 50% 50%, #F3E9D2 0%, #EADDBE 62%, #DCC9A0 100%);
 }
 
-.map-container.light .leaflet-tile-pane {
-  filter: sepia(15%) saturate(60%) brightness(102%) contrast(90%);
+.map-container .leaflet-container {
+  background: transparent;
+  z-index: 1; /* contain Leaflet's pane z-indexes so the grain/vignette layer above */
+}
+
+.map-container.dark {
+  background:
+    radial-gradient(ellipse at 18% 12%, rgba(96, 110, 150, 0.12), transparent 55%),
+    radial-gradient(ellipse at 82% 88%, rgba(40, 48, 72, 0.5), transparent 60%),
+    radial-gradient(ellipse at 50% 50%, #1B2233 0%, #151A28 62%, #0E1220 100%);
+}
+
+/* Paper grain: SVG turbulence noise, sits above the paper, below the map panes */
+.map-parchment-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.33 0 0 0 0 0.20 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.map-container.dark .map-parchment-grain {
+  opacity: 0.35;
+}
+
+/* Aged-edge vignette and double rule, like a framed 1770s chart */
+.map-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 90px rgba(92, 70, 40, 0.28),
+    inset 0 0 6px rgba(92, 70, 40, 0.2);
+}
+
+.map-container.dark::after {
+  box-shadow:
+    inset 0 0 90px rgba(0, 0, 0, 0.55),
+    inset 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+.map-compass-rose {
+  position: absolute;
+  right: 18px;
+  top: 74px;
+  width: 92px;
+  height: 92px;
+  z-index: 4;
+  pointer-events: none;
+  color: #6B5136;
+  opacity: 0.55;
+}
+
+.map-container.dark .map-compass-rose {
+  color: #C5A02F;
+  opacity: 0.5;
 }
 
 .map-container .leaflet-control-zoom {

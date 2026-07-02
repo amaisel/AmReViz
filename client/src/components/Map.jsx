@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, useMap, GeoJSON } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, useMap, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -206,31 +206,28 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
     const colonyName = feature.properties.name;
     const isHovered = hoveredColony === colonyName;
 
-    // Sleek & Deep Palette Integration
-    const strokeColorLight = '#0A244A'; // Deep Navy
-    const strokeColorDark = '#C5A02F';  // Muted Gold
-
-    const fillColorLight = '#1e3a5f';
-    const fillColorDark = '#E0C060';
+    // Period chart palette: sepia ink on parchment / gold ink on midnight
+    const strokeColorLight = '#5B4636';
+    const strokeColorDark = '#C5A02F';
 
     if (fillColonies) {
       return {
-        fillColor: colonyColors[colonyName] || (darkMode ? fillColorDark : fillColorLight),
-        weight: isHovered ? 2 : 1,
-        opacity: 1,
-        color: darkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.6)',
-        fillOpacity: isHovered ? 0.35 : 0.22,
+        fillColor: colonyColors[colonyName] || (darkMode ? '#E0C060' : '#B99C6B'),
+        weight: isHovered ? 2 : 1.2,
+        opacity: darkMode ? 0.55 : 0.75,
+        color: darkMode ? strokeColorDark : strokeColorLight,
+        fillOpacity: isHovered ? 0.4 : 0.28,
         dashArray: null
       };
     }
 
-    // Outline Mode (Default)
+    // Outline mode (default): hand-inked border look with a faint land wash
     return {
-      fillColor: darkMode ? '#C5A02F' : '#0A244A',
-      weight: isHovered ? 2 : 1,
-      opacity: isHovered ? 0.8 : 0.4,
+      fillColor: darkMode ? '#C5A02F' : '#C8B085',
+      weight: isHovered ? 2.2 : 1.4,
+      opacity: isHovered ? 0.95 : 0.7,
       color: darkMode ? strokeColorDark : strokeColorLight,
-      fillOpacity: isHovered ? 0.15 : 0.02,
+      fillOpacity: isHovered ? 0.22 : 0.1,
       dashArray: null,
       className: 'colony-boundary'
     };
@@ -504,14 +501,11 @@ export default function Map({
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
   const lngOffset = isMobile ? 0 : -3.5; // Push map center to the left so marker appears on the right
-  const latOffset = isMobile ? -1.8 : 0; // Push map center down so marker appears higher on mobile
+  const latOffset = isMobile ? 0 : 0;
   const center = activeEvent
     ? [activeEvent.lat + latOffset, activeEvent.lng + lngOffset]
     : [40.0, -74.0];
   const zoom = activeEvent ? 6 : 5;
-
-  const terrainUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}';
-  const darkTerrainUrl = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
 
   const visibleEvents = events.filter(event => {
     if (!hideFutureEvents) return true;
@@ -544,6 +538,22 @@ export default function Map({
 
   return (
     <div className={`map-container ${darkMode ? 'dark' : 'light'}`}>
+      <div className="map-parchment-grain" aria-hidden="true" />
+      <svg className="map-compass-rose" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="34" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+        <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.4" />
+        {/* cardinal points */}
+        <path d="M50 8 L54 46 L50 50 L46 46 Z" fill="currentColor" opacity="0.85" />
+        <path d="M50 92 L54 54 L50 50 L46 54 Z" fill="currentColor" opacity="0.5" />
+        <path d="M8 50 L46 46 L50 50 L46 54 Z" fill="currentColor" opacity="0.5" />
+        <path d="M92 50 L54 46 L50 50 L54 54 Z" fill="currentColor" opacity="0.5" />
+        {/* intercardinal points */}
+        <path d="M26 26 L47 43 L43 47 Z" fill="currentColor" opacity="0.35" />
+        <path d="M74 26 L57 43 L53 47 Z" fill="currentColor" opacity="0.35" />
+        <path d="M26 74 L43 57 L47 53 Z" fill="currentColor" opacity="0.35" />
+        <path d="M74 74 L57 57 L53 53 Z" fill="currentColor" opacity="0.35" />
+        <text x="50" y="6" textAnchor="middle" fontSize="9" fontFamily="Playfair Display, Georgia, serif" fontStyle="italic" fill="currentColor">N</text>
+      </svg>
       <MapContainer
         center={[40.0, -74.0]}
         zoom={5}
@@ -558,26 +568,15 @@ export default function Map({
         doubleClickZoom={true}
         touchZoom={true}
       >
-        {darkMode ? (
-          <TileLayer
-            url={darkTerrainUrl}
-            attribution='&copy; OpenStreetMap &copy; CARTO'
-            subdomains="abcd"
-            maxZoom={18}
-          />
-        ) : (
-          <TileLayer
-            url={terrainUrl}
-            attribution='Tiles &copy; Esri &mdash; Source: Esri, USGS'
-            maxZoom={13}
-            className="colonial-tiles"
-          />
-        )}
-
+        {/* No tile layer: the map renders as a period parchment chart —
+            textured paper background (CSS) with inked colony boundaries */}
         <MapController center={center} zoom={zoom} autoFly={autoFly} />
 
         {showColonies && colonyBoundaries && (
-          <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
+          <>
+            <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
+            <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} events={visibleEvents} />
+          </>
         )}
 
         <TroopMovementLines events={events} activeEventId={activeEventId} darkMode={darkMode} />
