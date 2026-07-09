@@ -9,7 +9,7 @@
  * for every image. Events whose image can't be resolved are reported and
  * fall back to in-browser resolution at runtime.
  */
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -39,13 +39,20 @@ async function fetchJson(url) {
   return res.json();
 }
 
-const manifest = {};
+const manifestPath = join(outDir, 'manifest.json');
+const manifest = existsSync(manifestPath)
+  ? JSON.parse(readFileSync(manifestPath, 'utf8'))
+  : {};
 let failures = 0;
 
 for (const event of events) {
   if (!event.wiki || !event.image) continue;
   const fileName = event.image.split('/').pop();
   const dest = join(outDir, fileName);
+  if (existsSync(dest) && manifest[fileName]) {
+    console.log(`- ${event.title}: already downloaded, skipping`);
+    continue;
+  }
   try {
     const summary = await fetchJson(
       `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(event.wiki)}`
@@ -53,25 +60,29 @@ for (const event of events) {
     const original = summary.originalimage?.source;
     if (!original) throw new Error('article has no lead image');
 
-    const url = thumbUrl(original, TARGET_WIDTH);
-    const res = await fetch(url, { headers: { 'User-Agent': UA } });
-    if (!res.ok) throw new Error(`HTTP ${res.status} downloading image`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    writeFileSync(dest, buf);
+    if (!existsSync(dest)) {
+      const url = thumbUrl(original, TARGET_WIDTH);
+      let res = await fetch(url, { headers: { 'User-Agent': UA } });
+      // MediaWiki rejects thumb requests wider than the original — take the original
+      if (!res.ok && url !== original) {
+        res = await fetch(original, { headers: { 'User-Agent': UA } });
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status} downloading image`);
+      writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
+    }
 
     manifest[fileName] = {
       event: event.title,
       article: `https://en.wikipedia.org/wiki/${event.wiki}`,
       source: original,
-      bytes: buf.length,
     };
-    console.log(`✓ ${event.title} → ${fileName} (${Math.round(buf.length / 1024)} KB)`);
+    console.log(`✓ ${event.title} → ${fileName}`);
   } catch (err) {
     failures++;
     console.error(`✗ ${event.title}: ${err.message}`);
   }
 }
 
-writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 console.log(`\nDone. ${Object.keys(manifest).length} images saved to public/events/` +
   (failures ? `, ${failures} FAILED (app falls back to Wikipedia at runtime for those)` : ''));

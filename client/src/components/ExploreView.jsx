@@ -2,9 +2,25 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Map from './Map';
 import EventCard from './EventCard';
+import DataInterludeCard from './DataInterludeCard';
 import HorizontalTimeline from './HorizontalTimeline';
 import SearchBar from './SearchBar';
 import MobileBottomSheet from './MobileBottomSheet';
+import { interludes } from '../data/interludes';
+
+// Interleave data interludes into the event sequence after their anchor events
+function buildStoryItems(events) {
+  const items = [];
+  for (const event of events) {
+    items.push({ kind: 'event', key: `event-${event.id}`, event });
+    for (const interlude of interludes) {
+      if (interlude.afterEventId === event.id) {
+        items.push({ kind: 'interlude', key: interlude.id, interlude, anchor: event });
+      }
+    }
+  }
+  return items;
+}
 
 function FilterIcon({ type }) {
   switch (type) {
@@ -61,11 +77,13 @@ export default function ExploreView({
   onConsumeInitialEvent,
   onEventChange, // New prop to sync URL
 }) {
+  const storyItems = useMemo(() => buildStoryItems(events), [events]);
+
   // Seed from the deep-linked event so the mount-time URL sync doesn't
   // clobber the requested event with event 0
-  const [currentEventIndex, setCurrentEventIndex] = useState(() => {
+  const [currentIndex, setCurrentIndex] = useState(() => {
     if (initialEventId != null) {
-      const idx = events.findIndex(e => e.id === initialEventId);
+      const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === initialEventId);
       if (idx !== -1) return idx;
     }
     return 0;
@@ -82,8 +100,11 @@ export default function ExploreView({
     () => window.matchMedia('(max-width: 768px)').matches
   );
 
-  // Derive the current event
-  const currentEvent = events[currentEventIndex];
+  // Derive the current story item; interludes anchor to the event before them
+  // so the map, year chip, and URL stay on the last real event
+  const currentItem = storyItems[currentIndex];
+  const isInterlude = currentItem?.kind === 'interlude';
+  const currentEvent = isInterlude ? currentItem.anchor : currentItem?.event;
 
   // Sync current event to URL when the selected event changes
   const lastSyncedEventId = useRef(null);
@@ -95,10 +116,15 @@ export default function ExploreView({
 
   useEffect(() => {
     if (initialEventId != null) {
-      const idx = events.findIndex(e => e.id === initialEventId);
-      if (idx !== -1 && idx !== currentEventIndex) {
-        setCurrentEventIndex(idx);
-        setIsPlaying(false);
+      // Interludes share their anchor event's URL — if the current item already
+      // anchors to the requested event, the deep link is satisfied and jumping
+      // would yank us off the interlude.
+      if (currentEvent?.id !== initialEventId) {
+        const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === initialEventId);
+        if (idx !== -1) {
+          setCurrentIndex(idx);
+          setIsPlaying(false);
+        }
       }
       onConsumeInitialEvent?.();
     }
@@ -111,47 +137,46 @@ export default function ExploreView({
   const accumulatedDeltaX = useRef(0);
 
   // Track navigation direction so the card can slide in from the correct side
-  const [lastNav, setLastNav] = useState({ index: currentEventIndex, dir: 1 });
-  const navDirection = currentEventIndex === lastNav.index
+  const [lastNav, setLastNav] = useState({ index: currentIndex, dir: 1 });
+  const navDirection = currentIndex === lastNav.index
     ? lastNav.dir
-    : (currentEventIndex > lastNav.index ? 1 : -1);
-  if (currentEventIndex !== lastNav.index) {
-    setLastNav({ index: currentEventIndex, dir: navDirection });
+    : (currentIndex > lastNav.index ? 1 : -1);
+  if (currentIndex !== lastNav.index) {
+    setLastNav({ index: currentIndex, dir: navDirection });
   }
 
   const currentYear = currentEvent?.year || 1773;
-  const progress = ((currentEventIndex + 1) / events.length) * 100;
+  const progress = ((currentIndex + 1) / storyItems.length) * 100;
 
   const filteredEvents = useMemo(
     () => events.filter(e => activeFilters.has(e.type)),
     [events, activeFilters]
   );
 
+  const anchorEventIndex = currentEvent ? events.indexOf(currentEvent) : 0;
   const mapEvents = filteredEvents.filter((_, i) => {
     const originalIndex = events.indexOf(filteredEvents[i]);
-    return originalIndex <= currentEventIndex;
+    return originalIndex <= anchorEventIndex;
   });
 
   const mapActiveId = currentEvent?.id;
-  const displayEvent = currentEvent;
 
   const speedIndex = SPEED_PRESETS.findIndex(s => s.ms === playSpeed);
   const speedLabel = SPEED_PRESETS[speedIndex]?.label || '1x';
 
-  // --- Play/Pause auto-advance ---
+  // --- Play/Pause auto-advance (interludes hold 1.5x longer for reading) ---
   useEffect(() => {
     if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setCurrentEventIndex(prev => {
-        if (prev >= events.length - 1) {
-          setIsPlaying(false);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, playSpeed);
-    return () => clearInterval(interval);
-  }, [isPlaying, playSpeed, events.length]);
+    if (currentIndex >= storyItems.length - 1) {
+      setIsPlaying(false);
+      return;
+    }
+    const delay = storyItems[currentIndex]?.kind === 'interlude' ? playSpeed * 1.5 : playSpeed;
+    const timer = setTimeout(() => {
+      setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [isPlaying, playSpeed, currentIndex, storyItems]);
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 768px)');
@@ -224,9 +249,9 @@ export default function ExploreView({
         const delta = useHorizontal ? accumulatedDeltaX.current : accumulatedDelta.current;
 
         if (delta > 0) {
-          setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+          setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
         } else {
-          setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+          setCurrentIndex(prev => Math.max(prev - 1, 0));
         }
 
         accumulatedDelta.current = 0;
@@ -239,7 +264,7 @@ export default function ExploreView({
     if (!el) return;
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [events.length]);
+  }, [storyItems.length]);
 
   // --- Keyboard navigation ---
   useEffect(() => {
@@ -256,56 +281,46 @@ export default function ExploreView({
         e.preventDefault();
         setIsPlaying(false);
         isScrolling.current = true;
-        setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+        setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
         setTimeout(() => { isScrolling.current = false; }, 300);
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
         setIsPlaying(false);
         isScrolling.current = true;
-        setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+        setCurrentIndex(prev => Math.max(prev - 1, 0));
         setTimeout(() => { isScrolling.current = false; }, 300);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [events.length]);
+  }, [storyItems.length]);
 
-  // --- Map event click handler ---
-  const handleMapEventClick = useCallback((id) => {
+  // --- Jump to an event by id (map, timeline, search, interlude charts) ---
+  const jumpToEvent = useCallback((id) => {
     setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
+    const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === id);
+    if (idx !== -1) setCurrentIndex(idx);
+  }, [storyItems]);
 
-  // --- Timeline click handler ---
-  const handleTimelineClick = useCallback((id) => {
-    setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
-
-  // --- Search select handler ---
-  const handleSearchSelect = useCallback((id) => {
-    setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
+  const handleMapEventClick = jumpToEvent;
+  const handleTimelineClick = jumpToEvent;
+  const handleSearchSelect = jumpToEvent;
 
   // --- Prev/Next handlers ---
   const handlePrevEvent = useCallback(() => {
     setIsPlaying(false);
-    setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+    setCurrentIndex(prev => Math.max(prev - 1, 0));
   }, []);
 
   const handleNextEvent = useCallback(() => {
     setIsPlaying(false);
-    setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-  }, [events.length]);
+    setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
+  }, [storyItems.length]);
 
   // --- Replay handler ---
   const handleReplay = useCallback(() => {
-    setCurrentEventIndex(0);
+    setCurrentIndex(0);
     setIsPlaying(true);
   }, []);
 
@@ -331,7 +346,34 @@ export default function ExploreView({
   }, []);
 
   const activeFilterCount = activeFilters.size;
-  const isAtEnd = currentEventIndex === events.length - 1;
+  const isAtEnd = currentIndex === storyItems.length - 1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < storyItems.length - 1;
+
+  const cardContent = isInterlude ? (
+    <DataInterludeCard
+      interlude={currentItem.interlude}
+      darkMode={darkMode}
+      timelineOpen={timelineOpen}
+      direction={navDirection}
+      onPrev={handlePrevEvent}
+      onNext={handleNextEvent}
+      hasPrev={hasPrev}
+      hasNext={hasNext}
+      onBattleClick={jumpToEvent}
+    />
+  ) : (
+    <EventCard
+      event={currentEvent}
+      darkMode={darkMode}
+      timelineOpen={timelineOpen}
+      direction={navDirection}
+      onPrev={handlePrevEvent}
+      onNext={handleNextEvent}
+      hasPrev={hasPrev}
+      hasNext={hasNext}
+    />
+  );
 
   const filtersPanelContent = (
     <>
@@ -465,7 +507,7 @@ export default function ExploreView({
               transition={{ duration: 0.3 }}
             />
           </div>
-          <span className="status-chip-counter">{currentEventIndex + 1}/{events.length}</span>
+          <span className="status-chip-counter">{currentIndex + 1}/{storyItems.length}</span>
         </div>
       </div>
 
@@ -489,19 +531,10 @@ export default function ExploreView({
         )}
       </AnimatePresence>
 
-      {/* Desktop: bottom-positioned event card */}
+      {/* Desktop: bottom-positioned event or interlude card */}
       <div className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}>
         <AnimatePresence mode="wait">
-          <EventCard
-            event={displayEvent}
-            darkMode={darkMode}
-            timelineOpen={timelineOpen}
-            direction={navDirection}
-            onPrev={handlePrevEvent}
-            onNext={handleNextEvent}
-            hasPrev={currentEventIndex > 0}
-            hasNext={currentEventIndex < events.length - 1}
-          />
+          {cardContent}
         </AnimatePresence>
       </div>
 
@@ -528,13 +561,13 @@ export default function ExploreView({
       {/* Mobile/Tablet: draggable bottom sheet */}
       {isMobile && (
         <MobileBottomSheet
-          eventId={currentEvent?.id}
+          eventId={currentItem?.key}
           darkMode={darkMode}
           controlsContent={controlsContent}
           onPrev={handlePrevEvent}
           onNext={handleNextEvent}
-          hasPrev={currentEventIndex > 0}
-          hasNext={currentEventIndex < events.length - 1}
+          hasPrev={hasPrev}
+          hasNext={hasNext}
           panelContent={
             <>
               <AnimatePresence>
@@ -571,16 +604,7 @@ export default function ExploreView({
             </>
           }
         >
-          <EventCard
-            event={displayEvent}
-            darkMode={darkMode}
-            timelineOpen={timelineOpen}
-            direction={navDirection}
-            onPrev={handlePrevEvent}
-            onNext={handleNextEvent}
-            hasPrev={currentEventIndex > 0}
-            hasNext={currentEventIndex < events.length - 1}
-          />
+          {cardContent}
         </MobileBottomSheet>
       )}
 

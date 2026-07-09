@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import useEventImage from '../hooks/useEventImage';
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
 export default function EventCard({ event, darkMode, timelineOpen, direction = 1, onPrev, onNext, hasPrev, hasNext }) {
+  const { src: imageSrc, credit: imageCredit } = useEventImage(event);
   if (!event) return null;
 
   const date = new Date(event.date);
@@ -33,6 +35,23 @@ export default function EventCard({ event, darkMode, timelineOpen, direction = 1
         transition={{ duration: 0.3, ease: [0.43, 0.13, 0.23, 0.96] }}
         key={event.id}
       >
+        {imageSrc && (
+          <div className="event-card-image">
+            <img src={imageSrc} alt={event.title} loading="lazy" />
+            {imageCredit && (
+              <a
+                className="event-card-image-credit"
+                href={imageCredit}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Wikipedia
+              </a>
+            )}
+          </div>
+        )}
+
         <div className="event-card-topline">
           <div
             className="event-card-type-badge"
