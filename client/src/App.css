@@ -2158,7 +2158,7 @@ body.dark-mode {
   right: 0;
   z-index: 550;
   /* Scale with viewport so short screens don't clip the significance text */
-  max-height: max(35vh, 300px);
+  max-height: max(48vh, 320px);
   background: rgba(242, 240, 233, 0.95);
   backdrop-filter: blur(28px) saturate(1.2);
   -webkit-backdrop-filter: blur(28px) saturate(1.2);
@@ -2178,7 +2178,7 @@ body.dark-mode {
 
 /* Give data interludes more headroom for their charts — eased via max-height */
 .desktop-event-card:has(.data-interlude-card) {
-  max-height: min(52vh, 480px);
+  max-height: max(56vh, 360px);
 }
 
 .scrollytelling-view.dark .desktop-event-card {
@@ -3697,7 +3697,7 @@ body.dark-mode {
 /* ===== LANDSCAPE SHORT VIEWPORT ===== */
 @media (max-height: 500px) and (orientation: landscape) {
   .desktop-event-card {
-    max-height: 35vh;
+    max-height: max(48vh, 200px);
     padding: 10px 16px 8px;
   }
 
