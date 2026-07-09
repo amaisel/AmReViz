@@ -386,41 +386,36 @@ export default function ExploreView({
         })}
       </div>
       <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
-      <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
-        <input
-          type="checkbox"
-          checked={fillColonies}
-          onChange={() => setFillColonies(!fillColonies)}
-        />
-        Color colonies
-      </label>
-      <div className="filters-legend-section">
-        <h4 className="filters-legend-title">Map Legend</h4>
-        <div className="filters-legend-rows">
-          <span className="filters-legend-item">
-            <span className="legend-dot" style={{ background: '#1e3a5f' }} />
-            American
-          </span>
-          <span className="filters-legend-item">
-            <span className="legend-dot" style={{ background: '#8b2323' }} />
-            British
-          </span>
+      {viewMode === 'map' && (
+        <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
+          <input
+            type="checkbox"
+            checked={fillColonies}
+            onChange={() => setFillColonies(!fillColonies)}
+          />
+          Color colonies
+        </label>
+      )}
+      {viewMode === 'map' && (
+        <div className="filters-legend-section">
+          <h4 className="filters-legend-title">Map Legend</h4>
+          <div className="filters-legend-rows">
+            <span className="filters-legend-item">
+              <span className="legend-dot" style={{ background: '#1e3a5f' }} />
+              American
+            </span>
+            <span className="filters-legend-item">
+              <span className="legend-dot" style={{ background: '#8b2323' }} />
+              British
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 
   const controlsContent = (
     <>
-      <button
-        type="button"
-        className={`explore-btn ${viewMode === 'cards' ? 'active' : ''}`}
-        onClick={toggleViewMode}
-        aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
-      >
-        {viewMode === 'map' ? 'Focus cards' : 'Show map'}
-      </button>
-
       <button
         className={`explore-btn ${isPlaying ? 'active' : ''}`}
         onClick={() => setIsPlaying(prev => !prev)}
@@ -460,6 +455,36 @@ export default function ExploreView({
         onEventSelect={handleSearchSelect}
         darkMode={darkMode}
       />
+
+      <span className="controls-divider" />
+
+      <button
+        type="button"
+        className={`explore-btn ${viewMode === 'cards' ? 'active' : ''}`}
+        onClick={toggleViewMode}
+        aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
+      >
+        {viewMode === 'map' ? (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="4 14 4 20 10 20" />
+              <polyline points="20 10 20 4 14 4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+            <span>Focus cards</span>
+          </>
+        ) : (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+              <line x1="8" y1="2" x2="8" y2="18" />
+              <line x1="16" y1="6" x2="16" y2="22" />
+            </svg>
+            <span>Show map</span>
+          </>
+        )}
+      </button>
     </>
   );
 
