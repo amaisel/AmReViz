@@ -99,6 +99,11 @@ export default function ExploreView({
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia('(max-width: 768px)').matches
   );
+  const [viewMode, setViewMode] = useState('map'); // 'map' | 'cards'
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => (prev === 'map' ? 'cards' : 'map'));
+  }, []);
 
   // Derive the current story item; interludes anchor to the event before them
   // so the map, year chip, and URL stay on the last real event
@@ -408,6 +413,15 @@ export default function ExploreView({
   const controlsContent = (
     <>
       <button
+        type="button"
+        className={`explore-btn ${viewMode === 'cards' ? 'active' : ''}`}
+        onClick={toggleViewMode}
+        aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
+      >
+        {viewMode === 'map' ? 'Focus cards' : 'Show map'}
+      </button>
+
+      <button
         className={`explore-btn ${isPlaying ? 'active' : ''}`}
         onClick={() => setIsPlaying(prev => !prev)}
       >
@@ -450,9 +464,13 @@ export default function ExploreView({
   );
 
   return (
-    <div className={`scrollytelling-view ${darkMode ? 'dark' : ''}`} ref={viewRef}>
-      {/* Full-screen Map */}
-      <div className="scrolly-map-container" ref={mapContainerRef}>
+    <div className={`scrollytelling-view ${darkMode ? 'dark' : ''} view-mode-${viewMode}`} ref={viewRef}>
+      {/* Full-screen Map — CSS-hidden in cards mode; never unmount */}
+      <div
+        className="scrolly-map-container"
+        ref={mapContainerRef}
+        aria-hidden={viewMode === 'cards'}
+      >
         <Map
           events={mapEvents}
           colonyBoundaries={colonyBoundaries}
@@ -464,6 +482,7 @@ export default function ExploreView({
           hideFutureEvents={false}
           scrollWheelZoom={false}
           timelineOpen={timelineOpen}
+          mapVisible={viewMode === 'map'}
         />
       </div>
 

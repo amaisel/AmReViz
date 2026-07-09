@@ -2187,6 +2187,34 @@ body.dark-mode {
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
 }
 
+/* ===== CARDS FOCUS MODE ===== */
+.scrollytelling-view.view-mode-cards .scrolly-map-container {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.scrollytelling-view.view-mode-cards .desktop-event-card {
+  top: 0;
+  bottom: 0;
+  max-height: none;
+  border-radius: 0;
+  z-index: 600;
+}
+
+.scrollytelling-view.view-mode-cards .desktop-event-card:has(.data-interlude-card) {
+  max-height: none;
+}
+
+.scrollytelling-view.view-mode-cards .explore-controls.desktop-controls {
+  bottom: 0;
+  z-index: 700;
+}
+
+.scrollytelling-view.view-mode-cards .filters-panel {
+  bottom: 64px;
+  z-index: 700;
+}
+
 /* ===== MOBILE BOTTOM SHEET ===== */
 .bottom-sheet {
   background: rgba(255, 255, 255, 0.96);

@@ -149,6 +149,18 @@ const createColonyLabel = (abbrev, darkMode) => {
   });
 };
 
+function InvalidateOnVisible({ mapVisible }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!mapVisible) return;
+    const id = requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [mapVisible, map]);
+  return null;
+}
+
 function ScaleBarControl({ darkMode }) {
   const map = useMap();
 
@@ -637,7 +649,8 @@ export default function Map({
   autoFly = true,
   hideFutureEvents = false,
   scrollWheelZoom = false,
-  timelineOpen = false
+  timelineOpen = false,
+  mapVisible = true,
 }) {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && window.innerWidth <= 768
@@ -759,6 +772,7 @@ export default function Map({
             the CSS paper is the sea, and accurate Natural Earth land/lake/
             river geometry is drawn on it in engraved-chart style */}
         <MapController center={center} zoom={zoom} autoFly={autoFly} coveredRatio={coveredRatio} />
+        <InvalidateOnVisible mapVisible={mapVisible} />
         <ScaleBarControl darkMode={darkMode} />
 
         <Graticule darkMode={darkMode} />
