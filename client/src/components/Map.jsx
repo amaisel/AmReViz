@@ -19,6 +19,7 @@ const getSymbolSvg = (type, color) => {
 };
 
 const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => {
+  const { type, side } = event;
   const colors = {
     american: '#1e3a5f',
     british: '#8b2323'
@@ -29,7 +30,7 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
   const baseSize = isActive ? 44 : 34;
   const size = Math.round(baseSize * depthScale);
   const depthOpacity = isFuture ? 0.25 : (isActive ? 1 : (0.4 + 0.6 * proximity));
-  const borderColor = colors[event.side] || '#1e3a5f';
+  const borderColor = colors[side] || '#1e3a5f';
   const bgColor = isActive ? borderColor : '#fffef5';
   const textColor = isActive ? '#fffef5' : borderColor;
   const shadowOpacity = isFuture ? 0.1 : (isActive ? 0.5 : 0.15 * proximity);
@@ -53,13 +54,17 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
   return L.divIcon({
     className: 'custom-marker',
     html: `
-      <div role="button" tabindex="0" aria-label="${event.title}" style="
+      <div style="
         position: relative;
         width: ${size}px;
         height: ${size}px;
       ">
         ${pulseRing}
-        <div style="
+        <div
+          role="button"
+          tabindex="0"
+          aria-label="${event.title}${event.date ? `, ${new Date(event.date).getUTCFullYear()}` : ''}"
+          style="
           width: ${size}px;
           height: ${size}px;
           border-radius: 50%;
@@ -72,8 +77,9 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
           transition: all 0.3s ease;
           cursor: pointer;
           opacity: ${depthOpacity};
+          filter: ${isActive ? 'none' : `blur(${Math.round((1 - proximity) * 0.5)}px)`};
         ">
-          <div style="width: ${symbolSize}px; height: ${symbolSize}px;">${getSymbolSvg(event.type, textColor)}</div>
+          <div style="width: ${symbolSize}px; height: ${symbolSize}px;">${getSymbolSvg(type, textColor)}</div>
         </div>
       </div>
     `,
@@ -84,9 +90,10 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
 
 // Memoized Event Marker to prevent flickering
 const EventMarker = memo(({ event, isActive, isFuture, proximity, onClick }) => {
+  const proximityBucket = Math.round(proximity * 100);
   const icon = useMemo(() => {
     return createEventIcon(event, isActive, isFuture, proximity);
-  }, [event.id, event.type, event.side, event.title, event.date, isActive, isFuture, Math.round(proximity * 100)]);
+  }, [event, isActive, isFuture, proximityBucket]);
 
   return (
     <Marker
@@ -337,13 +344,21 @@ function ColonyLabels({ boundaries, darkMode, events = [] }) {
 }
 
 const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
-  const activeIndex = useMemo(() => events.findIndex(e => e.id === activeEventId), [events, activeEventId]);
-  const visibleEvents = useMemo(() => events.slice(0, activeIndex + 1), [events, activeIndex]);
+  const activeIndex = useMemo(
+    () => events.findIndex(e => e.id === activeEventId),
+    [events, activeEventId]
+  );
+  const visibleEvents = useMemo(
+    () => (activeIndex < 1 ? [] : events.slice(0, activeIndex + 1)),
+    [events, activeIndex]
+  );
   const color = darkMode ? '#C5A02F' : '#0A244A';
   const headColor = darkMode ? '#E0C060' : '#1e3a5f';
 
-  // Build segments with age-based opacity
-  const rendered = useMemo(() => {
+  // Build segments with age-based opacity — hooks must run unconditionally
+  const trail = useMemo(() => {
+    if (visibleEvents.length < 2) return null;
+
     const segments = [];
     const yearMarkers = [];
     let lastYear = null;
@@ -390,8 +405,7 @@ const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
     return <>{segments}{yearMarkers}</>;
   }, [visibleEvents, color, headColor, darkMode]);
 
-  if (activeIndex < 1) return null;
-  return rendered;
+  return trail;
 });
 
 function MapLegend({ darkMode, timelineOpen }) {
