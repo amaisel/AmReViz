@@ -43,7 +43,6 @@ export default function MobileBottomSheet({
   const dragControls = useDragControls();
   const contentRef = useRef(null);
   const sheetRef = useRef(null);
-  const lastFramerDrag = useRef({ t: 0, x: 0, y: 0 });
 
   const snaps = useMemo(() => getSnapPoints(vh), [vh]);
 
@@ -92,65 +91,58 @@ export default function MobileBottomSheet({
     dragStartY.current = snaps[snapName];
   }, [snaps, snapName]);
 
+  // Handle-only drag → snap the sheet
   const handleDragEnd = useCallback((_e, info) => {
-    const { offset, velocity } = info;
-    lastFramerDrag.current = { t: performance.now(), x: offset.x, y: offset.y };
-
-    // Horizontal swipe → navigate between events
-    if (Math.abs(offset.x) > Math.abs(offset.y)) {
-      if ((offset.x < -SWIPE_OFFSET || velocity.x < -SWIPE_VELOCITY) && hasNext) {
-        onNext?.();
-      } else if ((offset.x > SWIPE_OFFSET || velocity.x > SWIPE_VELOCITY) && hasPrev) {
-        onPrev?.();
-      }
-      sheetControls.start({ x: 0, y: snaps[snapName], transition: snapSpring });
-      return;
-    }
-
-    // Vertical drag → snap the sheet
-    const finalY = (dragStartY.current ?? snaps[snapName]) + offset.y;
+    const finalY = (dragStartY.current ?? snaps[snapName]) + info.offset.y;
     const [name, snapY] = closestSnap(finalY, snaps);
     setSnapName(name);
-    sheetControls.start({ x: 0, y: snapY, transition: snapSpring });
-  }, [snaps, snapName, sheetControls, onPrev, onNext, hasPrev, hasNext]);
+    sheetControls.start({ y: snapY, transition: snapSpring });
+  }, [snaps, snapName, sheetControls]);
 
   const isFullOpen = snapName === 'full';
 
-  // Fallback swipe detection from raw touch events. Some browsers cancel the
-  // pointer stream mid-gesture (pointercancel) and framer's drag only sees a
-  // truncated offset; raw touchstart/touchend still report the full gesture.
-  // Skipped whenever framer saw (and therefore handled) the whole gesture.
+  // Vertical swipes on the sheet body navigate events: up = next, down = prev.
+  // Sheet expand/collapse is reserved for the drag handle, and at full
+  // expansion the content scrolls natively instead.
   useEffect(() => {
-    if (isFullOpen) return; // content scrolls natively at full — don't fight it
+    if (isFullOpen) return;
 
     const el = sheetRef.current;
     if (!el) return;
     let start = null;
 
     const onTouchStart = (e) => {
-      start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      // Gestures that begin on the handle belong to the sheet drag
+      if (e.target.closest('.bottom-sheet-handle')) {
+        start = null;
+        return;
+      }
+      start = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: performance.now() };
     };
 
     const onTouchEnd = (e) => {
       if (!start) return;
       const dx = e.changedTouches[0].clientX - start.x;
       const dy = e.changedTouches[0].clientY - start.y;
+      const dt = performance.now() - start.t;
       start = null;
 
-      const framer = lastFramerDrag.current;
-      const framerSawGesture =
-        performance.now() - framer.t < 300 &&
-        Math.hypot(framer.x, framer.y) >= Math.hypot(dx, dy) * 0.8;
-      if (framerSawGesture) return;
+      if (Math.abs(dy) <= Math.abs(dx)) return;
 
-      if (Math.abs(dx) > Math.abs(dy)) {
-        if (dx <= -SWIPE_OFFSET && hasNext) onNext?.();
-        else if (dx >= SWIPE_OFFSET && hasPrev) onPrev?.();
-        sheetControls.start({ x: 0, y: snaps[snapName], transition: snapSpring });
-      } else if (dy <= -SWIPE_OFFSET) {
-        snapTo('full');
-      } else if (dy >= SWIPE_OFFSET) {
-        snapTo('peek');
+      const velocity = Math.abs(dy) / Math.max(dt, 1) * 1000;
+      const triggered = Math.abs(dy) > SWIPE_OFFSET || velocity > SWIPE_VELOCITY;
+      if (!triggered) return;
+
+      if (dy < 0 && hasNext) {
+        onNext?.();
+      } else if (dy > 0 && hasPrev) {
+        onPrev?.();
+      } else {
+        // Rubber-band nudge at either end of the timeline
+        const rest = snaps[snapName];
+        sheetControls
+          .start({ y: rest + (dy < 0 ? -14 : 14), transition: { duration: 0.12 } })
+          .then(() => sheetControls.start({ y: rest, transition: snapSpring }));
       }
     };
 
@@ -160,7 +152,7 @@ export default function MobileBottomSheet({
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [isFullOpen, hasNext, hasPrev, onNext, onPrev, snapTo, snaps, snapName, sheetControls]);
+  }, [isFullOpen, hasNext, hasPrev, onNext, onPrev, snaps, snapName, sheetControls]);
 
   return (
     <motion.div
@@ -168,12 +160,11 @@ export default function MobileBottomSheet({
       className={`bottom-sheet ${darkMode ? 'dark' : ''}`}
       initial={{ y: snaps.peek }}
       animate={sheetControls}
-      drag
-      dragDirectionLock
-      dragListener={!isFullOpen}
+      drag="y"
+      dragListener={false}
       dragControls={dragControls}
-      dragConstraints={{ top: snaps.full, bottom: snaps.peek, left: 0, right: 0 }}
-      dragElastic={{ top: 0.2, bottom: 0.2, left: 0.5, right: 0.5 }}
+      dragConstraints={{ top: snaps.full, bottom: snaps.peek }}
+      dragElastic={{ top: 0.2, bottom: 0.2 }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       style={{
@@ -188,7 +179,7 @@ export default function MobileBottomSheet({
     >
       <div
         className="bottom-sheet-handle"
-        onPointerDown={(e) => { if (isFullOpen) dragControls.start(e); }}
+        onPointerDown={(e) => dragControls.start(e)}
         onClick={() => snapTo(snapName === 'peek' ? 'full' : 'peek')}
         aria-label={isFullOpen ? 'Collapse event details' : 'Expand event details'}
         role="button"

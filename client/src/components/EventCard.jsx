@@ -27,9 +27,9 @@ export default function EventCard({ event, darkMode, timelineOpen, direction = 1
     <AnimatePresence mode="wait">
       <motion.div
         className={`event-card-fixed ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}
-        initial={{ opacity: 0, x: 44 * direction, scale: 0.97 }}
-        animate={{ opacity: 1, x: 0, scale: 1 }}
-        exit={{ opacity: 0, x: -32 * direction, scale: 0.97 }}
+        initial={{ opacity: 0, y: 44 * direction, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -32 * direction, scale: 0.97 }}
         transition={{ duration: 0.3, ease: [0.43, 0.13, 0.23, 0.96] }}
         key={event.id}
       >

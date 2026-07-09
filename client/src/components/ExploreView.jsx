@@ -596,7 +596,7 @@ export default function ExploreView({
           >
             <span>
               {isMobile
-                ? 'Swipe the card left or right to move through events'
+                ? 'Swipe up or down to move through events'
                 : 'Use arrow keys, scroll, or Play to move through events'}
             </span>
             <button className="hint-dismiss" onClick={dismissHint} aria-label="Dismiss hint">
