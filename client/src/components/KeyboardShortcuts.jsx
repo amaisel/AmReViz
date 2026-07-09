@@ -21,6 +21,8 @@ export default function KeyboardShortcuts({ darkMode }) {
     { key: '?', desc: 'Toggle this help' },
     { key: '\u2191 \u2193', desc: 'Navigate events (Guided mode)' },
     { key: '\u2190 \u2192', desc: 'Navigate events (Guided mode)' },
+    { key: 'C', desc: 'Toggle Focus cards / Show map' },
+    { key: 'Esc', desc: 'Exit Focus cards (back to map)' },
     { key: 'F', desc: 'Toggle Guided / Free mode' },
     { key: 'Space', desc: 'Begin journey (Welcome)' },
     { key: 'D', desc: 'Toggle dark mode' },

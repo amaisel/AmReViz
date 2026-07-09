@@ -222,6 +222,7 @@ export default function ExploreView({
     const LOCKOUT_MS = 350;
 
     const handleWheel = (e) => {
+      if (viewMode === 'cards') return;
       e.preventDefault();
       if (isScrolling.current) return;
 
@@ -260,12 +261,25 @@ export default function ExploreView({
     if (!el) return;
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [storyItems.length]);
+  }, [storyItems.length, viewMode]);
 
   // --- Keyboard navigation ---
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        toggleViewMode();
+        return;
+      }
+
+      if (e.key === 'Escape' && viewMode === 'cards') {
+        if (document.querySelector('.shortcuts-overlay')) return;
+        e.preventDefault();
+        setViewMode('map');
+        return;
+      }
 
       if (e.key === ' ') {
         e.preventDefault();
@@ -290,7 +304,7 @@ export default function ExploreView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [storyItems.length]);
+  }, [storyItems.length, viewMode, toggleViewMode]);
 
   // --- Jump to an event by id (map, timeline, search, interlude charts) ---
   const jumpToEvent = useCallback((id) => {
