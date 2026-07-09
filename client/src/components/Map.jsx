@@ -540,7 +540,7 @@ export default function Map({
 
   // Fraction of the viewport hidden behind the bottom sheet (mobile) or the
   // bottom event card (desktop); the camera aims at the strip above it.
-  const coveredRatio = isMobile ? 0.55 : 0.4;
+  const coveredRatio = isMobile ? 0.55 : 0.45;
 
   const visibleEvents = events.filter(event => {
     if (!hideFutureEvents) return true;

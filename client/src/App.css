@@ -1807,7 +1807,8 @@ body.dark-mode {
   left: 0;
   right: 0;
   z-index: 550;
-  max-height: 35vh;
+  /* Scale with viewport so short screens don't clip the significance text */
+  max-height: max(35vh, 300px);
   background: rgba(242, 240, 233, 0.95);
   backdrop-filter: blur(28px) saturate(1.2);
   -webkit-backdrop-filter: blur(28px) saturate(1.2);

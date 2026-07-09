@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Map from './Map';
 import EventCard from './EventCard';
 import DataInterludeCard from './DataInterludeCard';
-import HorizontalTimeline from './HorizontalTimeline';
 import SearchBar from './SearchBar';
 import MobileBottomSheet from './MobileBottomSheet';
 import { interludes } from '../data/interludes';
@@ -89,7 +88,8 @@ export default function ExploreView({
     return 0;
   });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(false);
+  // Timeline feature disabled for now; downstream layout props still expect it
+  const timelineOpen = false;
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(4000);
   const [fillColonies, setFillColonies] = useState(false);
@@ -304,7 +304,6 @@ export default function ExploreView({
   }, [storyItems]);
 
   const handleMapEventClick = jumpToEvent;
-  const handleTimelineClick = jumpToEvent;
   const handleSearchSelect = jumpToEvent;
 
   // --- Prev/Next handlers ---
@@ -443,16 +442,6 @@ export default function ExploreView({
       <span className="controls-divider" />
 
       <button
-        className={`explore-btn ${timelineOpen ? 'active' : ''}`}
-        onClick={() => setTimelineOpen(prev => !prev)}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
-        Timeline
-      </button>
-
-      <span className="controls-divider" />
-
-      <button
         className={`explore-btn ${filtersOpen ? 'active' : ''}`}
         onClick={() => setFiltersOpen(prev => !prev)}
       >
@@ -538,26 +527,6 @@ export default function ExploreView({
         </AnimatePresence>
       </div>
 
-      {/* Desktop: Collapsible Timeline */}
-      <AnimatePresence>
-        {timelineOpen && !isMobile && (
-          <motion.div
-            className="explore-timeline-container desktop-timeline"
-            initial={{ opacity: 0, y: 60 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 60 }}
-            transition={{ duration: 0.3 }}
-          >
-            <HorizontalTimeline
-              events={filteredEvents}
-              activeEventId={currentEvent?.id}
-              onEventClick={handleTimelineClick}
-              darkMode={darkMode}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Mobile/Tablet: draggable bottom sheet */}
       {isMobile && (
         <MobileBottomSheet
@@ -569,39 +538,19 @@ export default function ExploreView({
           hasPrev={hasPrev}
           hasNext={hasNext}
           panelContent={
-            <>
-              <AnimatePresence>
-                {filtersOpen && (
-                  <motion.div
-                    className="sheet-filters-panel"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {filtersPanelContent}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <AnimatePresence>
-                {timelineOpen && (
-                  <motion.div
-                    className="bottom-sheet-timeline"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <HorizontalTimeline
-                      events={filteredEvents}
-                      activeEventId={currentEvent?.id}
-                      onEventClick={handleTimelineClick}
-                      darkMode={darkMode}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
+            <AnimatePresence>
+              {filtersOpen && (
+                <motion.div
+                  className="sheet-filters-panel"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {filtersPanelContent}
+                </motion.div>
+              )}
+            </AnimatePresence>
           }
         >
           {cardContent}
