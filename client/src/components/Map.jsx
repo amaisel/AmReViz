@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
-import { MapContainer, Marker, Polyline, useMap, GeoJSON } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, useMap, GeoJSON, Pane } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { landAreas, lakes, rivers } from '../data/geo/baseMap';
 
 const getSymbolSvg = (type, color) => {
   switch (type) {
@@ -29,12 +30,12 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
   const depthScale = isActive ? 1 : (0.65 + 0.35 * proximity);
   const baseSize = isActive ? 44 : 34;
   const size = Math.round(baseSize * depthScale);
-  const depthOpacity = isFuture ? 0.25 : (isActive ? 1 : (0.4 + 0.6 * proximity));
+  const depthOpacity = isFuture ? 0.2 : (isActive ? 1 : (0.45 + 0.55 * proximity));
   const borderColor = colors[side] || '#1e3a5f';
   const bgColor = isActive ? borderColor : '#fffef5';
   const textColor = isActive ? '#fffef5' : borderColor;
-  const shadowOpacity = isFuture ? 0.1 : (isActive ? 0.5 : 0.15 * proximity);
-  const shadowBlur = isActive ? 16 : Math.round(6 * proximity);
+  const shadowOpacity = isFuture ? 0.08 : (isActive ? 0.45 : 0.12 * proximity);
+  const shadowBlur = isActive ? 14 : Math.round(5 * proximity);
   const symbolSize = Math.round(size * 0.5);
 
   const pulseSize = size + 16;
@@ -77,7 +78,6 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
           transition: all 0.3s ease;
           cursor: pointer;
           opacity: ${depthOpacity};
-          filter: ${isActive ? 'none' : `blur(${Math.round((1 - proximity) * 0.5)}px)`};
         ">
           <div style="width: ${symbolSize}px; height: ${symbolSize}px;">${getSymbolSvg(type, textColor)}</div>
         </div>
@@ -115,25 +115,24 @@ const EventMarker = memo(({ event, isActive, isFuture, proximity, onClick }) => 
 });
 
 const createColonyLabel = (abbrev, darkMode) => {
-  const textColor = darkMode ? 'rgba(220, 200, 180, 0.9)' : 'rgba(60, 40, 20, 0.85)';
-  const shadowColor = darkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
+  const textColor = darkMode ? 'rgba(220, 200, 180, 0.92)' : 'rgba(55, 38, 22, 0.88)';
+  const shadowColor = darkMode ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 252, 245, 0.95)';
 
   return L.divIcon({
     className: 'colony-label',
     html: `
       <div style="
         font-family: 'Playfair Display', Georgia, serif;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         font-style: italic;
         color: ${textColor};
         text-shadow: 
-          1px 1px 2px ${shadowColor},
-          -1px -1px 2px ${shadowColor},
-          1px -1px 2px ${shadowColor},
-          -1px 1px 2px ${shadowColor};
+          0 0 3px ${shadowColor},
+          1px 1px 1px ${shadowColor},
+          -1px -1px 1px ${shadowColor};
         white-space: nowrap;
-        letter-spacing: 0.15em;
+        letter-spacing: 0.18em;
         text-transform: uppercase;
         pointer-events: none;
       ">
@@ -144,6 +143,53 @@ const createColonyLabel = (abbrev, darkMode) => {
     iconAnchor: [20, 10]
   });
 };
+
+function ScaleBarControl({ darkMode }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const control = L.control({ position: 'bottomleft' });
+    let graphicEl;
+    let labelEl;
+
+    const update = () => {
+      const y = map.getSize().y / 2;
+      const latlng1 = map.containerPointToLatLng([0, y]);
+      const latlng2 = map.containerPointToLatLng([100, y]);
+      const meters = latlng1.distanceTo(latlng2);
+      const miles = meters / 1609.34;
+
+      const niceSteps = [500, 200, 100, 50, 25, 10, 5];
+      const niceMiles = niceSteps.find((s) => s <= miles * 1.15) || 5;
+      const px = Math.max(40, Math.min(140, (niceMiles / miles) * 100));
+
+      if (graphicEl) graphicEl.style.width = `${px}px`;
+      if (labelEl) labelEl.textContent = `${niceMiles} mi`;
+    };
+
+    control.onAdd = () => {
+      const div = L.DomUtil.create('div', `map-scale-bar ${darkMode ? 'dark' : ''}`);
+      graphicEl = L.DomUtil.create('div', 'scale-bar-graphic', div);
+      L.DomUtil.create('span', 'scale-bar-tick left', graphicEl);
+      L.DomUtil.create('span', 'scale-bar-tick right', graphicEl);
+      L.DomUtil.create('span', 'scale-bar-line', graphicEl);
+      labelEl = L.DomUtil.create('span', 'scale-bar-label', div);
+      labelEl.textContent = '—';
+      return div;
+    };
+
+    control.addTo(map);
+    map.on('zoomend moveend resize', update);
+    update();
+
+    return () => {
+      map.off('zoomend moveend resize', update);
+      control.remove();
+    };
+  }, [map, darkMode]);
+
+  return null;
+}
 
 function MapController({ center, zoom, autoFly, coveredRatio = 0 }) {
   const map = useMap();
@@ -198,6 +244,190 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0 }) {
   return null;
 }
 
+// Base chart: accurate land silhouette, lakes, and rivers rendered in the
+// style of an engraved 1770s chart. The "waterlines" effect — concentric
+// strokes hugging the coast — is how period engravers indicated the sea.
+const BaseChart = memo(({ darkMode }) => {
+  const coastInk = darkMode ? '#9aafd4' : '#4A3828';
+  const coastShadow = darkMode ? '#0a0e18' : '#3D2E1F';
+  const landFill = darkMode ? '#2a3555' : '#FAF6EA';
+  const landHighlight = darkMode ? '#3a4668' : '#FFFDF7';
+  const waterFill = darkMode ? '#12182a' : '#D4C4A0';
+  const riverInk = darkMode ? '#7d92be' : '#6B5840';
+  const riverGlow = darkMode ? '#4a5f8a' : '#A89878';
+
+  const waterlineRings = [
+    { weight: 18, opacity: darkMode ? 0.04 : 0.035 },
+    { weight: 13, opacity: darkMode ? 0.06 : 0.055 },
+    { weight: 9, opacity: darkMode ? 0.09 : 0.085 },
+    { weight: 5.5, opacity: darkMode ? 0.14 : 0.13 },
+    { weight: 3, opacity: darkMode ? 0.22 : 0.2 },
+    { weight: 1.4, opacity: darkMode ? 0.32 : 0.3 },
+  ];
+
+  return (
+    <>
+      <Pane name="base-coast-shadow" style={{ zIndex: 294 }}>
+        <GeoJSON
+          key={`shadow-${darkMode}`}
+          data={landAreas}
+          interactive={false}
+          style={{
+            fill: false,
+            color: coastShadow,
+            weight: 3.5,
+            opacity: darkMode ? 0.35 : 0.18,
+            lineJoin: 'round',
+            lineCap: 'round',
+          }}
+          smoothFactor={1.0}
+        />
+      </Pane>
+
+      <Pane name="base-waterlines" style={{ zIndex: 296 }}>
+        {waterlineRings.map((ring, i) => (
+          <GeoJSON
+            key={`wl-${i}-${darkMode}`}
+            data={landAreas}
+            interactive={false}
+            style={{
+              fill: false,
+              color: coastInk,
+              weight: ring.weight,
+              opacity: ring.opacity,
+              lineJoin: 'round',
+              lineCap: 'round',
+            }}
+            smoothFactor={1.0}
+          />
+        ))}
+      </Pane>
+
+      <Pane name="base-land" style={{ zIndex: 300 }}>
+        <GeoJSON
+          key={`land-${darkMode}`}
+          data={landAreas}
+          interactive={false}
+          style={{
+            fillColor: landFill,
+            fillOpacity: 1,
+            color: coastInk,
+            weight: 1.4,
+            opacity: 1,
+            lineJoin: 'round',
+            lineCap: 'round',
+          }}
+          smoothFactor={1.0}
+        />
+        <GeoJSON
+          key={`land-hi-${darkMode}`}
+          data={landAreas}
+          interactive={false}
+          style={{
+            fill: false,
+            color: landHighlight,
+            weight: 0.6,
+            opacity: darkMode ? 0.25 : 0.5,
+            lineJoin: 'round',
+          }}
+          smoothFactor={1.0}
+        />
+      </Pane>
+
+      <Pane name="base-water" style={{ zIndex: 320 }}>
+        <GeoJSON
+          key={`lakes-${darkMode}`}
+          data={lakes}
+          interactive={false}
+          style={{
+            fillColor: waterFill,
+            fillOpacity: 1,
+            color: coastInk,
+            weight: 0.9,
+            opacity: 0.85,
+          }}
+          smoothFactor={1.0}
+        />
+        <GeoJSON
+          key={`rivers-glow-${darkMode}`}
+          data={rivers}
+          interactive={false}
+          style={{
+            fill: false,
+            color: riverGlow,
+            weight: 2.8,
+            opacity: darkMode ? 0.18 : 0.22,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }}
+          smoothFactor={1.0}
+        />
+        <GeoJSON
+          key={`rivers-${darkMode}`}
+          data={rivers}
+          interactive={false}
+          style={{
+            fill: false,
+            color: riverInk,
+            weight: 1.1,
+            opacity: darkMode ? 0.7 : 0.78,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }}
+          smoothFactor={1.0}
+        />
+      </Pane>
+    </>
+  );
+});
+
+// Faint survey graticule with edge ticks, like an 18th-century chart
+const Graticule = memo(({ darkMode }) => {
+  const { lines, latLabels, lngLabels } = useMemo(() => {
+    const lines = [];
+    const latLabels = [];
+    const lngLabels = [];
+    for (let lat = 26; lat <= 50; lat += 4) {
+      lines.push([[lat, -95], [lat, -52]]);
+      latLabels.push({ lat, lng: -94.2, text: `${lat}°` });
+    }
+    for (let lng = -92; lng <= -56; lng += 4) {
+      lines.push([[24, lng], [52, lng]]);
+      lngLabels.push({ lat: 24.6, lng, text: `${Math.abs(lng)}°W` });
+    }
+    return { lines, latLabels, lngLabels };
+  }, []);
+
+  const color = darkMode ? '#8fa1c9' : '#7d6a4f';
+  const labelColor = darkMode ? 'rgba(143, 161, 201, 0.55)' : 'rgba(90, 70, 48, 0.55)';
+
+  return (
+    <Pane name="graticule" style={{ zIndex: 290 }}>
+      {lines.map((pts, i) => (
+        <Polyline
+          key={i}
+          positions={pts}
+          interactive={false}
+          pathOptions={{ color, weight: 0.5, opacity: darkMode ? 0.1 : 0.12, dashArray: '2 6' }}
+        />
+      ))}
+      {[...latLabels, ...lngLabels].map((label) => (
+        <Marker
+          key={`grid-${label.text}-${label.lat}-${label.lng}`}
+          position={[label.lat, label.lng]}
+          interactive={false}
+          icon={L.divIcon({
+            className: 'graticule-label',
+            html: `<span style="color:${labelColor}">${label.text}</span>`,
+            iconSize: [36, 14],
+            iconAnchor: [18, 7],
+          })}
+        />
+      ))}
+    </Pane>
+  );
+});
+
 const colonyColors = {
   'Massachusetts': '#A08070',
   'Maine': '#A08070',
@@ -230,21 +460,21 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
     if (fillColonies) {
       return {
         fillColor: colonyColors[colonyName] || (darkMode ? '#E0C060' : '#B99C6B'),
-        weight: isHovered ? 2 : 1.2,
-        opacity: darkMode ? 0.55 : 0.75,
+        weight: isHovered ? 1.6 : 0.9,
+        opacity: darkMode ? 0.55 : 0.7,
         color: darkMode ? strokeColorDark : strokeColorLight,
-        fillOpacity: isHovered ? 0.4 : 0.28,
+        fillOpacity: isHovered ? 0.42 : 0.3,
         dashArray: null
       };
     }
 
-    // Outline mode (default): hand-inked border look with a faint land wash
+    // Outline mode (default): hand-tinted political wash + fine engraved borders
     return {
-      fillColor: darkMode ? '#C5A02F' : '#C8B085',
-      weight: isHovered ? 2.2 : 1.4,
-      opacity: isHovered ? 0.95 : 0.7,
+      fillColor: colonyColors[colonyName] || (darkMode ? '#E0C060' : '#C8B085'),
+      weight: isHovered ? 1.4 : 0.65,
+      opacity: isHovered ? 0.95 : darkMode ? 0.55 : 0.6,
       color: darkMode ? strokeColorDark : strokeColorLight,
-      fillOpacity: isHovered ? 0.22 : 0.1,
+      fillOpacity: isHovered ? 0.28 : darkMode ? 0.1 : 0.13,
       dashArray: null,
       className: 'colony-boundary'
     };
@@ -273,24 +503,10 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
     );
 
     layer.on({
-      mouseover: (e) => {
-        setHoveredColony(props.name);
-        e.target.setStyle({
-          fillOpacity: 0.25,
-          weight: 3,
-          dashArray: null
-        });
-      },
-      mouseout: (e) => {
-        setHoveredColony(null);
-        e.target.setStyle({
-          fillOpacity: fillColonies ? 0.35 : 0.1,
-          weight: 2,
-          dashArray: fillColonies ? null : '4, 4'
-        });
-      }
+      mouseover: () => setHoveredColony(props.name),
+      mouseout: () => setHoveredColony(null)
     });
-  }, [fillColonies]);
+  }, []);
 
   return (
     <GeoJSON
@@ -352,6 +568,36 @@ function ColonyLabels({ boundaries, darkMode, events = [] }) {
     </>
   );
 }
+
+// Engraved-chart annotations: the ocean name in spaced italic capitals,
+// neighboring territories in small caps — typographic conventions of
+// 18th-century English charts.
+const periodLabels = [
+  { text: 'ATLANTIC OCEAN', lat: 36.8, lng: -70.0, kind: 'sea', rotate: -52 },
+  { text: 'Gulf of Maine', lat: 42.9, lng: -68.4, kind: 'sea-minor', rotate: -30 },
+  { text: 'QUEBEC', lat: 47.3, lng: -75.5, kind: 'territory', rotate: 0 },
+  { text: 'NOVA SCOTIA', lat: 45.2, lng: -63.3, kind: 'territory', rotate: 0 },
+  { text: 'INDIAN RESERVE', lat: 39.5, lng: -83.9, kind: 'territory', rotate: -78 },
+  { text: 'EAST FLORIDA', lat: 29.4, lng: -81.6, kind: 'territory', rotate: -62 },
+];
+
+const PeriodLabels = memo(({ darkMode }) => (
+  <Pane name="period-labels" style={{ zIndex: 340 }}>
+    {periodLabels.map((label) => (
+      <Marker
+        key={label.text}
+        position={[label.lat, label.lng]}
+        interactive={false}
+        icon={L.divIcon({
+          className: 'period-map-label',
+          html: `<span class="period-label-text ${label.kind} ${darkMode ? 'dark' : ''}" style="transform: translate(-50%, -50%) rotate(${label.rotate}deg)">${label.text}</span>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        })}
+      />
+    ))}
+  </Pane>
+));
 
 const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
   const activeIndex = useMemo(
@@ -574,21 +820,37 @@ export default function Map({
   return (
     <div className={`map-container ${darkMode ? 'dark' : 'light'}`}>
       <div className="map-parchment-grain" aria-hidden="true" />
+      <div className="map-ocean-hatch" aria-hidden="true" />
+      <div className="map-chart-frame" aria-hidden="true">
+        <span className="frame-corner tl" />
+        <span className="frame-corner tr" />
+        <span className="frame-corner bl" />
+        <span className="frame-corner br" />
+      </div>
+      <div className={`map-cartouche ${darkMode ? 'dark' : ''}`} aria-hidden="true">
+        <span className="cartouche-title">The British Colonies</span>
+        <span className="cartouche-subtitle">in North America</span>
+      </div>
       <svg className="map-compass-rose" viewBox="0 0 100 100" aria-hidden="true">
-        <circle cx="50" cy="50" r="34" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.6" />
-        <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.4" />
-        {/* cardinal points */}
-        <path d="M50 8 L54 46 L50 50 L46 46 Z" fill="currentColor" opacity="0.85" />
-        <path d="M50 92 L54 54 L50 50 L46 54 Z" fill="currentColor" opacity="0.5" />
-        <path d="M8 50 L46 46 L50 50 L46 54 Z" fill="currentColor" opacity="0.5" />
-        <path d="M92 50 L54 46 L50 50 L54 54 Z" fill="currentColor" opacity="0.5" />
-        {/* intercardinal points */}
-        <path d="M26 26 L47 43 L43 47 Z" fill="currentColor" opacity="0.35" />
-        <path d="M74 26 L57 43 L53 47 Z" fill="currentColor" opacity="0.35" />
-        <path d="M26 74 L43 57 L47 53 Z" fill="currentColor" opacity="0.35" />
-        <path d="M74 74 L57 57 L53 53 Z" fill="currentColor" opacity="0.35" />
-        <text x="50" y="6" textAnchor="middle" fontSize="9" fontFamily="Playfair Display, Georgia, serif" fontStyle="italic" fill="currentColor">N</text>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
+        <circle cx="50" cy="50" r="32" fill="none" stroke="currentColor" strokeWidth="0.4" opacity="0.25" />
+        <circle cx="50" cy="50" r="4" fill="currentColor" opacity="0.5" />
+        <path d="M50 6 L56 48 L50 54 L44 48 Z" fill="currentColor" opacity="0.9" />
+        <path d="M50 94 L56 52 L50 46 L44 52 Z" fill="currentColor" opacity="0.35" />
+        <path d="M6 50 L48 44 L54 50 L48 56 Z" fill="currentColor" opacity="0.35" />
+        <path d="M94 50 L52 44 L46 50 L52 56 Z" fill="currentColor" opacity="0.35" />
+        <path d="M22 22 L46 42 L42 46 Z" fill="currentColor" opacity="0.2" />
+        <path d="M78 22 L58 42 L54 46 Z" fill="currentColor" opacity="0.2" />
+        <path d="M22 78 L42 58 L46 54 Z" fill="currentColor" opacity="0.2" />
+        <path d="M78 78 L58 58 L54 54 Z" fill="currentColor" opacity="0.2" />
+        <text x="50" y="4" textAnchor="middle" fontSize="8" fontFamily="Playfair Display, Georgia, serif" fontStyle="italic" fontWeight="600" fill="currentColor">N</text>
+        <text x="50" y="99" textAnchor="middle" fontSize="6" fontFamily="Playfair Display, Georgia, serif" fill="currentColor" opacity="0.5">S</text>
+        <text x="3" y="53" textAnchor="middle" fontSize="6" fontFamily="Playfair Display, Georgia, serif" fill="currentColor" opacity="0.5">W</text>
+        <text x="97" y="53" textAnchor="middle" fontSize="6" fontFamily="Playfair Display, Georgia, serif" fill="currentColor" opacity="0.5">E</text>
       </svg>
+      <p className={`map-attribution ${darkMode ? 'dark' : ''}`} aria-hidden="true">
+        Surveyed after ye best Authorities · MDCCLXXV
+      </p>
       <MapContainer
         center={[40.0, -74.0]}
         zoom={5}
@@ -602,14 +864,25 @@ export default function Map({
         dragging={true}
         doubleClickZoom={true}
         touchZoom={true}
+        preferCanvas={true}
       >
         {/* No tile layer: the map renders as a period parchment chart —
-            textured paper background (CSS) with inked colony boundaries */}
+            the CSS paper is the sea, and accurate Natural Earth land/lake/
+            river geometry is drawn on it in engraved-chart style */}
         <MapController center={center} zoom={zoom} autoFly={autoFly} coveredRatio={coveredRatio} />
+        <ScaleBarControl darkMode={darkMode} />
+
+        <Graticule darkMode={darkMode} />
+        <BaseChart darkMode={darkMode} />
+        <PeriodLabels darkMode={darkMode} />
 
         {showColonies && colonyBoundaries && (
           <>
-            <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
+            {/* Between the land silhouette (300) and lakes/rivers (320) so
+                the political wash never tints the water */}
+            <Pane name="colonies" style={{ zIndex: 310 }}>
+              <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
+            </Pane>
             <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} events={visibleEvents} />
           </>
         )}

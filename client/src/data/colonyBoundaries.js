@@ -1,394 +1,174 @@
+import { colonyShapes } from './geo/colonyShapes';
+
+// Colony metadata (population, exports, label anchors) joined with accurate
+// coastline geometry generated from us-atlas 10m data (see
+// scripts/build-geo-data.mjs). Colonial-era claims are reflected in the
+// shapes: Virginia includes Kentucky and West Virginia, North Carolina
+// includes Tennessee, New Hampshire administers the Vermont grants, and the
+// District of Maine belongs to Massachusetts.
+const colonyInfo = [
+  {
+    name: "Massachusetts",
+    abbrev: "MA",
+    population: 338000,
+    exports: 400000,
+    mainExport: "Fish & Shipbuilding",
+    founded: 1620,
+    capital: "Boston",
+    labelLat: 42.35,
+    labelLng: -72.0
+  },
+  {
+    name: "District of Maine",
+    abbrev: "ME (MA)",
+    population: 30000,
+    exports: 50000,
+    mainExport: "Lumber & Fish",
+    founded: 1622,
+    capital: "Falmouth",
+    partOf: "Massachusetts",
+    labelLat: 45.2,
+    labelLng: -69.4
+  },
+  {
+    name: "New Hampshire",
+    abbrev: "NH",
+    population: 62000,
+    exports: 70000,
+    mainExport: "Lumber & Masts",
+    founded: 1623,
+    capital: "Portsmouth",
+    labelLat: 43.9,
+    labelLng: -71.9
+  },
+  {
+    name: "Rhode Island",
+    abbrev: "RI",
+    population: 58000,
+    exports: 90000,
+    mainExport: "Rum & Trade",
+    founded: 1636,
+    capital: "Providence",
+    labelLat: 41.62,
+    labelLng: -71.55
+  },
+  {
+    name: "Connecticut",
+    abbrev: "CT",
+    population: 198000,
+    exports: 100000,
+    mainExport: "Livestock & Grains",
+    founded: 1636,
+    capital: "Hartford",
+    labelLat: 41.68,
+    labelLng: -72.75
+  },
+  {
+    name: "New York",
+    abbrev: "NY",
+    population: 163000,
+    exports: 200000,
+    mainExport: "Wheat & Flour",
+    founded: 1626,
+    capital: "New York City",
+    labelLat: 42.9,
+    labelLng: -75.4
+  },
+  {
+    name: "New Jersey",
+    abbrev: "NJ",
+    population: 130000,
+    exports: 80000,
+    mainExport: "Iron & Grain",
+    founded: 1664,
+    capital: "Perth Amboy",
+    labelLat: 40.1,
+    labelLng: -74.55
+  },
+  {
+    name: "Pennsylvania",
+    abbrev: "PA",
+    population: 270000,
+    exports: 350000,
+    mainExport: "Flour & Iron",
+    founded: 1681,
+    capital: "Philadelphia",
+    labelLat: 41.0,
+    labelLng: -77.8
+  },
+  {
+    name: "Delaware",
+    abbrev: "DE",
+    population: 35000,
+    exports: 40000,
+    mainExport: "Grain & Flour",
+    founded: 1638,
+    capital: "Dover",
+    labelLat: 39.1,
+    labelLng: -75.5
+  },
+  {
+    name: "Maryland",
+    abbrev: "MD",
+    population: 203000,
+    exports: 400000,
+    mainExport: "Tobacco",
+    founded: 1634,
+    capital: "Annapolis",
+    labelLat: 39.45,
+    labelLng: -77.1
+  },
+  {
+    name: "Virginia",
+    abbrev: "VA",
+    population: 447000,
+    exports: 1000000,
+    mainExport: "Tobacco",
+    founded: 1607,
+    capital: "Williamsburg",
+    labelLat: 37.6,
+    labelLng: -78.7
+  },
+  {
+    name: "North Carolina",
+    abbrev: "NC",
+    population: 197000,
+    exports: 150000,
+    mainExport: "Naval Stores & Tobacco",
+    founded: 1653,
+    capital: "New Bern",
+    labelLat: 35.55,
+    labelLng: -79.4
+  },
+  {
+    name: "South Carolina",
+    abbrev: "SC",
+    population: 124000,
+    exports: 600000,
+    mainExport: "Rice & Indigo",
+    founded: 1663,
+    capital: "Charles Town",
+    labelLat: 34.0,
+    labelLng: -81.0
+  },
+  {
+    name: "Georgia",
+    abbrev: "GA",
+    population: 23000,
+    exports: 100000,
+    mainExport: "Indigo & Rice",
+    founded: 1733,
+    capital: "Savannah",
+    labelLat: 32.7,
+    labelLng: -83.2
+  }
+];
+
 export const colonyBoundaries = {
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "Massachusetts",
-        "abbrev": "MA",
-        "population": 338000,
-        "exports": 400000,
-        "mainExport": "Fish & Shipbuilding",
-        "founded": 1620,
-        "capital": "Boston",
-        "labelLat": 42.2,
-        "labelLng": -71.8
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-73.26, 42.75], [-72.58, 42.73], [-71.33, 42.70], [-71.05, 42.71],
-          [-70.81, 42.56], [-70.64, 42.58], [-70.00, 42.00], [-69.93, 41.67],
-          [-70.01, 41.52], [-70.24, 41.71], [-70.52, 41.38], [-70.75, 41.34],
-          [-70.98, 41.51], [-71.08, 41.50], [-71.12, 41.49], [-71.13, 41.67],
-          [-71.19, 41.68], [-71.22, 41.71],
-          [-71.38, 42.02], [-71.80, 42.02],
-          [-72.03, 42.03], [-72.58, 42.03], [-73.26, 42.05], [-73.26, 42.75]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "District of Maine",
-        "abbrev": "ME (MA)",
-        "population": 30000,
-        "exports": 50000,
-        "mainExport": "Lumber & Fish",
-        "founded": 1622,
-        "capital": "Falmouth",
-        "partOf": "Massachusetts",
-        "labelLat": 44.5,
-        "labelLng": -69.5
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-70.97, 43.37], [-70.82, 43.12], [-70.70, 43.06], [-70.58, 43.08],
-          [-70.22, 43.57], [-70.00, 43.68], [-69.06, 44.04], [-68.80, 44.46],
-          [-68.51, 44.38], [-68.18, 44.34], [-67.96, 44.45], [-67.79, 44.52],
-          [-67.40, 44.70], [-67.19, 44.65], [-67.13, 45.14], [-67.29, 45.17],
-          [-67.43, 45.30], [-67.48, 45.50], [-67.71, 45.68], [-67.75, 45.82],
-          [-67.80, 47.07], [-68.23, 47.35], [-68.90, 47.18], [-69.05, 47.30],
-          [-69.24, 47.46], [-70.02, 46.69], [-70.06, 46.42], [-70.25, 46.25],
-          [-70.29, 46.06], [-70.42, 45.94], [-70.42, 45.72], [-70.72, 45.51],
-          [-70.64, 45.39], [-70.72, 45.01], [-70.97, 43.37]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "New Hampshire",
-        "abbrev": "NH",
-        "population": 62000,
-        "exports": 70000,
-        "mainExport": "Lumber & Masts",
-        "founded": 1623,
-        "capital": "Portsmouth",
-        "labelLat": 43.8,
-        "labelLng": -72.5
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-73.26, 45.01], [-71.50, 45.01], [-71.08, 45.30], [-70.97, 43.37],
-          [-70.82, 43.12], [-70.70, 43.06], [-70.58, 43.08], [-70.81, 42.56],
-          [-71.05, 42.71], [-71.33, 42.70], [-73.26, 42.75], [-73.26, 45.01]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "Rhode Island",
-        "abbrev": "RI",
-        "population": 58000,
-        "exports": 90000,
-        "mainExport": "Rum & Trade",
-        "founded": 1636,
-        "capital": "Providence",
-        "labelLat": 41.55,
-        "labelLng": -71.45
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-71.80, 42.02], [-71.38, 42.02], [-71.22, 41.71], [-71.19, 41.68],
-          [-71.13, 41.67], [-71.12, 41.49], [-71.13, 41.46], [-71.21, 41.39],
-          [-71.34, 41.21], [-71.52, 41.18], [-71.80, 41.32], [-71.80, 42.02]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "Connecticut",
-        "abbrev": "CT",
-        "population": 198000,
-        "exports": 100000,
-        "mainExport": "Livestock & Grains",
-        "founded": 1636,
-        "capital": "Hartford",
-        "labelLat": 41.6,
-        "labelLng": -72.7
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-73.73, 42.05], [-73.26, 42.05], [-72.58, 42.03], [-72.03, 42.03],
-          [-71.80, 42.02],
-          [-71.80, 41.32], [-71.91, 41.23], [-72.53, 40.98], [-73.48, 41.21],
-          [-73.55, 41.29], [-73.48, 42.05], [-73.73, 42.05]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "New York",
-        "abbrev": "NY",
-        "population": 163000,
-        "exports": 200000,
-        "mainExport": "Wheat & Flour",
-        "founded": 1626,
-        "capital": "New York City",
-        "labelLat": 42.8,
-        "labelLng": -75.5
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-79.76, 43.27], [-79.06, 43.27], [-78.92, 43.33], [-78.21, 43.45],
-          [-77.37, 43.28], [-77.07, 43.63], [-76.81, 43.63], [-76.70, 43.77],
-          [-76.59, 43.91], [-76.40, 44.10], [-76.28, 44.20], [-76.03, 44.35],
-          [-75.82, 44.47], [-75.22, 44.87], [-75.07, 44.93], [-74.65, 45.00],
-          [-73.39, 45.00], [-73.31, 44.77], [-73.38, 44.62], [-73.33, 44.55],
-          [-73.41, 44.34], [-73.40, 44.04], [-73.27, 43.63], [-73.35, 42.51],
-          [-73.26, 42.05],
-          [-73.48, 42.05], [-73.55, 41.29], [-73.48, 41.21],
-          [-73.89, 40.96], [-73.91, 40.78], [-74.04, 40.70], [-73.97, 40.56],
-          [-74.18, 40.65], [-74.30, 41.16],
-          [-74.74, 41.42],
-          [-75.05, 41.77], [-75.10, 41.85], [-75.36, 42.00],
-          [-76.96, 42.00], [-77.83, 41.99],
-          [-79.07, 42.00], [-79.07, 42.54], [-78.93, 42.76], [-78.90, 42.96],
-          [-79.04, 43.28], [-79.76, 43.27]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "New Jersey",
-        "abbrev": "NJ",
-        "population": 130000,
-        "exports": 80000,
-        "mainExport": "Iron & Grain",
-        "founded": 1664,
-        "capital": "Perth Amboy",
-        "labelLat": 40.2,
-        "labelLng": -74.7
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-75.05, 41.37], [-75.05, 41.18], [-74.74, 41.42],
-          [-74.30, 41.16], [-74.18, 40.65],
-          [-73.97, 40.56], [-74.01, 40.48], [-74.04, 40.41], [-74.11, 40.29],
-          [-74.03, 40.04], [-74.03, 39.93], [-73.95, 39.78], [-74.09, 39.54],
-          [-74.16, 39.37], [-74.26, 39.31], [-74.41, 39.35], [-74.63, 39.29],
-          [-74.89, 38.95], [-75.03, 39.00], [-75.14, 39.09], [-75.22, 39.19],
-          [-75.24, 39.29], [-75.14, 39.44], [-75.11, 39.52], [-75.06, 39.57],
-          [-75.07, 39.69], [-75.19, 39.83], [-75.24, 39.94], [-75.20, 40.01],
-          [-75.20, 40.11], [-75.10, 40.26], [-75.05, 40.42], [-75.07, 40.55],
-          [-75.05, 40.68], [-75.07, 40.84], [-75.12, 41.02], [-75.05, 41.18],
-          [-75.05, 41.37]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "Pennsylvania",
-        "abbrev": "PA",
-        "population": 270000,
-        "exports": 350000,
-        "mainExport": "Flour & Iron",
-        "founded": 1681,
-        "capital": "Philadelphia",
-        "labelLat": 41.0,
-        "labelLng": -77.5
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-80.52, 42.33], [-79.76, 42.27], [-79.07, 42.00],
-          [-77.83, 41.99], [-76.96, 42.00], [-75.36, 42.00],
-          [-75.10, 41.85], [-75.05, 41.77],
-          [-75.05, 41.37], [-75.05, 41.18], [-75.12, 41.02], [-75.07, 40.84],
-          [-75.05, 40.68], [-75.07, 40.55], [-75.05, 40.42], [-75.10, 40.26],
-          [-75.20, 40.11], [-75.20, 40.01],
-          [-75.45, 39.82], [-75.59, 39.84], [-75.79, 39.72],
-          [-79.48, 39.72], [-80.52, 39.72], [-80.52, 40.64],
-          [-80.52, 42.33]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "Delaware",
-        "abbrev": "DE",
-        "population": 35000,
-        "exports": 40000,
-        "mainExport": "Grain & Flour",
-        "founded": 1638,
-        "capital": "Dover",
-        "labelLat": 39.15,
-        "labelLng": -75.5
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-75.79, 39.72], [-75.59, 39.84], [-75.45, 39.82], [-75.20, 40.01],
-          [-75.24, 39.94], [-75.19, 39.83], [-75.07, 39.69], [-75.06, 39.57],
-          [-75.11, 39.52], [-75.14, 39.44], [-75.24, 39.29], [-75.22, 39.19],
-          [-75.14, 39.09], [-75.43, 38.45], [-75.69, 38.45], [-75.79, 39.30],
-          [-75.79, 39.72]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "Maryland",
-        "abbrev": "MD",
-        "population": 203000,
-        "exports": 400000,
-        "mainExport": "Tobacco",
-        "founded": 1634,
-        "capital": "Annapolis",
-        "labelLat": 39.3,
-        "labelLng": -76.6
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-79.48, 39.72], [-75.79, 39.72], [-75.79, 39.30], [-75.69, 38.45],
-          [-75.05, 38.45], [-75.24, 38.03], [-75.62, 37.99], [-75.89, 37.55],
-          [-76.00, 37.31],
-          [-76.24, 37.90], [-76.33, 38.03], [-76.30, 38.14],
-          [-76.39, 38.32], [-76.27, 38.52], [-76.26, 38.62], [-76.36, 38.73],
-          [-76.52, 38.72], [-76.49, 39.01], [-76.53, 39.08], [-76.42, 39.20],
-          [-76.41, 39.31], [-76.57, 39.37], [-76.79, 39.31], [-77.04, 39.24],
-          [-77.24, 39.32], [-77.46, 39.22], [-77.52, 39.15], [-77.72, 39.32],
-          [-77.83, 39.14], [-78.03, 39.24], [-78.23, 39.39], [-78.38, 39.36],
-          [-78.46, 39.51], [-78.77, 39.58], [-79.07, 39.47], [-79.29, 39.47],
-          [-79.48, 39.21], [-79.48, 39.72]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "Virginia",
-        "abbrev": "VA",
-        "population": 447000,
-        "exports": 1000000,
-        "mainExport": "Tobacco",
-        "founded": 1607,
-        "capital": "Williamsburg",
-        "labelLat": 38.0,
-        "labelLng": -80.5
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-83.68, 36.60], [-81.68, 36.60], [-80.30, 36.55], [-79.51, 36.54],
-          [-77.30, 36.54], [-75.87, 36.55],
-          [-75.81, 37.00], [-75.62, 37.56],
-          [-75.89, 37.55], [-75.62, 37.99], [-75.24, 38.03],
-          [-76.00, 37.31],
-          [-76.24, 37.90], [-76.33, 38.03], [-76.30, 38.14],
-          [-76.39, 38.32], [-76.27, 38.52], [-76.26, 38.62], [-76.36, 38.73],
-          [-76.52, 38.72], [-76.49, 39.01], [-76.53, 39.08], [-76.42, 39.20],
-          [-76.41, 39.31], [-76.57, 39.37], [-76.79, 39.31], [-77.04, 39.24],
-          [-77.24, 39.32], [-77.46, 39.22], [-77.52, 39.15], [-77.72, 39.32],
-          [-77.83, 39.14], [-78.03, 39.24], [-78.23, 39.39], [-78.38, 39.36],
-          [-78.46, 39.51], [-78.77, 39.58], [-79.07, 39.47], [-79.29, 39.47],
-          [-79.48, 39.21],
-          [-79.48, 39.72], [-80.52, 39.72], [-80.52, 40.64], [-80.52, 41.00],
-          [-82.50, 41.00], [-84.82, 41.76], [-84.82, 39.10], [-84.82, 38.40],
-          [-83.68, 36.60]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "North Carolina",
-        "abbrev": "NC",
-        "population": 197000,
-        "exports": 150000,
-        "mainExport": "Naval Stores & Tobacco",
-        "founded": 1653,
-        "capital": "New Bern",
-        "labelLat": 35.5,
-        "labelLng": -81.0
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-90.31, 35.00], [-89.73, 36.00], [-88.05, 36.50], [-83.68, 36.60],
-          [-81.68, 36.60], [-80.30, 36.55], [-79.51, 36.54],
-          [-77.30, 36.54], [-75.87, 36.55], [-75.73, 36.11], [-75.46, 35.90],
-          [-75.47, 35.55], [-75.67, 35.23], [-76.03, 34.99], [-76.45, 34.63],
-          [-77.39, 34.48], [-77.93, 33.94], [-78.55, 33.87],
-          [-79.67, 34.81],
-          [-80.56, 34.82], [-80.78, 34.94], [-80.93, 35.11], [-81.04, 35.15],
-          [-82.39, 35.22], [-82.77, 35.09], [-83.11, 35.00], [-84.32, 35.00],
-          [-90.31, 35.00]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "South Carolina",
-        "abbrev": "SC",
-        "population": 124000,
-        "exports": 600000,
-        "mainExport": "Rice & Indigo",
-        "founded": 1663,
-        "capital": "Charles Town",
-        "labelLat": 33.8,
-        "labelLng": -80.9
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-83.11, 35.00], [-82.77, 35.09], [-82.39, 35.22], [-81.04, 35.15],
-          [-80.93, 35.11], [-80.78, 34.94], [-80.56, 34.82],
-          [-79.67, 34.81],
-          [-78.55, 33.87], [-79.04, 33.49], [-79.19, 33.24], [-79.50, 33.00],
-          [-79.87, 32.76], [-80.20, 32.56], [-80.44, 32.40], [-80.63, 32.51],
-          [-80.82, 32.11], [-81.13, 32.11], [-81.19, 32.38], [-81.42, 32.62],
-          [-81.83, 32.65], [-82.02, 32.54], [-82.22, 33.13], [-82.36, 33.31],
-          [-82.58, 33.57], [-82.76, 33.97], [-82.99, 34.47], [-83.11, 35.00]
-        ]]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "Georgia",
-        "abbrev": "GA",
-        "population": 23000,
-        "exports": 100000,
-        "mainExport": "Indigo & Rice",
-        "founded": 1733,
-        "capital": "Savannah",
-        "labelLat": 32.5,
-        "labelLng": -83.0
-      },
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-          [-83.11, 35.00], [-82.99, 34.47], [-82.76, 33.97], [-82.58, 33.57],
-          [-82.36, 33.31], [-82.22, 33.13], [-82.02, 32.54],
-          [-81.83, 32.65],
-          [-81.42, 32.62], [-81.19, 32.38], [-81.13, 32.11], [-81.06, 31.80],
-          [-81.17, 31.52], [-81.28, 31.20], [-81.17, 31.00], [-81.25, 30.79],
-          [-81.51, 30.72], [-81.73, 30.75], [-82.01, 30.79], [-82.21, 30.51],
-          [-82.42, 30.58], [-82.70, 30.60], [-83.13, 30.64], [-83.50, 30.65],
-          [-84.03, 30.67], [-84.32, 30.69], [-84.86, 30.71], [-85.00, 31.00],
-          [-85.11, 31.27], [-85.00, 31.79], [-84.92, 32.24], [-85.00, 32.51],
-          [-85.18, 32.87], [-85.23, 33.11], [-85.19, 33.69], [-85.39, 33.90],
-          [-85.53, 34.11], [-85.61, 34.48], [-85.61, 34.99], [-84.32, 34.99],
-          [-83.11, 35.00]
-        ]]
-      }
-    }
-  ]
+  type: "FeatureCollection",
+  features: colonyInfo.map((props) => ({
+    type: "Feature",
+    properties: props,
+    geometry: colonyShapes[props.name]
+  }))
 };

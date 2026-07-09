@@ -225,27 +225,71 @@ body.dark-mode {
   min-height: 0;
 }
 
-/* Period parchment chart — no tile layer; the paper is the map */
+/* Period parchment chart — no tile layer; the paper is the sea and the
+   land is drawn on it, as on an engraved 1770s chart */
 .map-container {
   height: 100%;
   width: 100%;
   position: relative;
   background:
-    radial-gradient(ellipse at 18% 12%, rgba(184, 152, 104, 0.18), transparent 55%),
-    radial-gradient(ellipse at 82% 88%, rgba(160, 128, 84, 0.22), transparent 55%),
-    radial-gradient(ellipse at 50% 50%, #F3E9D2 0%, #EADDBE 62%, #DCC9A0 100%);
+    radial-gradient(ellipse at 22% 18%, rgba(200, 168, 118, 0.18), transparent 50%),
+    radial-gradient(ellipse at 78% 82%, rgba(140, 108, 68, 0.22), transparent 55%),
+    radial-gradient(ellipse at 50% 40%, #E8D8B4 0%, #DCC9A0 45%, #CDB88E 100%);
 }
 
 .map-container .leaflet-container {
   background: transparent;
-  z-index: 1; /* contain Leaflet's pane z-indexes so the grain/vignette layer above */
+  z-index: 1;
 }
 
 .map-container.dark {
   background:
-    radial-gradient(ellipse at 18% 12%, rgba(96, 110, 150, 0.12), transparent 55%),
-    radial-gradient(ellipse at 82% 88%, rgba(40, 48, 72, 0.5), transparent 60%),
-    radial-gradient(ellipse at 50% 50%, #1B2233 0%, #151A28 62%, #0E1220 100%);
+    radial-gradient(ellipse at 22% 18%, rgba(80, 95, 140, 0.14), transparent 50%),
+    radial-gradient(ellipse at 78% 82%, rgba(30, 38, 58, 0.45), transparent 58%),
+    radial-gradient(ellipse at 50% 48%, #1A2135 0%, #141A2A 55%, #0C101C 100%);
+}
+
+/* Subtle wave hatching visible in open water */
+.map-ocean-hatch {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.45;
+  background:
+    repeating-linear-gradient(
+      -14deg,
+      transparent,
+      transparent 11px,
+      rgba(90, 68, 42, 0.028) 11px,
+      rgba(90, 68, 42, 0.028) 12px
+    ),
+    repeating-linear-gradient(
+      76deg,
+      transparent,
+      transparent 17px,
+      rgba(90, 68, 42, 0.02) 17px,
+      rgba(90, 68, 42, 0.02) 18px
+    );
+}
+
+.map-container.dark .map-ocean-hatch {
+  opacity: 0.3;
+  background:
+    repeating-linear-gradient(
+      -14deg,
+      transparent,
+      transparent 11px,
+      rgba(120, 140, 180, 0.025) 11px,
+      rgba(120, 140, 180, 0.025) 12px
+    ),
+    repeating-linear-gradient(
+      76deg,
+      transparent,
+      transparent 17px,
+      rgba(120, 140, 180, 0.018) 17px,
+      rgba(120, 140, 180, 0.018) 18px
+    );
 }
 
 /* Paper grain: SVG turbulence noise, sits above the paper, below the map panes */
@@ -254,15 +298,120 @@ body.dark-mode {
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.33 0 0 0 0 0.20 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.33 0 0 0 0 0.20 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .map-container.dark .map-parchment-grain {
-  opacity: 0.35;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
 }
 
-/* Aged-edge vignette and double rule, like a framed 1770s chart */
+/* Double-rule chart frame with corner flourishes */
+.map-chart-frame {
+  position: absolute;
+  inset: 14px;
+  z-index: 4;
+  pointer-events: none;
+  border: 1px solid rgba(90, 68, 42, 0.35);
+  box-shadow: inset 0 0 0 4px transparent, inset 0 0 0 5px rgba(90, 68, 42, 0.12);
+}
+
+.map-container.dark .map-chart-frame {
+  border-color: rgba(197, 160, 47, 0.25);
+  box-shadow: inset 0 0 0 4px transparent, inset 0 0 0 5px rgba(197, 160, 47, 0.08);
+}
+
+.frame-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: rgba(90, 68, 42, 0.5);
+  border-style: solid;
+}
+
+.map-container.dark .frame-corner {
+  border-color: rgba(197, 160, 47, 0.4);
+}
+
+.frame-corner.tl { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.frame-corner.tr { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+.frame-corner.bl { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
+.frame-corner.br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+/* Title cartouche — centered top, period typography */
+.map-cartouche {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 18px 9px;
+  border: 1px solid rgba(90, 68, 42, 0.25);
+  border-radius: 2px;
+  background: rgba(250, 246, 234, 0.6);
+  box-shadow: 0 1px 4px rgba(60, 40, 20, 0.08);
+}
+
+.map-cartouche.dark {
+  background: rgba(20, 26, 42, 0.55);
+  border-color: rgba(197, 160, 47, 0.2);
+}
+
+.cartouche-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: rgba(55, 38, 22, 0.85);
+  text-transform: capitalize;
+}
+
+.map-cartouche.dark .cartouche-title {
+  color: rgba(220, 200, 170, 0.9);
+}
+
+.cartouche-subtitle {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.12em;
+  color: rgba(90, 68, 42, 0.65);
+  text-transform: uppercase;
+}
+
+.map-cartouche.dark .cartouche-subtitle {
+  color: rgba(197, 160, 47, 0.55);
+}
+
+/* Period attribution line */
+.map-attribution {
+  position: absolute;
+  bottom: 78px;
+  right: 28px;
+  z-index: 4;
+  pointer-events: none;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: rgba(90, 68, 42, 0.45);
+  margin: 0;
+}
+
+.map-attribution.dark {
+  color: rgba(143, 161, 201, 0.4);
+}
+
+/* Aged-edge vignette */
 .map-container::after {
   content: "";
   position: absolute;
@@ -270,56 +419,180 @@ body.dark-mode {
   z-index: 3;
   pointer-events: none;
   box-shadow:
-    inset 0 0 90px rgba(92, 70, 40, 0.28),
-    inset 0 0 6px rgba(92, 70, 40, 0.2);
+    inset 0 0 120px rgba(70, 52, 32, 0.22),
+    inset 0 0 8px rgba(70, 52, 32, 0.15);
 }
 
 .map-container.dark::after {
   box-shadow:
-    inset 0 0 90px rgba(0, 0, 0, 0.55),
-    inset 0 0 6px rgba(0, 0, 0, 0.4);
+    inset 0 0 120px rgba(0, 0, 0, 0.5),
+    inset 0 0 8px rgba(0, 0, 0, 0.35);
 }
 
 .map-compass-rose {
   position: absolute;
-  right: 18px;
-  top: 74px;
-  width: 92px;
-  height: 92px;
+  right: 24px;
+  top: 78px;
+  width: 88px;
+  height: 88px;
   z-index: 4;
   pointer-events: none;
-  color: #6B5136;
-  opacity: 0.55;
+  color: #5B4636;
+  opacity: 0.65;
+  filter: drop-shadow(0 1px 2px rgba(60, 40, 20, 0.15));
 }
 
 .map-container.dark .map-compass-rose {
   color: #C5A02F;
-  opacity: 0.5;
+  opacity: 0.55;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
+}
+
+/* Scale bar — engraved chart convention */
+.map-scale-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin-left: 6px !important;
+  margin-bottom: 6px !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.scale-bar-graphic {
+  position: relative;
+  height: 8px;
+}
+
+.scale-bar-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(55, 38, 22, 0.7);
+}
+
+.map-scale-bar.dark .scale-bar-line {
+  background: rgba(197, 160, 47, 0.65);
+}
+
+.scale-bar-tick {
+  position: absolute;
+  bottom: 0;
+  width: 2px;
+  height: 8px;
+  background: rgba(55, 38, 22, 0.7);
+}
+
+.map-scale-bar.dark .scale-bar-tick {
+  background: rgba(197, 160, 47, 0.65);
+}
+
+.scale-bar-tick.left { left: 0; }
+.scale-bar-tick.right { right: 0; }
+
+.scale-bar-label {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  color: rgba(55, 38, 22, 0.65);
+}
+
+.map-scale-bar.dark .scale-bar-label {
+  color: rgba(197, 160, 47, 0.55);
+}
+
+/* Graticule degree labels */
+.graticule-label {
+  background: none !important;
+  border: none !important;
+}
+
+.graticule-label span {
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .map-container .leaflet-control-zoom {
-  border: none;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(90, 68, 42, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(60, 40, 20, 0.12);
+  overflow: hidden;
+  margin-top: 28px !important;
+  margin-right: 24px !important;
 }
 
 .map-container .leaflet-control-zoom a {
-  background: var(--color-bg-light);
-  color: var(--color-american);
+  background: rgba(250, 246, 234, 0.92);
+  color: #4A3828;
   border: none;
-  font-size: 16px;
+  border-bottom: 1px solid rgba(90, 68, 42, 0.12);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+}
+
+.map-container .leaflet-control-zoom a:last-child {
+  border-bottom: none;
+}
+
+.map-container.dark .leaflet-control-zoom {
+  border-color: rgba(197, 160, 47, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .map-container.dark .leaflet-control-zoom a {
-  background: #1a1a2e;
-  color: #e5e5e5;
+  background: rgba(20, 26, 42, 0.9);
+  color: #C5A02F;
+  border-bottom-color: rgba(197, 160, 47, 0.1);
 }
 
 .map-container .leaflet-control-zoom a:hover {
-  background: var(--color-parchment);
+  background: rgba(232, 220, 190, 0.95);
+  color: #3D2E1F;
 }
 
 .map-container.dark .leaflet-control-zoom a:hover {
-  background: #2a2a4e;
+  background: rgba(35, 44, 68, 0.95);
+  color: #E0C060;
+}
+
+.map-container .leaflet-bottom.leaflet-left {
+  bottom: 72px;
+  left: 28px;
+  z-index: 5;
+}
+
+@media (max-width: 768px) {
+  .map-cartouche,
+  .map-attribution,
+  .map-chart-frame {
+    display: none;
+  }
+
+  .map-compass-rose {
+    width: 64px;
+    height: 64px;
+    right: 12px;
+    top: 56px;
+    opacity: 0.45;
+  }
+
+  .map-container .leaflet-bottom.leaflet-left {
+    bottom: calc(55vh + 12px);
+    left: 12px;
+  }
 }
 
 .timeline {
@@ -1064,6 +1337,54 @@ body.dark-mode {
 
 .event-card-fixed.dark .event-card-significance p {
   color: #bbb;
+}
+
+/* Engraved-chart annotations: sea names and neighboring territories */
+.period-map-label {
+  background: none !important;
+  border: none !important;
+  overflow: visible;
+}
+
+.period-label-text {
+  display: inline-block;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: 'Playfair Display', Georgia, serif;
+  transform-origin: center;
+}
+
+.period-label-text.sea {
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.45em;
+  color: rgba(90, 72, 50, 0.42);
+  text-shadow: 0 0 8px rgba(250, 246, 234, 0.6);
+}
+
+.period-label-text.sea-minor {
+  font-size: 11px;
+  font-style: italic;
+  letter-spacing: 0.25em;
+  color: rgba(90, 72, 50, 0.38);
+}
+
+.period-label-text.territory {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: rgba(80, 62, 42, 0.48);
+}
+
+.period-label-text.sea.dark {
+  color: rgba(130, 150, 190, 0.32);
+  text-shadow: 0 0 10px rgba(20, 26, 42, 0.8);
+}
+
+.period-label-text.sea-minor.dark,
+.period-label-text.territory.dark {
+  color: rgba(143, 161, 201, 0.45);
 }
 
 .colony-tooltip-container {
