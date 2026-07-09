@@ -77,12 +77,13 @@ export default function ExploreView({
   // Derive the current event
   const currentEvent = events[currentEventIndex];
 
-  // Sync current event index when it changes
+  // Sync current event to URL when the selected event changes
+  const lastSyncedEventId = useRef(null);
   useEffect(() => {
-    if (currentEvent) {
-      onEventChange?.(currentEvent.id);
-    }
-  }, [currentEventIndex, onEventChange, currentEvent]);
+    if (!currentEvent || currentEvent.id === lastSyncedEventId.current) return;
+    lastSyncedEventId.current = currentEvent.id;
+    onEventChange?.(currentEvent.id);
+  }, [currentEvent, onEventChange]);
 
   useEffect(() => {
     if (initialEventId != null) {

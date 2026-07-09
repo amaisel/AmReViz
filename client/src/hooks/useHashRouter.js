@@ -22,13 +22,18 @@ export default function useHashRouter(defaultView = 'welcome') {
   });
 
   const setView = useCallback((newView, subId = null) => {
-    setRouteState({ view: newView, subId });
+    setRouteState((prev) => {
+      if (prev.view === newView && prev.subId === subId) return prev;
+      return { view: newView, subId };
+    });
     let newHash = '';
     if (newView !== 'welcome') {
       newHash = `#/${newView}`;
       if (subId != null) newHash += `/${subId}`;
     }
-    window.location.hash = newHash;
+    if (window.location.hash !== newHash) {
+      window.location.hash = newHash;
+    }
   }, []);
 
   useEffect(() => {

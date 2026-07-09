@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
 import ExploreView from './components/ExploreView';
@@ -196,9 +196,13 @@ export default function App() {
     }
   }, [view, subId]);
 
-  const handleNavigateToEvent = (eventId) => {
+  const handleNavigateToEvent = useCallback((eventId) => {
     setView('explore', eventId);
-  };
+  }, [setView]);
+
+  const handleEventChange = useCallback((eventId) => {
+    setView('explore', eventId);
+  }, [setView]);
 
   const showHeader = view !== 'welcome';
 
@@ -256,7 +260,7 @@ export default function App() {
                 onExitToWelcome={handleExitToWelcome}
                 initialEventId={pendingEventId}
                 onConsumeInitialEvent={() => setPendingEventId(null)}
-                onEventChange={(eventId) => setView('explore', eventId)}
+                onEventChange={handleEventChange}
               />
             </motion.div>
           )}

@@ -3,18 +3,97 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, GeoJSON } from 'reac
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// ... (getSymbolSvg remains the same)
+const getSymbolSvg = (type, color) => {
+  switch (type) {
+    case 'battle':
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><line x1="4" y1="4" x2="12" y2="12" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="4" x2="4" y2="12" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+    case 'political':
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><rect x="3.5" y="2" width="9" height="12" rx="1" stroke="${color}" stroke-width="1.6" fill="none"/><line x1="5.5" y1="5.5" x2="10.5" y2="5.5" stroke="${color}" stroke-width="1.2"/><line x1="5.5" y1="8" x2="10.5" y2="8" stroke="${color}" stroke-width="1.2"/><line x1="5.5" y1="10.5" x2="8.5" y2="10.5" stroke="${color}" stroke-width="1.2"/></svg>`;
+    case 'diplomatic':
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="5" stroke="${color}" stroke-width="1.6" fill="none"/><circle cx="8" cy="8" r="2" fill="${color}"/></svg>`;
+    case 'military':
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><path d="M8 2L13 5V10C13 12.5 10.5 14.5 8 15C5.5 14.5 3 12.5 3 10V5L8 2Z" stroke="${color}" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>`;
+    default:
+      return `<svg viewBox="0 0 16 16" width="100%" height="100%"><circle cx="8" cy="8" r="4" fill="${color}"/></svg>`;
+  }
+};
 
 const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => {
-  // ... (logic remains the same but moved inside a memoized component if possible, 
-  // or we just ensure we don't recreate the object if props haven't changed much)
+  const { type, side } = event;
+  const colors = {
+    american: '#1e3a5f',
+    british: '#8b2323'
+  };
+
+  // Depth-of-field: markers far from active shrink and fade
+  const depthScale = isActive ? 1 : (0.65 + 0.35 * proximity);
+  const baseSize = isActive ? 44 : 34;
+  const size = Math.round(baseSize * depthScale);
+  const depthOpacity = isFuture ? 0.25 : (isActive ? 1 : (0.4 + 0.6 * proximity));
+  const borderColor = colors[side] || '#1e3a5f';
+  const bgColor = isActive ? borderColor : '#fffef5';
+  const textColor = isActive ? '#fffef5' : borderColor;
+  const shadowOpacity = isFuture ? 0.1 : (isActive ? 0.5 : 0.15 * proximity);
+  const shadowBlur = isActive ? 16 : Math.round(6 * proximity);
+  const symbolSize = Math.round(size * 0.5);
+
+  const pulseSize = size + 16;
+  const pulseRing = isActive ? `
+    <div class="marker-pulse-ring" style="
+      position: absolute;
+      top: ${-(pulseSize - size) / 2}px;
+      left: ${-(pulseSize - size) / 2}px;
+      width: ${pulseSize}px;
+      height: ${pulseSize}px;
+      border-radius: 50%;
+      border: 2px solid ${borderColor};
+      animation: markerPulse 2s ease-out infinite;
+    "></div>
+  ` : '';
+
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `
+      <div style="
+        position: relative;
+        width: ${size}px;
+        height: ${size}px;
+      ">
+        ${pulseRing}
+        <div
+          role="button"
+          tabindex="0"
+          aria-label="${event.title}${event.date ? `, ${new Date(event.date).getUTCFullYear()}` : ''}"
+          style="
+          width: ${size}px;
+          height: ${size}px;
+          border-radius: 50%;
+          background: ${bgColor};
+          border: ${isActive ? 3 : Math.max(2, Math.round(3 * depthScale))}px solid ${borderColor};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 ${isActive ? 4 : 2}px ${shadowBlur}px rgba(0,0,0,${shadowOpacity});
+          transition: all 0.3s ease;
+          cursor: pointer;
+          opacity: ${depthOpacity};
+          filter: ${isActive ? 'none' : `blur(${Math.round((1 - proximity) * 0.5)}px)`};
+        ">
+          <div style="width: ${symbolSize}px; height: ${symbolSize}px;">${getSymbolSvg(type, textColor)}</div>
+        </div>
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2]
+  });
 };
 
 // Memoized Event Marker to prevent flickering
 const EventMarker = memo(({ event, isActive, isFuture, proximity, onClick }) => {
+  const proximityBucket = Math.round(proximity * 100);
   const icon = useMemo(() => {
     return createEventIcon(event, isActive, isFuture, proximity);
-  }, [event.id, event.type, event.side, event.title, event.date, isActive, isFuture, Math.round(proximity * 100)]);
+  }, [event, isActive, isFuture, proximityBucket]);
 
   return (
     <Marker
@@ -268,15 +347,21 @@ function ColonyLabels({ boundaries, darkMode, events = [] }) {
 }
 
 const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
-  const activeIndex = useMemo(() => events.findIndex(e => e.id === activeEventId), [events, activeEventId]);
-  if (activeIndex < 1) return null;
-
-  const visibleEvents = useMemo(() => events.slice(0, activeIndex + 1), [events, activeIndex]);
+  const activeIndex = useMemo(
+    () => events.findIndex(e => e.id === activeEventId),
+    [events, activeEventId]
+  );
+  const visibleEvents = useMemo(
+    () => (activeIndex < 1 ? [] : events.slice(0, activeIndex + 1)),
+    [events, activeIndex]
+  );
   const color = darkMode ? '#C5A02F' : '#0A244A';
   const headColor = darkMode ? '#E0C060' : '#1e3a5f';
 
-  // Build segments with age-based opacity
-  return useMemo(() => {
+  // Build segments with age-based opacity — hooks must run unconditionally
+  const trail = useMemo(() => {
+    if (visibleEvents.length < 2) return null;
+
     const segments = [];
     const yearMarkers = [];
     let lastYear = null;
@@ -322,6 +407,8 @@ const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
     }
     return <>{segments}{yearMarkers}</>;
   }, [visibleEvents, color, headColor, darkMode]);
+
+  return trail;
 });
 
 function MapLegend({ darkMode, timelineOpen }) {
