@@ -4,6 +4,11 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers } from '../data/geo/baseMap';
 
+// Default SVG is fine for instant setView hops — we no longer animate pans,
+// so padding tricks don't help. Keep a single shared renderer so panes don't
+// multiply SVG roots.
+const CHART_SVG = L.svg({ padding: 0.1 });
+
 const getSymbolSvg = (type, color) => {
   switch (type) {
     case 'battle':
@@ -197,140 +202,75 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0 }) {
   const prevZoomRef = useRef(null);
 
   useEffect(() => {
-    if (autoFly && center) {
-      const prevCenter = prevCenterRef.current;
-      const prevZoom = prevZoomRef.current;
-      
-      // Use a small epsilon to avoid jitter from floating point precision
-      const EPSILON = 0.0001;
-      const centerChanged = !prevCenter ||
-        Math.abs(prevCenter[0] - center[0]) > EPSILON ||
-        Math.abs(prevCenter[1] - center[1]) > EPSILON;
-      
-      const zoomChanged = prevZoom !== zoom;
+    if (!autoFly || !center) return;
 
-      if (centerChanged || zoomChanged) {
-        // The bottom of the viewport is covered by the sheet/card, so aim the
-        // camera at the visible strip: shift the map center down in pixel
-        // space by half the covered height, which lands the target at the
-        // center of what the user can actually see.
-        const offsetPx = (map.getSize().y * coveredRatio) / 2;
-        const target = map.unproject(
-          map.project(center, zoom).add([0, offsetPx]),
-          zoom
-        );
+    const prevCenter = prevCenterRef.current;
+    const prevZoom = prevZoomRef.current;
 
-        // If moving a significant distance, use flyTo for smoothness
-        const dist = prevCenter ? Math.sqrt(Math.pow(prevCenter[0] - center[0], 2) + Math.pow(prevCenter[1] - center[1], 2)) : 0;
-        
-        if (dist > 2) {
-          map.flyTo(target, zoom, {
-            duration: 0.8,
-            easeLinearity: 0.25
-          });
-        } else {
-          map.setView(target, zoom, {
-            animate: true,
-            duration: 0.4
-          });
-        }
-        
-        prevCenterRef.current = center;
-        prevZoomRef.current = zoom;
-      }
-    }
+    // Avoid jitter from floating-point / fractional-zoom noise
+    const CENTER_EPS = 0.0001;
+    const ZOOM_EPS = 0.05;
+    const centerChanged = !prevCenter ||
+      Math.abs(prevCenter[0] - center[0]) > CENTER_EPS ||
+      Math.abs(prevCenter[1] - center[1]) > CENTER_EPS;
+    const zoomChanged = prevZoom == null || Math.abs(prevZoom - zoom) > ZOOM_EPS;
+
+    // Only re-aim when the story target moves — not when coveredRatio alone changes
+    // (interlude height jumps must not yank the camera).
+    if (!centerChanged && !zoomChanged) return;
+
+    // Aim at the visible strip above the bottom card/sheet.
+    const offsetPx = (map.getSize().y * coveredRatio) / 2;
+    const target = map.unproject(
+      map.project(center, zoom).add([0, offsetPx]),
+      zoom
+    );
+
+    const dist = prevCenter
+      ? Math.hypot(prevCenter[0] - center[0], prevCenter[1] - center[1])
+      : 0;
+
+    map.stop();
+
+    // Instant jump. Animated panTo still rewrites every SVG path `d` mid-flight
+    // (Leaflet does not CSS-transform path data during pan when the renderer
+    // updates), which is what read as lag / half-drawn coasts. One setView
+    // paints the simplified chart once, fully.
+    map.setView(target, zoom, { animate: false });
+
+    prevCenterRef.current = center;
+    prevZoomRef.current = zoom;
   }, [center, zoom, map, autoFly, coveredRatio]);
 
   return null;
 }
 
-// Base chart: accurate land silhouette, lakes, and rivers rendered in the
-// style of an engraved 1770s chart. The "waterlines" effect — concentric
-// strokes hugging the coast — is how period engravers indicated the sea.
+// Base chart: one land fill+stroke, lakes, rivers. Extra SVG copies of the
+// coast were the main cost when Leaflet rewrote path `d` on pan.
 const BaseChart = memo(({ darkMode }) => {
   const coastInk = darkMode ? '#9aafd4' : '#4A3828';
-  const coastShadow = darkMode ? '#0a0e18' : '#3D2E1F';
   const landFill = darkMode ? '#2a3555' : '#FAF6EA';
-  const landHighlight = darkMode ? '#3a4668' : '#FFFDF7';
   const waterFill = darkMode ? '#12182a' : '#D4C4A0';
   const riverInk = darkMode ? '#7d92be' : '#6B5840';
-  const riverGlow = darkMode ? '#4a5f8a' : '#A89878';
-
-  const waterlineRings = [
-    { weight: 18, opacity: darkMode ? 0.04 : 0.035 },
-    { weight: 13, opacity: darkMode ? 0.06 : 0.055 },
-    { weight: 9, opacity: darkMode ? 0.09 : 0.085 },
-    { weight: 5.5, opacity: darkMode ? 0.14 : 0.13 },
-    { weight: 3, opacity: darkMode ? 0.22 : 0.2 },
-    { weight: 1.4, opacity: darkMode ? 0.32 : 0.3 },
-  ];
 
   return (
     <>
-      <Pane name="base-coast-shadow" style={{ zIndex: 294 }}>
-        <GeoJSON
-          key={`shadow-${darkMode}`}
-          data={landAreas}
-          interactive={false}
-          style={{
-            fill: false,
-            color: coastShadow,
-            weight: 3.5,
-            opacity: darkMode ? 0.35 : 0.18,
-            lineJoin: 'round',
-            lineCap: 'round',
-          }}
-          smoothFactor={1.0}
-        />
-      </Pane>
-
-      <Pane name="base-waterlines" style={{ zIndex: 296 }}>
-        {waterlineRings.map((ring, i) => (
-          <GeoJSON
-            key={`wl-${i}-${darkMode}`}
-            data={landAreas}
-            interactive={false}
-            style={{
-              fill: false,
-              color: coastInk,
-              weight: ring.weight,
-              opacity: ring.opacity,
-              lineJoin: 'round',
-              lineCap: 'round',
-            }}
-            smoothFactor={1.0}
-          />
-        ))}
-      </Pane>
-
       <Pane name="base-land" style={{ zIndex: 300 }}>
         <GeoJSON
           key={`land-${darkMode}`}
           data={landAreas}
           interactive={false}
+          renderer={CHART_SVG}
           style={{
             fillColor: landFill,
             fillOpacity: 1,
             color: coastInk,
-            weight: 1.4,
+            weight: 1.5,
             opacity: 1,
             lineJoin: 'round',
             lineCap: 'round',
           }}
-          smoothFactor={1.0}
-        />
-        <GeoJSON
-          key={`land-hi-${darkMode}`}
-          data={landAreas}
-          interactive={false}
-          style={{
-            fill: false,
-            color: landHighlight,
-            weight: 0.6,
-            opacity: darkMode ? 0.25 : 0.5,
-            lineJoin: 'round',
-          }}
-          smoothFactor={1.0}
+          smoothFactor={2.5}
         />
       </Pane>
 
@@ -339,42 +279,30 @@ const BaseChart = memo(({ darkMode }) => {
           key={`lakes-${darkMode}`}
           data={lakes}
           interactive={false}
+          renderer={CHART_SVG}
           style={{
             fillColor: waterFill,
             fillOpacity: 1,
             color: coastInk,
-            weight: 0.9,
+            weight: 0.8,
             opacity: 0.85,
           }}
-          smoothFactor={1.0}
-        />
-        <GeoJSON
-          key={`rivers-glow-${darkMode}`}
-          data={rivers}
-          interactive={false}
-          style={{
-            fill: false,
-            color: riverGlow,
-            weight: 2.8,
-            opacity: darkMode ? 0.18 : 0.22,
-            lineCap: 'round',
-            lineJoin: 'round',
-          }}
-          smoothFactor={1.0}
+          smoothFactor={2.5}
         />
         <GeoJSON
           key={`rivers-${darkMode}`}
           data={rivers}
           interactive={false}
+          renderer={CHART_SVG}
           style={{
             fill: false,
             color: riverInk,
-            weight: 1.1,
-            opacity: darkMode ? 0.7 : 0.78,
+            weight: 1.2,
+            opacity: darkMode ? 0.65 : 0.75,
             lineCap: 'round',
             lineJoin: 'round',
           }}
-          smoothFactor={1.0}
+          smoothFactor={2.5}
         />
       </Pane>
     </>
@@ -383,23 +311,14 @@ const BaseChart = memo(({ darkMode }) => {
 
 // Faint survey graticule with edge ticks, like an 18th-century chart
 const Graticule = memo(({ darkMode }) => {
-  const { lines, latLabels, lngLabels } = useMemo(() => {
-    const lines = [];
-    const latLabels = [];
-    const lngLabels = [];
-    for (let lat = 26; lat <= 50; lat += 4) {
-      lines.push([[lat, -95], [lat, -52]]);
-      latLabels.push({ lat, lng: -94.2, text: `${lat}°` });
-    }
-    for (let lng = -92; lng <= -56; lng += 4) {
-      lines.push([[24, lng], [52, lng]]);
-      lngLabels.push({ lat: 24.6, lng, text: `${Math.abs(lng)}°W` });
-    }
-    return { lines, latLabels, lngLabels };
+  const lines = useMemo(() => {
+    const out = [];
+    for (let lat = 26; lat <= 50; lat += 4) out.push([[lat, -95], [lat, -52]]);
+    for (let lng = -92; lng <= -56; lng += 4) out.push([[24, lng], [52, lng]]);
+    return out;
   }, []);
 
   const color = darkMode ? '#8fa1c9' : '#7d6a4f';
-  const labelColor = darkMode ? 'rgba(143, 161, 201, 0.55)' : 'rgba(90, 70, 48, 0.55)';
 
   return (
     <Pane name="graticule" style={{ zIndex: 290 }}>
@@ -408,20 +327,8 @@ const Graticule = memo(({ darkMode }) => {
           key={i}
           positions={pts}
           interactive={false}
+          renderer={CHART_SVG}
           pathOptions={{ color, weight: 0.5, opacity: darkMode ? 0.1 : 0.12, dashArray: '2 6' }}
-        />
-      ))}
-      {[...latLabels, ...lngLabels].map((label) => (
-        <Marker
-          key={`grid-${label.text}-${label.lat}-${label.lng}`}
-          position={[label.lat, label.lng]}
-          interactive={false}
-          icon={L.divIcon({
-            className: 'graticule-label',
-            html: `<span style="color:${labelColor}">${label.text}</span>`,
-            iconSize: [36, 14],
-            iconAnchor: [18, 7],
-          })}
         />
       ))}
     </Pane>
@@ -513,53 +420,25 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
       data={boundaries}
       style={style}
       onEachFeature={onEachFeature}
-      smoothFactor={1.5}
+      renderer={CHART_SVG}
+      smoothFactor={2.5}
     />
   );
 });
 
-function ColonyLabels({ boundaries, darkMode, events = [] }) {
-  const getAdjustedPosition = (labelLat, labelLng) => {
-    const PROXIMITY_THRESHOLD = 1.2;
-    const OFFSET_AMOUNT = 0.8;
-
-    let offsetLat = 0;
-    let offsetLng = 0;
-
-    for (const event of events) {
-      const latDiff = Math.abs(event.lat - labelLat);
-      const lngDiff = Math.abs(event.lng - labelLng);
-
-      if (latDiff < PROXIMITY_THRESHOLD && lngDiff < PROXIMITY_THRESHOLD) {
-        if (event.lat > labelLat) {
-          offsetLat -= OFFSET_AMOUNT;
-        } else {
-          offsetLat += OFFSET_AMOUNT;
-        }
-        if (event.lng > labelLng) {
-          offsetLng -= OFFSET_AMOUNT * 0.5;
-        } else {
-          offsetLng += OFFSET_AMOUNT * 0.5;
-        }
-        break;
-      }
-    }
-
-    return [labelLat + offsetLat, labelLng + offsetLng];
-  };
-
+function ColonyLabels({ boundaries, darkMode }) {
+  // Static positions — avoiding per-event label nudging prevents icon
+  // recreation on every story hop.
   return (
     <>
       {boundaries.features.map((feature) => {
         const props = feature.properties;
         if (!props.labelLat || !props.labelLng) return null;
 
-        const position = getAdjustedPosition(props.labelLat, props.labelLng);
-
         return (
           <Marker
             key={`label-${props.name}`}
-            position={position}
+            position={[props.labelLat, props.labelLng]}
             icon={createColonyLabel(props.abbrev, darkMode)}
             interactive={false}
           />
@@ -629,6 +508,7 @@ const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
         <Polyline
           key={`seg-${visibleEvents[i].id}`}
           positions={[[visibleEvents[i - 1].lat, visibleEvents[i - 1].lng], [visibleEvents[i].lat, visibleEvents[i].lng]]}
+          renderer={CHART_SVG}
           pathOptions={{
             color: segColor,
             weight,
@@ -770,19 +650,16 @@ export default function Map({
 
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
+  // Cartouche flips after Independence is declared (July 4, 1776).
+  const isUnitedStates = activeEventDate != null && activeEventDate >= new Date('1776-07-04');
   const center = activeEvent
     ? [activeEvent.lat, activeEvent.lng]
     : [40.0, -74.0];
 
-  // Contextual zoom: when the story hops between nearby events (the Boston
-  // cluster, Trenton/Princeton), zoom in so they resolve into distinct
-  // places; long jumps stay wide so the journey reads on the map.
-  const activeIdx = activeEvent ? events.findIndex(e => e.id === activeEventId) : -1;
-  const prevEvent = activeIdx > 0 ? events[activeIdx - 1] : null;
-  const hopDist = prevEvent && activeEvent
-    ? Math.hypot(activeEvent.lat - prevEvent.lat, activeEvent.lng - prevEvent.lng)
-    : Infinity;
-  const zoom = activeEvent ? (hopDist < 2 ? 7 : 6) : 5;
+  // Fixed integer zoom: any zoom change forces Leaflet to reproject every SVG
+  // path `d` attribute (~50+ paths). Keeping zoom constant lets pans CSS-
+  // transform the chart instead — that was the remaining lag on northbound hops.
+  const zoom = 6;
 
   // Fraction of the viewport hidden behind the bottom sheet (mobile) or the
   // bottom event card (desktop); the camera aims at the strip above it.
@@ -828,8 +705,14 @@ export default function Map({
         <span className="frame-corner br" />
       </div>
       <div className={`map-cartouche ${darkMode ? 'dark' : ''}`} aria-hidden="true">
-        <span className="cartouche-title">The British Colonies</span>
-        <span className="cartouche-subtitle">in North America</span>
+        <span className="cartouche-ornament" />
+        <span className="cartouche-title">
+          {isUnitedStates ? 'The United States of America' : 'The British Colonies'}
+        </span>
+        <span className="cartouche-subtitle">
+          {isUnitedStates ? 'Declared July 4, 1776' : 'in North America'}
+        </span>
+        <span className="cartouche-ornament" />
       </div>
       <svg className="map-compass-rose" viewBox="0 0 100 100" aria-hidden="true">
         <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
@@ -849,12 +732,15 @@ export default function Map({
         <text x="97" y="53" textAnchor="middle" fontSize="6" fontFamily="Playfair Display, Georgia, serif" fill="currentColor" opacity="0.5">E</text>
       </svg>
       <p className={`map-attribution ${darkMode ? 'dark' : ''}`} aria-hidden="true">
-        Surveyed after ye best Authorities · MDCCLXXV
+        {isUnitedStates
+          ? 'Surveyed after ye best Authorities · MDCCLXXVI'
+          : 'Surveyed after ye best Authorities · MDCCLXXV'}
       </p>
       <MapContainer
         center={[40.0, -74.0]}
-        zoom={5}
-        minZoom={4}
+        zoom={6}
+        minZoom={5}
+        maxZoom={7}
         maxBounds={easternSeaboardBounds}
         maxBoundsViscosity={0.8}
         style={{ height: '100%', width: '100%' }}
@@ -864,7 +750,8 @@ export default function Map({
         dragging={true}
         doubleClickZoom={true}
         touchZoom={true}
-        preferCanvas={true}
+        preferCanvas={false}
+        renderer={CHART_SVG}
       >
         {/* No tile layer: the map renders as a period parchment chart —
             the CSS paper is the sea, and accurate Natural Earth land/lake/
@@ -883,32 +770,24 @@ export default function Map({
             <Pane name="colonies" style={{ zIndex: 310 }}>
               <ColonyBoundaries boundaries={colonyBoundaries} darkMode={darkMode} fillColonies={fillColonies} />
             </Pane>
-            <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} events={visibleEvents} />
+            <ColonyLabels boundaries={colonyBoundaries} darkMode={darkMode} />
           </>
         )}
 
         <TroopMovementLines events={events} activeEventId={activeEventId} darkMode={darkMode} />
 
-        {visibleEvents.map((event) => {
-          // Compute proximity to active event (0 = far, 1 = close)
-          let proximity = 1.0;
-          if (activeEvent && event.id !== activeEventId) {
-            const dLat = event.lat - activeEvent.lat;
-            const dLng = event.lng - activeEvent.lng;
-            const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-            proximity = Math.max(0, Math.min(1, 1 - dist / 12));
-          }
-          return (
-            <EventMarker
-              key={event.id}
-              event={event}
-              isActive={event.id === activeEventId}
-              isFuture={isFutureEvent(event)}
-              proximity={proximity}
-              onClick={() => handleEventClick(event.id)}
-            />
-          );
-        })}
+        {visibleEvents.map((event) => (
+          <EventMarker
+            key={event.id}
+            event={event}
+            isActive={event.id === activeEventId}
+            isFuture={isFutureEvent(event)}
+            // Fixed proximity — per-hop distance recalculation rebuilt every
+            // marker's HTML icon and was a major source of hop jank.
+            proximity={event.id === activeEventId ? 1 : 0.75}
+            onClick={() => handleEventClick(event.id)}
+          />
+        ))}
       </MapContainer>
     </div>
   );

@@ -136,15 +136,6 @@ export default function ExploreView({
   const accumulatedDelta = useRef(0);
   const accumulatedDeltaX = useRef(0);
 
-  // Track navigation direction so the card can slide in from the correct side
-  const [lastNav, setLastNav] = useState({ index: currentIndex, dir: 1 });
-  const navDirection = currentIndex === lastNav.index
-    ? lastNav.dir
-    : (currentIndex > lastNav.index ? 1 : -1);
-  if (currentIndex !== lastNav.index) {
-    setLastNav({ index: currentIndex, dir: navDirection });
-  }
-
   const currentYear = currentEvent?.year || 1773;
   const progress = ((currentIndex + 1) / storyItems.length) * 100;
 
@@ -354,7 +345,6 @@ export default function ExploreView({
       interlude={currentItem.interlude}
       darkMode={darkMode}
       timelineOpen={timelineOpen}
-      direction={navDirection}
       onPrev={handlePrevEvent}
       onNext={handleNextEvent}
       hasPrev={hasPrev}
@@ -366,7 +356,6 @@ export default function ExploreView({
       event={currentEvent}
       darkMode={darkMode}
       timelineOpen={timelineOpen}
-      direction={navDirection}
       onPrev={handlePrevEvent}
       onNext={handleNextEvent}
       hasPrev={hasPrev}
@@ -483,8 +472,9 @@ export default function ExploreView({
         <motion.span
           className="status-chip-year"
           key={currentYear}
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0.6 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
         >
           {currentYear}
         </motion.span>
@@ -522,9 +512,7 @@ export default function ExploreView({
 
       {/* Desktop: bottom-positioned event or interlude card */}
       <div className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}>
-        <AnimatePresence mode="wait">
-          {cardContent}
-        </AnimatePresence>
+        {cardContent}
       </div>
 
       {/* Mobile/Tablet: draggable bottom sheet */}

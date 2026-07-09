@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './Charts';
 import { armyData, economicData, battleData, campaignData } from '../data/events';
 
@@ -42,7 +41,6 @@ export default function DataInterludeCard({
   interlude,
   darkMode,
   timelineOpen,
-  direction = 1,
   onPrev,
   onNext,
   hasPrev,
@@ -52,14 +50,7 @@ export default function DataInterludeCard({
   if (!interlude) return null;
 
   return (
-    <motion.div
-      className={`event-card-fixed data-interlude-card ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}
-      initial={{ opacity: 0, y: 44 * direction, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -32 * direction, scale: 0.97 }}
-      transition={{ duration: 0.3, ease: [0.43, 0.13, 0.23, 0.96] }}
-      key={interlude.id}
-    >
+    <div className={`event-card-fixed data-interlude-card ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}>
       <div className="event-card-topline">
         <div className="event-card-type-badge interlude-badge">
           Data Dispatch
@@ -101,6 +92,6 @@ export default function DataInterludeCard({
           </button>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
