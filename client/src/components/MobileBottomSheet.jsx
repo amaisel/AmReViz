@@ -35,6 +35,7 @@ export default function MobileBottomSheet({
   onNext,
   hasPrev,
   hasNext,
+  locked = false,
 }) {
   const [snapName, setSnapName] = useState('peek');
   const [vh, setVh] = useState(window.innerHeight);
@@ -52,8 +53,9 @@ export default function MobileBottomSheet({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Bounce hint on first load
+  // Bounce hint on first load (skip when locked into cards focus)
   useEffect(() => {
+    if (locked) return;
     const hasSeenBounce = sessionStorage.getItem('amreviz-sheet-bounce');
     if (!hasSeenBounce) {
       const bounce = async () => {
@@ -64,13 +66,18 @@ export default function MobileBottomSheet({
       };
       bounce();
     }
-  }, [sheetControls, snaps.peek]);
+  }, [sheetControls, snaps.peek, locked]);
+
+  useEffect(() => {
+    if (locked && snapName !== 'full') setSnapName('full');
+  }, [locked, snapName]);
 
   // Collapse back to peek when the event changes so the map stays in view
+  // (suppressed while locked in cards focus mode)
   const [lastEventId, setLastEventId] = useState(eventId);
   if (eventId !== lastEventId) {
     setLastEventId(eventId);
-    setSnapName('peek');
+    if (!locked) setSnapName('peek');
   }
 
   // Rewind the card whenever the sheet returns to peek
@@ -160,11 +167,15 @@ export default function MobileBottomSheet({
       className={`bottom-sheet ${darkMode ? 'dark' : ''}`}
       initial={{ y: snaps.peek }}
       animate={sheetControls}
-      drag="y"
+      drag={locked ? false : 'y'}
       dragListener={false}
       dragControls={dragControls}
-      dragConstraints={{ top: snaps.full, bottom: snaps.peek }}
-      dragElastic={{ top: 0.2, bottom: 0.2 }}
+      dragConstraints={
+        locked
+          ? { top: snaps.full, bottom: snaps.full }
+          : { top: snaps.full, bottom: snaps.peek }
+      }
+      dragElastic={locked ? 0 : { top: 0.2, bottom: 0.2 }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       style={{
@@ -179,9 +190,15 @@ export default function MobileBottomSheet({
     >
       <div
         className="bottom-sheet-handle"
-        onPointerDown={(e) => dragControls.start(e)}
-        onClick={() => snapTo(snapName === 'peek' ? 'full' : 'peek')}
-        aria-label={isFullOpen ? 'Collapse event details' : 'Expand event details'}
+        onPointerDown={(e) => {
+          if (locked) return;
+          dragControls.start(e);
+        }}
+        onClick={() => {
+          if (locked) return;
+          snapTo(snapName === 'peek' ? 'full' : 'peek');
+        }}
+        aria-label={locked ? 'Cards focus mode' : (isFullOpen ? 'Collapse event details' : 'Expand event details')}
         role="button"
       >
         <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>

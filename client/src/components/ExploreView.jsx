@@ -579,6 +579,7 @@ export default function ExploreView({
           eventId={currentItem?.key}
           darkMode={darkMode}
           controlsContent={controlsContent}
+          locked={viewMode === 'cards'}
           onPrev={handlePrevEvent}
           onNext={handleNextEvent}
           hasPrev={hasPrev}
