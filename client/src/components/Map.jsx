@@ -145,7 +145,7 @@ const createColonyLabel = (abbrev, darkMode) => {
   });
 };
 
-function MapController({ center, zoom, autoFly }) {
+function MapController({ center, zoom, autoFly, coveredRatio = 0 }) {
   const map = useMap();
   const prevCenterRef = useRef(null);
   const prevZoomRef = useRef(null);
@@ -164,16 +164,26 @@ function MapController({ center, zoom, autoFly }) {
       const zoomChanged = prevZoom !== zoom;
 
       if (centerChanged || zoomChanged) {
+        // The bottom of the viewport is covered by the sheet/card, so aim the
+        // camera at the visible strip: shift the map center down in pixel
+        // space by half the covered height, which lands the target at the
+        // center of what the user can actually see.
+        const offsetPx = (map.getSize().y * coveredRatio) / 2;
+        const target = map.unproject(
+          map.project(center, zoom).add([0, offsetPx]),
+          zoom
+        );
+
         // If moving a significant distance, use flyTo for smoothness
         const dist = prevCenter ? Math.sqrt(Math.pow(prevCenter[0] - center[0], 2) + Math.pow(prevCenter[1] - center[1], 2)) : 0;
         
         if (dist > 2) {
-          map.flyTo(center, zoom, {
+          map.flyTo(target, zoom, {
             duration: 0.8,
             easeLinearity: 0.25
           });
         } else {
-          map.setView(center, zoom, {
+          map.setView(target, zoom, {
             animate: true,
             duration: 0.4
           });
@@ -183,7 +193,7 @@ function MapController({ center, zoom, autoFly }) {
         prevZoomRef.current = zoom;
       }
     }
-  }, [center, zoom, map, autoFly]);
+  }, [center, zoom, map, autoFly, coveredRatio]);
 
   return null;
 }
@@ -514,12 +524,23 @@ export default function Map({
 
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
-  const lngOffset = isMobile ? 0 : -3.5; // Push map center to the left so marker appears on the right
-  const latOffset = isMobile ? 0 : 0;
   const center = activeEvent
-    ? [activeEvent.lat + latOffset, activeEvent.lng + lngOffset]
+    ? [activeEvent.lat, activeEvent.lng]
     : [40.0, -74.0];
-  const zoom = activeEvent ? 6 : 5;
+
+  // Contextual zoom: when the story hops between nearby events (the Boston
+  // cluster, Trenton/Princeton), zoom in so they resolve into distinct
+  // places; long jumps stay wide so the journey reads on the map.
+  const activeIdx = activeEvent ? events.findIndex(e => e.id === activeEventId) : -1;
+  const prevEvent = activeIdx > 0 ? events[activeIdx - 1] : null;
+  const hopDist = prevEvent && activeEvent
+    ? Math.hypot(activeEvent.lat - prevEvent.lat, activeEvent.lng - prevEvent.lng)
+    : Infinity;
+  const zoom = activeEvent ? (hopDist < 2 ? 7 : 6) : 5;
+
+  // Fraction of the viewport hidden behind the bottom sheet (mobile) or the
+  // bottom event card (desktop); the camera aims at the strip above it.
+  const coveredRatio = isMobile ? 0.55 : 0.4;
 
   const visibleEvents = events.filter(event => {
     if (!hideFutureEvents) return true;
@@ -584,7 +605,7 @@ export default function Map({
       >
         {/* No tile layer: the map renders as a period parchment chart —
             textured paper background (CSS) with inked colony boundaries */}
-        <MapController center={center} zoom={zoom} autoFly={autoFly} />
+        <MapController center={center} zoom={zoom} autoFly={autoFly} coveredRatio={coveredRatio} />
 
         {showColonies && colonyBoundaries && (
           <>
