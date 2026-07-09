@@ -232,11 +232,13 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0 }) {
 
     map.stop();
 
-    // Instant jump. Animated panTo still rewrites every SVG path `d` mid-flight
-    // (Leaflet does not CSS-transform path data during pan when the renderer
-    // updates), which is what read as lag / half-drawn coasts. One setView
-    // paints the simplified chart once, fully.
-    map.setView(target, zoom, { animate: false });
+    // Short same-zoom pan. Geo is simplified and zoom is fixed, so mid-pan
+    // path updates stay cheap enough to feel smooth without half-drawn coasts.
+    map.panTo(target, {
+      animate: true,
+      duration: prevCenter == null ? 0.35 : Math.min(0.4, 0.2 + dist * 0.035),
+      easeLinearity: 0.4,
+    });
 
     prevCenterRef.current = center;
     prevZoomRef.current = zoom;
