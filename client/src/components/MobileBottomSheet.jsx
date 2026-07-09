@@ -68,9 +68,10 @@ export default function MobileBottomSheet({
     }
   }, [sheetControls, snaps.peek, locked]);
 
-  useEffect(() => {
-    if (locked && snapName !== 'full') setSnapName('full');
-  }, [locked, snapName]);
+  // Force full while locked into cards focus (adjust during render, like eventId)
+  if (locked && snapName !== 'full') {
+    setSnapName('full');
+  }
 
   // Collapse back to peek when the event changes so the map stays in view
   // (suppressed while locked in cards focus mode)
