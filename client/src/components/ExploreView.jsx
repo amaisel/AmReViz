@@ -5,6 +5,7 @@ import EventCard from './EventCard';
 import HorizontalTimeline from './HorizontalTimeline';
 import SearchBar from './SearchBar';
 import MobileBottomSheet from './MobileBottomSheet';
+import { MOBILE_LAYOUT_QUERY } from '../constants/layout';
 
 const SPEED_PRESETS = [
   { label: '1×', ms: 4200 },
@@ -59,6 +60,7 @@ export default function ExploreView({
   initialEventId,
   onConsumeInitialEvent,
   onEventChange,
+  keyboardShortcutsOpen = false,
 }) {
   const [currentEventIndex, setCurrentEventIndex] = useState(() => {
     if (initialEventId == null) return 0;
@@ -71,7 +73,7 @@ export default function ExploreView({
   const [playSpeed, setPlaySpeed] = useState(SPEED_PRESETS[0].ms);
   const [fillColonies, setFillColonies] = useState(false);
   const [activeFilters, setActiveFilters] = useState(new Set(EVENT_TYPES.map(type => type.id)));
-  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_LAYOUT_QUERY).matches);
   const storyStepRefs = useRef(new Map());
   const observerLock = useRef(false);
   const reduceMotion = useReducedMotion();
@@ -91,19 +93,20 @@ export default function ExploreView({
     const bounded = Math.max(0, Math.min(nextIndex, events.length - 1));
     setCurrentEventIndex(bounded);
     if (!isMobile) {
+      const scrollBehavior = reduceMotion || behavior === 'instant' ? 'auto' : behavior;
       observerLock.current = true;
       storyStepRefs.current.get(events[bounded].id)?.scrollIntoView({
-        behavior: reduceMotion ? 'auto' : behavior,
+        behavior: scrollBehavior,
         block: 'center',
       });
       window.setTimeout(() => {
         observerLock.current = false;
-      }, reduceMotion ? 50 : 650);
+      }, scrollBehavior === 'auto' ? 50 : 650);
     }
   }, [events, isMobile, reduceMotion]);
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 900px)');
+    const media = window.matchMedia(MOBILE_LAYOUT_QUERY);
     const handleChange = event => setIsMobile(event.matches);
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
@@ -112,10 +115,11 @@ export default function ExploreView({
   useEffect(() => {
     if (initialEventId == null) return;
     const index = events.findIndex(event => event.id === initialEventId);
-    if (index !== -1) {
-      window.requestAnimationFrame(() => goToIndex(index, 'auto'));
-    }
-    onConsumeInitialEvent?.();
+    const frame = window.requestAnimationFrame(() => {
+      if (index !== -1) goToIndex(index, 'instant');
+      onConsumeInitialEvent?.();
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [events, goToIndex, initialEventId, onConsumeInitialEvent]);
 
   useEffect(() => {
@@ -146,7 +150,10 @@ export default function ExploreView({
 
   useEffect(() => {
     if (!isPlaying) return undefined;
-    if (currentEventIndex >= events.length - 1) return undefined;
+    if (currentEventIndex >= events.length - 1) {
+      setIsPlaying(false);
+      return undefined;
+    }
     const timer = window.setTimeout(() => {
       const nextIndex = currentEventIndex + 1;
       goToIndex(nextIndex);
@@ -155,12 +162,24 @@ export default function ExploreView({
     return () => window.clearTimeout(timer);
   }, [currentEventIndex, events.length, goToIndex, isPlaying, playSpeed]);
 
+  const togglePlayback = useCallback(() => {
+    if (isPlaying) {
+      setIsPlaying(false);
+      return;
+    }
+    if (currentEventIndex >= events.length - 1) {
+      goToIndex(0, 'instant');
+    }
+    setIsPlaying(true);
+  }, [currentEventIndex, events.length, goToIndex, isPlaying]);
+
   useEffect(() => {
     const handleKeyDown = event => {
-      if (event.target.closest('input, textarea, select, button, a')) return;
+      if (keyboardShortcutsOpen) return;
+      if (event.target.closest('input, textarea, select, button, a, [role="button"], [contenteditable="true"]')) return;
       if (event.key === ' ') {
         event.preventDefault();
-        setIsPlaying(current => !current);
+        togglePlayback();
       } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
         event.preventDefault();
         setIsPlaying(false);
@@ -173,7 +192,7 @@ export default function ExploreView({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentEventIndex, goToIndex]);
+  }, [currentEventIndex, goToIndex, keyboardShortcutsOpen, togglePlayback]);
 
   const toggleFilter = useCallback(type => {
     setActiveFilters(current => {
@@ -195,21 +214,25 @@ export default function ExploreView({
     const index = events.findIndex(event => event.id === eventId);
     if (index !== -1) {
       setIsPlaying(false);
-      goToIndex(index);
+      const behavior = Math.abs(index - currentEventIndex) > 1 ? 'instant' : 'smooth';
+      goToIndex(index, behavior);
     }
-  }, [events, goToIndex]);
+  }, [currentEventIndex, events, goToIndex]);
+
+  const atLastEvent = currentEventIndex >= events.length - 1;
+  const playbackLabel = isPlaying ? 'Pause' : atLastEvent ? 'Replay' : 'Play';
 
   const controlsContent = (
     <>
       <button
         className={`explore-btn primary ${isPlaying ? 'active' : ''}`}
-        onClick={() => setIsPlaying(current => !current)}
+        onClick={togglePlayback}
         aria-pressed={isPlaying}
       >
         {isPlaying ? (
           <><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10M11 3v10" /></svg>Pause</>
         ) : (
-          <><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 3 8 5-8 5z" /></svg>Play</>
+          <><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 3 8 5-8 5z" /></svg>{playbackLabel}</>
         )}
       </button>
       <button className="speed-indicator" onClick={cycleSpeed} aria-label="Change playback speed">
@@ -248,7 +271,7 @@ export default function ExploreView({
         darkMode={darkMode}
         hideFutureEvents={false}
         scrollWheelZoom={false}
-        timelineOpen={timelineOpen}
+        compactLayout={isMobile}
       />
       <div className="map-reading">
         <span className="map-reading-kicker">Chapter {activeChapter.number}</span>

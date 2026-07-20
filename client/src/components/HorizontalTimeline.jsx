@@ -1,11 +1,12 @@
 import { useRef, useEffect } from 'react';
-import { motion as Motion } from 'framer-motion';
+import { motion as Motion, useReducedMotion } from 'framer-motion';
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function HorizontalTimeline({ events, activeEventId, onEventClick, darkMode }) {
   const scrollRef = useRef(null);
   const activeRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
   const typeColors = {
     battle: darkMode ? '#d56a6a' : '#9e2a2b',
@@ -23,10 +24,10 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
 
       container.scrollTo({
         left: activeLeft - (containerWidth / 2) + (activeWidth / 2),
-        behavior: 'smooth'
+        behavior: reduceMotion ? 'auto' : 'smooth'
       });
     }
-  }, [activeEventId]);
+  }, [activeEventId, reduceMotion]);
 
   const getMonth = (dateStr) => {
     const date = new Date(dateStr);
@@ -43,23 +44,21 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
             const isActive = event.id === activeEventId;
 
             return (
-              <Motion.div
+              <Motion.button
+                type="button"
                 key={event.id}
                 ref={isActive ? activeRef : null}
                 className={`h-timeline-event ${isActive ? 'active' : ''}`}
                 onClick={() => onEventClick(event.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onEventClick(event.id);
+                    e.stopPropagation();
                   }
                 }}
                 whileHover={{ scale: 1.05, y: -2 }}
                 animate={{
                   opacity: isActive ? 1 : 0.75
                 }}
-                role="button"
-                tabIndex={0}
                 aria-label={`${event.title} - ${event.year}`}
                 aria-current={isActive ? 'step' : undefined}
               >
@@ -97,7 +96,7 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
                   <span className="h-event-month">{getMonth(event.date)}</span>
                   <span className="h-event-title">{event.title}</span>
                 </div>
-              </Motion.div>
+              </Motion.button>
             );
           })}
         </div>

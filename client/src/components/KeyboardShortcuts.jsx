@@ -1,21 +1,73 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 
-export default function KeyboardShortcuts({ darkMode }) {
-  const [isOpen, setIsOpen] = useState(false);
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+export default function KeyboardShortcuts({ darkMode, isOpen, onOpenChange }) {
+  const panelRef = useRef(null);
+  const closeButtonRef = useRef(null);
+  const returnFocusRef = useRef(null);
 
   useEffect(() => {
     const handleKey = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        setIsOpen(prev => !prev);
+        onOpenChange(!isOpen);
       }
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape' && isOpen) {
+        e.preventDefault();
+        onOpenChange(false);
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, []);
+  }, [isOpen, onOpenChange]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    returnFocusRef.current = document.activeElement;
+    const focusFrame = window.requestAnimationFrame(() => {
+      closeButtonRef.current?.focus();
+    });
+
+    const trapFocus = (event) => {
+      if (event.key !== 'Tab') return;
+      const focusable = Array.from(
+        panelRef.current?.querySelectorAll(FOCUSABLE_SELECTOR) ?? [],
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        panelRef.current?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', trapFocus);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener('keydown', trapFocus);
+      returnFocusRef.current?.focus();
+    };
+  }, [isOpen]);
 
   const shortcuts = [
     { key: '?', desc: 'Toggle this help' },
@@ -34,9 +86,10 @@ export default function KeyboardShortcuts({ darkMode }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={() => setIsOpen(false)}
+          onClick={() => onOpenChange(false)}
         >
           <Motion.div
+            ref={panelRef}
             className={`shortcuts-panel ${darkMode ? 'dark' : ''}`}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -45,10 +98,17 @@ export default function KeyboardShortcuts({ darkMode }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="shortcuts-title"
+            tabIndex={-1}
           >
             <div className="shortcuts-heading">
               <h3 id="shortcuts-title">Keyboard shortcuts</h3>
-              <button onClick={() => setIsOpen(false)} aria-label="Close keyboard shortcuts">×</button>
+              <button
+                ref={closeButtonRef}
+                onClick={() => onOpenChange(false)}
+                aria-label="Close keyboard shortcuts"
+              >
+                ×
+              </button>
             </div>
             {shortcuts.map((s, i) => (
               <div key={i} className="shortcut-row">

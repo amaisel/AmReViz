@@ -41,12 +41,121 @@ test.describe('Editorial experience', () => {
     await expect(page).toHaveURL(/#\/explore\/11$/);
   });
 
+  test('story navigation syncs the URL without fighting scroll', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__scrollCalls = [];
+      Element.prototype.scrollIntoView = function scrollIntoView(options) {
+        window.__scrollCalls.push({
+          index: this.dataset?.eventIndex,
+          behavior: options?.behavior ?? 'auto',
+        });
+      };
+    });
+
+    await page.goto('/#/explore');
+    await expect(page.locator('.desktop-story')).toBeVisible();
+    await page.evaluate(() => {
+      window.__scrollCalls = [];
+      document.activeElement?.blur();
+    });
+
+    await page.evaluate(() => {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        bubbles: true,
+        cancelable: true,
+      }));
+    });
+
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 2 of 18');
+    await expect(page).toHaveURL(/#\/explore\/2$/);
+    await expect.poll(() => page.evaluate(() => window.__scrollCalls.length)).toBe(1);
+  });
+
+  test('late deep links settle on the requested event', async ({ page }) => {
+    await page.goto('/#/explore/18');
+    await expect(page.getByRole('heading', { name: 'Washington Resigns Commission' })).toBeVisible();
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 18 of 18');
+    await expect(page).toHaveURL(/#\/explore\/18$/);
+    await page.waitForTimeout(1200);
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 18 of 18');
+    await expect(page).toHaveURL(/#\/explore\/18$/);
+  });
+
+  test('keyboard shortcuts dialog blocks story shortcuts', async ({ page }) => {
+    await page.goto('/#/explore');
+    await expect(page.locator('.desktop-story')).toBeVisible();
+    await page.getByRole('button', { name: 'Show keyboard shortcuts' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+    await expect(dialog).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Close keyboard shortcuts' })).toBeFocused();
+
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Space');
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 1 of 18');
+    await expect(page.locator('button.explore-btn.primary')).toHaveText(/Play|Replay/);
+  });
+
+  test('timeline space selection does not toggle playback', async ({ page }) => {
+    await page.goto('/#/explore');
+    await expect(page.locator('.desktop-story')).toBeVisible();
+    await page.getByRole('button', { name: 'Timeline' }).click();
+
+    const secondEvent = page.getByRole('button', { name: /First Continental Congress/i });
+    await secondEvent.focus();
+    await page.keyboard.press('Space');
+
+    await expect(page).toHaveURL(/#\/explore\/2$/);
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 2 of 18');
+    await expect(page.locator('button.explore-btn.primary')).toHaveText('Play');
+    await expect(page.locator('button.explore-btn.primary')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('final event offers replay instead of a stuck pause state', async ({ page }) => {
+    await page.goto('/#/explore/18');
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 18 of 18');
+
+    const playback = page.locator('button.explore-btn.primary');
+    await expect(playback).toHaveText('Replay');
+    await playback.click();
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 1 of 18');
+    await expect(playback).toHaveText('Pause');
+    await expect(playback).toHaveAttribute('aria-pressed', 'true');
+  });
+
   test('data graphics expose sources and tables', async ({ page }) => {
     await page.getByRole('button', { name: 'Explore the data' }).click();
     await expect(page.getByRole('heading', { name: 'How an outmatched rebellion endured' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'An army built and rebuilt' })).toHaveAttribute('id', 'forces-title');
     await expect(page.getByText('FIG. 01')).toBeVisible();
     await page.getByText('View data table').first().click();
     await expect(page.getByRole('table', { name: 'Troop strength by year' })).toBeVisible();
+  });
+});
+
+test.describe('Tablet story layout', () => {
+  test.use({ viewport: { width: 850, height: 900 } });
+
+  test('centers the active marker in the compact layout', async ({ page }) => {
+    await page.goto('/#/explore/1');
+    await expect(page.locator('.mobile-story')).toBeVisible();
+    await expect(page.locator('.marker-pulse-ring')).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(900);
+
+    const geometry = await page.evaluate(() => {
+      const map = document.querySelector('.leaflet-container').getBoundingClientRect();
+      const marker = document
+        .querySelector('.marker-pulse-ring')
+        .closest('.leaflet-marker-icon')
+        .getBoundingClientRect();
+      return {
+        mapCenter: map.left + map.width / 2,
+        markerCenter: marker.left + marker.width / 2,
+      };
+    });
+
+    expect(Math.abs(geometry.markerCenter - geometry.mapCenter)).toBeLessThan(24);
   });
 });
 

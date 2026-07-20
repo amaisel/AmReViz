@@ -1264,6 +1264,9 @@ button,
   color: var(--ink);
   text-align: center;
   cursor: pointer;
+  border: 0;
+  background: transparent;
+  font: inherit;
 }
 
 .h-event-dot {

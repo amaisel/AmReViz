@@ -33,11 +33,11 @@ function ModeToggle({ darkMode, onToggle }) {
   );
 }
 
-function HelpToggle() {
+function HelpToggle({ onClick }) {
   return (
     <button
       className="icon-button"
-      onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }))}
+      onClick={onClick}
       aria-label="Show keyboard shortcuts"
       title="Keyboard shortcuts"
     >
@@ -66,13 +66,13 @@ function ViewToggle({ view, onViewChange }) {
   );
 }
 
-function SectionHeading({ number, eyebrow, title, children }) {
+function SectionHeading({ id, number, eyebrow, title, children }) {
   return (
     <header className="data-group-header">
       <span className="section-number">{number}</span>
       <div>
         <p className="editorial-kicker">{eyebrow}</p>
-        <h3 className="data-group-title">{title}</h3>
+        <h3 id={id} className="data-group-title">{title}</h3>
         {children && <p className="data-group-dek">{children}</p>}
       </div>
     </header>
@@ -123,29 +123,29 @@ function DataView({ darkMode, onNavigateToEvent }) {
       </dl>
 
       <section className="data-group" aria-labelledby="forces-title">
-        <SectionHeading number="01" eyebrow="Military capacity" title="An army built and rebuilt">
+        <SectionHeading id="forces-title" number="01" eyebrow="Military capacity" title="An army built and rebuilt">
           Continental strength surged after crisis years, but sustaining the force remained a constant struggle.
         </SectionHeading>
-        <div id="forces-title" className="data-grid data-grid-featured">
+        <div className="data-grid data-grid-featured">
           <ArmyChart data={armyData} darkMode={darkMode} onYearClick={handleYearClick} />
           <CampaignTimeline data={campaignData} darkMode={darkMode} />
         </div>
       </section>
 
       <section className="data-group" aria-labelledby="trade-title">
-        <SectionHeading number="02" eyebrow="Economic rupture" title="Trade falls off a cliff">
+        <SectionHeading id="trade-title" number="02" eyebrow="Economic rupture" title="Trade falls off a cliff">
           Indexed to the 1771 peak, the scale of wartime separation becomes unmistakable.
         </SectionHeading>
-        <div id="trade-title">
+        <div>
           <TradeChart data={economicData} darkMode={darkMode} />
         </div>
       </section>
 
       <section className="data-group" aria-labelledby="battle-title">
-        <SectionHeading number="03" eyebrow="The cost of battle" title="Victory and loss were rarely proportional">
+        <SectionHeading id="battle-title" number="03" eyebrow="The cost of battle" title="Victory and loss were rarely proportional">
           Compare absolute casualties with the share of each force taken out of action.
         </SectionHeading>
-        <div id="battle-title" className="data-grid">
+        <div className="data-grid">
           <CasualtiesChart
             data={battleData}
             darkMode={darkMode}
@@ -177,7 +177,11 @@ export default function App() {
       return false;
     }
   });
-  const [view, setView, subId] = useHashRouter('welcome');
+  const [view, setView, , syncView, navigationRequest] = useHashRouter('welcome');
+  const [pendingEventId, setPendingEventId] = useState(() => (
+    navigationRequest.view === 'explore' ? navigationRequest.subId : null
+  ));
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
@@ -186,8 +190,15 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => {
+    setPendingEventId(
+      navigationRequest.view === 'explore' ? navigationRequest.subId : null,
+    );
+  }, [navigationRequest]);
+
+  useEffect(() => {
     const handleKey = (event) => {
-      if (event.target.closest('input, textarea, select, button, a')) return;
+      if (shortcutsOpen) return;
+      if (event.target.closest('input, textarea, select, button, a, [role="button"], [contenteditable="true"]')) return;
       if ((event.key === 'd' || event.key === 'D') && !event.ctrlKey && !event.metaKey) {
         setDarkMode(current => !current);
       }
@@ -196,11 +207,16 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [setView]);
+  }, [setView, shortcutsOpen]);
 
   const handleNavigateToEvent = useCallback((eventId) => {
+    setPendingEventId(eventId);
     setView('explore', eventId);
   }, [setView]);
+
+  const handleStoryEventChange = useCallback((eventId) => {
+    syncView('explore', eventId);
+  }, [syncView]);
 
   const showHeader = view !== 'welcome';
   const pageMotion = reduceMotion
@@ -222,6 +238,7 @@ export default function App() {
             initial={reduceMotion ? false : { y: -48, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={reduceMotion ? undefined : { y: -48, opacity: 0 }}
+            inert={shortcutsOpen ? true : undefined}
           >
             <button className="masthead-home" onClick={() => setView('welcome')} aria-label="Return to introduction">
               <span className="masthead-edition">1773—1783</span>
@@ -232,14 +249,18 @@ export default function App() {
             </div>
             <div className="header-controls">
               <ViewToggle view={view} onViewChange={setView} />
-              <HelpToggle />
+              <HelpToggle onClick={() => setShortcutsOpen(true)} />
               <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(current => !current)} />
             </div>
           </Motion.header>
         )}
       </AnimatePresence>
 
-      <main id="main-content" className={`app-main view-${view}`}>
+      <main
+        id="main-content"
+        className={`app-main view-${view}`}
+        inert={shortcutsOpen ? true : undefined}
+      >
         <AnimatePresence mode="wait">
           {view === 'welcome' && (
             <WelcomeScreen
@@ -257,8 +278,10 @@ export default function App() {
                 colonyBoundaries={colonyBoundaries}
                 darkMode={darkMode}
                 onExitToWelcome={() => setView('welcome')}
-                initialEventId={subId}
-                onEventChange={handleNavigateToEvent}
+                initialEventId={pendingEventId}
+                onConsumeInitialEvent={() => setPendingEventId(null)}
+                onEventChange={handleStoryEventChange}
+                keyboardShortcutsOpen={shortcutsOpen}
               />
             </Motion.div>
           )}
@@ -269,7 +292,11 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
-      <KeyboardShortcuts darkMode={darkMode} />
+      <KeyboardShortcuts
+        darkMode={darkMode}
+        isOpen={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
+      />
     </div>
   );
 }

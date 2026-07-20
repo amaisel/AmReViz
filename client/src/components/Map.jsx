@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MOBILE_LAYOUT_QUERY } from '../constants/layout';
 
 const getSymbolSvg = (type, color) => {
   switch (type) {
@@ -498,23 +499,25 @@ export default function Map({
   darkMode,
   autoFly = true,
   hideFutureEvents = false,
-  scrollWheelZoom = false
+  scrollWheelZoom = false,
+  compactLayout,
 }) {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' && window.innerWidth <= 768
-  );
+  const [matchesCompactLayout, setMatchesCompactLayout] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia(MOBILE_LAYOUT_QUERY).matches
+  ));
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 768px)');
-    const handler = (e) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const media = window.matchMedia(MOBILE_LAYOUT_QUERY);
+    const handleChange = (event) => setMatchesCompactLayout(event.matches);
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
   }, []);
 
+  const isCompactLayout = compactLayout ?? matchesCompactLayout;
   const activeEvent = events.find(e => e.id === activeEventId);
   const activeEventDate = activeEvent ? new Date(activeEvent.date) : null;
-  const lngOffset = isMobile ? 0 : -3.5; // Push map center to the left so marker appears on the right
-  const latOffset = isMobile ? -1.8 : 0; // Push map center down so marker appears higher on mobile
+  const lngOffset = isCompactLayout ? 0 : -3.5; // Push map center to the left so marker appears on the right
+  const latOffset = isCompactLayout ? -1.8 : 0; // Push map center down so marker appears higher on mobile
   const center = activeEvent
     ? [activeEvent.lat + latOffset, activeEvent.lng + lngOffset]
     : [40.0, -74.0];
@@ -544,6 +547,7 @@ export default function Map({
         const focused = document.activeElement;
         if (focused && focused.getAttribute('role') === 'button' && focused.closest('.custom-marker')) {
           e.preventDefault();
+          e.stopPropagation();
           focused.click();
         }
       }
