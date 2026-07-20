@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion as Motion, useReducedMotion } from 'framer-motion';
 
 const COLORS = {
   american: '#163d67',
@@ -24,7 +24,7 @@ const COLORS = {
 function GraphicFrame({ number, eyebrow, title, takeaway, source, className = '', children, table }) {
   const reduceMotion = useReducedMotion();
   return (
-    <motion.figure
+    <Motion.figure
       className={`chart-container ${className}`}
       initial={reduceMotion ? false : { opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -44,7 +44,7 @@ function GraphicFrame({ number, eyebrow, title, takeaway, source, className = ''
         <p><strong>Source:</strong> {source}</p>
         {table}
       </footer>
-    </motion.figure>
+    </Motion.figure>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -43,7 +43,7 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
             const isActive = event.id === activeEventId;
 
             return (
-              <motion.div
+              <Motion.div
                 key={event.id}
                 ref={isActive ? activeRef : null}
                 className={`h-timeline-event ${isActive ? 'active' : ''}`}
@@ -65,7 +65,7 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
               >
                 <div style={{ position: 'relative', height: '24px', display: 'flex', justifyContent: 'center' }}>
                   {isActive && (
-                    <motion.div
+                    <Motion.div
                       layoutId="activeEventRing"
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
                       style={{
@@ -79,7 +79,7 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
                       }}
                     />
                   )}
-                  <motion.div
+                  <Motion.div
                     className="h-event-dot"
                     style={{
                       backgroundColor: isActive ? typeColors[event.type] : 'transparent',
@@ -97,7 +97,7 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
                   <span className="h-event-month">{getMonth(event.date)}</span>
                   <span className="h-event-title">{event.title}</span>
                 </div>
-              </motion.div>
+              </Motion.div>
             );
           })}
         </div>

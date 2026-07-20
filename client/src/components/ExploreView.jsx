@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion as Motion, useReducedMotion } from 'framer-motion';
 import EventMap from './Map';
 import EventCard from './EventCard';
 import HorizontalTimeline from './HorizontalTimeline';
@@ -60,7 +60,11 @@ export default function ExploreView({
   onConsumeInitialEvent,
   onEventChange,
 }) {
-  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [currentEventIndex, setCurrentEventIndex] = useState(() => {
+    if (initialEventId == null) return 0;
+    const initialIndex = events.findIndex(event => event.id === initialEventId);
+    return initialIndex === -1 ? 0 : initialIndex;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -142,11 +146,12 @@ export default function ExploreView({
 
   useEffect(() => {
     if (!isPlaying) return undefined;
-    if (currentEventIndex >= events.length - 1) {
-      setIsPlaying(false);
-      return undefined;
-    }
-    const timer = window.setTimeout(() => goToIndex(currentEventIndex + 1), playSpeed);
+    if (currentEventIndex >= events.length - 1) return undefined;
+    const timer = window.setTimeout(() => {
+      const nextIndex = currentEventIndex + 1;
+      goToIndex(nextIndex);
+      if (nextIndex >= events.length - 1) setIsPlaying(false);
+    }, playSpeed);
     return () => window.clearTimeout(timer);
   }, [currentEventIndex, events.length, goToIndex, isPlaying, playSpeed]);
 
@@ -252,7 +257,7 @@ export default function ExploreView({
       </div>
       <div className="explore-status" aria-label={`Event ${currentEventIndex + 1} of ${events.length}`}>
         <span>{String(currentEventIndex + 1).padStart(2, '0')}</span>
-        <div className="status-track"><motion.div animate={{ width: `${progress}%` }} /></div>
+        <div className="status-track"><Motion.div animate={{ width: `${progress}%` }} /></div>
         <span>{events.length}</span>
       </div>
       <div className="map-source">Map: Esri shaded relief · Event locations approximate</div>
@@ -262,7 +267,7 @@ export default function ExploreView({
   const filterPanel = (
     <AnimatePresence>
       {filtersOpen && (
-        <motion.div
+        <Motion.div
           className="filters-panel"
           initial={reduceMotion ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -281,7 +286,7 @@ export default function ExploreView({
             />
             Shade colonial boundaries
           </label>
-        </motion.div>
+        </Motion.div>
       )}
     </AnimatePresence>
   );
@@ -331,7 +336,7 @@ export default function ExploreView({
             {filterPanel}
             <AnimatePresence>
               {timelineOpen && (
-                <motion.div
+                <Motion.div
                   className="explore-timeline-container"
                   initial={reduceMotion ? false : { opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -343,7 +348,7 @@ export default function ExploreView({
                     onEventClick={handleEventSelect}
                     darkMode={darkMode}
                   />
-                </motion.div>
+                </Motion.div>
               )}
             </AnimatePresence>
           </div>

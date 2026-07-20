@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion as Motion, useReducedMotion } from 'framer-motion';
 
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -33,7 +33,7 @@ export default function EventCard({
     : null;
 
   return (
-    <motion.article
+    <Motion.article
       className={`event-card-fixed ${darkMode ? 'dark' : ''} ${isActive ? 'active' : ''}`}
       initial={reduceMotion ? false : { opacity: 0.72, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -106,6 +106,6 @@ export default function EventCard({
           </button>
         </nav>
       )}
-    </motion.article>
+    </Motion.article>
   );
 }

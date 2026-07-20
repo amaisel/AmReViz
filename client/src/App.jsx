@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion as Motion, useReducedMotion } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
 import ExploreView from './components/ExploreView';
 import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './components/Charts';
@@ -178,17 +178,12 @@ export default function App() {
     }
   });
   const [view, setView, subId] = useHashRouter('welcome');
-  const [pendingEventId, setPendingEventId] = useState(null);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     localStorage.setItem('amreviz-dark-mode', darkMode);
     document.body.className = darkMode ? 'dark-mode' : 'light-mode';
   }, [darkMode]);
-
-  useEffect(() => {
-    if (view === 'explore' && subId != null) setPendingEventId(subId);
-  }, [view, subId]);
 
   useEffect(() => {
     const handleKey = (event) => {
@@ -222,7 +217,7 @@ export default function App() {
       <a className="skip-link" href="#main-content">Skip to content</a>
       <AnimatePresence>
         {showHeader && (
-          <motion.header
+          <Motion.header
             className="app-header"
             initial={reduceMotion ? false : { y: -48, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -240,7 +235,7 @@ export default function App() {
               <HelpToggle />
               <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(current => !current)} />
             </div>
-          </motion.header>
+          </Motion.header>
         )}
       </AnimatePresence>
 
@@ -255,23 +250,22 @@ export default function App() {
             />
           )}
           {view === 'explore' && (
-            <motion.div key="explore" className="story-view-wrapper" {...pageMotion}>
+            <Motion.div key="explore" className="story-view-wrapper" {...pageMotion}>
               <ExploreView
                 events={events}
                 chapters={chapters}
                 colonyBoundaries={colonyBoundaries}
                 darkMode={darkMode}
                 onExitToWelcome={() => setView('welcome')}
-                initialEventId={pendingEventId}
-                onConsumeInitialEvent={() => setPendingEventId(null)}
-                onEventChange={eventId => setView('explore', eventId)}
+                initialEventId={subId}
+                onEventChange={handleNavigateToEvent}
               />
-            </motion.div>
+            </Motion.div>
           )}
           {view === 'data' && (
-            <motion.div className="data-view-container" key="data" {...pageMotion}>
+            <Motion.div className="data-view-container" key="data" {...pageMotion}>
               <DataView darkMode={darkMode} onNavigateToEvent={handleNavigateToEvent} />
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
       </main>

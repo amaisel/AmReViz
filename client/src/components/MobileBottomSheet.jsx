@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import { motion as Motion, useAnimation } from 'framer-motion';
 
 const SNAP_PEEK_RATIO = 0.28;
 const SNAP_HALF_RATIO = 0.56;
@@ -81,7 +81,7 @@ export default function MobileBottomSheet({
   }, [sheetControls, snapName, snaps]);
 
   return (
-    <motion.div
+    <Motion.div
       className={`bottom-sheet ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-active' : ''}`}
       initial={{ y: snaps.peek }}
       animate={sheetControls}
@@ -129,6 +129,6 @@ export default function MobileBottomSheet({
       <div className="bottom-sheet-controls">
         {controlsContent}
       </div>
-    </motion.div>
+    </Motion.div>
   );
 }

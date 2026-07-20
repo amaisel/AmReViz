@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion as Motion, useReducedMotion } from 'framer-motion';
 import { useState } from 'react';
 import AnimatedCounter from './AnimatedCounter';
 
@@ -38,7 +38,7 @@ export default function BattleComparison({ battles }) {
   if (!selected) return null;
 
   return (
-    <motion.figure
+    <Motion.figure
       className="chart-container battle-comparison"
       initial={reduceMotion ? false : { opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -65,7 +65,7 @@ export default function BattleComparison({ battles }) {
       </select>
 
       <AnimatePresence mode="wait">
-        <motion.div
+        <Motion.div
           key={selected.id}
           className="comparison-content"
           initial={reduceMotion ? false : { opacity: 0, x: 8 }}
@@ -93,12 +93,12 @@ export default function BattleComparison({ battles }) {
             />
           </div>
           <blockquote>{selected.significance}</blockquote>
-        </motion.div>
+        </Motion.div>
       </AnimatePresence>
 
       <footer className="chart-footer">
         <p><strong>Source:</strong> American Battlefield Trust estimates.</p>
       </footer>
-    </motion.figure>
+    </Motion.figure>
   );
 }

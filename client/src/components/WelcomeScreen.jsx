@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion as Motion, useReducedMotion } from 'framer-motion';
 
 const KEY_STATS = [
   { value: '18', label: 'defining events' },
@@ -44,7 +44,7 @@ export default function WelcomeScreen({ onBegin, onOpenData, darkMode }) {
   }, [onBegin]);
 
   return (
-    <motion.section
+    <Motion.section
       className={`welcome-screen ${darkMode ? 'dark' : ''}`}
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -107,7 +107,7 @@ export default function WelcomeScreen({ onBegin, onOpenData, darkMode }) {
           <div className="turning-point-line" aria-hidden="true" />
           <ol className="turning-points">
             {TURNING_POINTS.map((point, index) => (
-              <motion.li
+              <Motion.li
                 key={point.year}
                 initial={reduceMotion ? false : { opacity: 0, x: 18 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -119,7 +119,7 @@ export default function WelcomeScreen({ onBegin, onOpenData, darkMode }) {
                   <strong>{point.title}</strong>
                   <span>{point.detail}</span>
                 </div>
-              </motion.li>
+              </Motion.li>
             ))}
           </ol>
           <p className="welcome-graphic-note">
@@ -127,6 +127,6 @@ export default function WelcomeScreen({ onBegin, onOpenData, darkMode }) {
           </p>
         </figure>
       </div>
-    </motion.section>
+    </Motion.section>
   );
 }
