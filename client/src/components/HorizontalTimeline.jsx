@@ -8,9 +8,9 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
   const activeRef = useRef(null);
 
   const typeColors = {
-    battle: darkMode ? '#A33030' : '#7A1212',
-    political: darkMode ? '#2C4B7A' : '#0A244A',
-    diplomatic: darkMode ? '#E0C060' : '#C5A02F'
+    battle: darkMode ? '#d56a6a' : '#9e2a2b',
+    political: darkMode ? '#7fa4ca' : '#163d67',
+    military: darkMode ? '#91ad95' : '#4f6b55'
   };
 
   useEffect(() => {

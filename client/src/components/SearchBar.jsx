@@ -110,6 +110,7 @@ export default function SearchBar({ events, onEventSelect, darkMode }) {
           aria-expanded={isOpen && results.length > 0}
           aria-controls="search-results-list"
           aria-haspopup="listbox"
+          aria-activedescendant={activeIndex >= 0 ? `search-item-${activeIndex}` : undefined}
         />
         <AnimatePresence>
           {query && (

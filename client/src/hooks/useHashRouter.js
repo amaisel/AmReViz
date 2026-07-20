@@ -8,8 +8,9 @@ const legacyMap = { story: 'explore', timeline: 'explore' };
 function parseHash() {
   const hash = window.location.hash.replace('#/', '').replace('#', '');
   const [viewPart, subPart] = hash.split('/');
+  const normalizedView = legacyMap[viewPart] || viewPart;
   
-  const view = validViews.includes(viewPart) ? viewPart : 'welcome';
+  const view = validViews.includes(normalizedView) ? normalizedView : 'welcome';
   const subId = subPart ? parseInt(subPart, 10) : null;
   
   return { view, subId };

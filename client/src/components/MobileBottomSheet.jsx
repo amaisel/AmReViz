@@ -1,12 +1,14 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 
-const SNAP_PEEK_RATIO = 0.6;
+const SNAP_PEEK_RATIO = 0.28;
+const SNAP_HALF_RATIO = 0.56;
 const SNAP_FULL_RATIO = 0.9;
 
 function getSnapPoints(vh) {
   return {
     peek: vh * (1 - SNAP_PEEK_RATIO),
+    half: vh * (1 - SNAP_HALF_RATIO),
     full: vh * (1 - SNAP_FULL_RATIO),
   };
 }
@@ -23,7 +25,6 @@ function closestSnap(y, snaps) {
 export default function MobileBottomSheet({
   children,
   controlsContent,
-  eventId,
   darkMode,
   timelineOpen,
 }) {
@@ -56,14 +57,6 @@ export default function MobileBottomSheet({
   }, [sheetControls, snaps.peek]);
 
   useEffect(() => {
-    if (snapName === 'full') {
-      setSnapName('peek');
-      sheetControls.start({ y: getSnapPoints(vh).peek, transition: { type: 'spring', stiffness: 300, damping: 30 } });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
-
-  useEffect(() => {
     sheetControls.start({ y: snaps[snapName], transition: { type: 'spring', stiffness: 300, damping: 30 } });
   }, [vh, snaps, snapName, sheetControls]);
 
@@ -78,7 +71,14 @@ export default function MobileBottomSheet({
     sheetControls.start({ y: snapY, transition: { type: 'spring', stiffness: 300, damping: 30 } });
   }, [snaps, snapName, sheetControls]);
 
-  const isFullOpen = snapName === 'full';
+  const isContentScrollable = snapName !== 'peek';
+
+  const toggleSnap = useCallback(() => {
+    const order = ['peek', 'half', 'full'];
+    const next = order[(order.indexOf(snapName) + 1) % order.length];
+    setSnapName(next);
+    sheetControls.start({ y: snaps[next], transition: { type: 'spring', stiffness: 300, damping: 30 } });
+  }, [sheetControls, snapName, snaps]);
 
   return (
     <motion.div
@@ -100,13 +100,12 @@ export default function MobileBottomSheet({
         bottom: timelineOpen ? '160px' : 0
       }}
     >
-      <div className="bottom-sheet-handle" onClick={() => {
-        const next = snapName === 'peek' ? 'full' : 'peek';
-        setSnapName(next);
-        sheetControls.start({ y: snaps[next], transition: { type: 'spring', stiffness: 300, damping: 30 } });
-      }}
-      aria-label="Drag handle for event details"
-      role="button"
+      <button
+        type="button"
+        className="bottom-sheet-handle"
+        onClick={toggleSnap}
+        aria-label={`Event details are ${snapName === 'peek' ? 'collapsed' : snapName === 'half' ? 'half open' : 'fully open'}. Change height.`}
+        aria-expanded={snapName !== 'peek'}
       >
         <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>
           <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -114,13 +113,13 @@ export default function MobileBottomSheet({
           </svg>
         </span>
         <div className="bottom-sheet-bar" style={{ width: '40px', height: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: '2px', marginTop: '-4px' }} />
-      </div>
+      </button>
 
       <div
         className="bottom-sheet-content"
         ref={contentRef}
         style={{ 
-          overflowY: isFullOpen ? 'auto' : 'hidden',
+          overflowY: isContentScrollable ? 'auto' : 'hidden',
           paddingBottom: '120px' // Space for controls
         }}
       >

@@ -285,6 +285,58 @@ export const events = [
   }
 ];
 
+export const chapters = [
+  {
+    id: 'resistance',
+    number: 'I',
+    title: 'Resistance becomes revolution',
+    years: '1773–1775',
+    startId: 1,
+    endId: 4,
+    summary: 'A dispute over taxation hardens into intercolonial resistance, armed conflict, and a new continental government.'
+  },
+  {
+    id: 'independence',
+    number: 'II',
+    title: 'Independence under fire',
+    years: '1775–1776',
+    startId: 5,
+    endId: 10,
+    summary: 'The colonies declare independence while an improvised army confronts the largest British expeditionary force of the war.'
+  },
+  {
+    id: 'turning-tide',
+    number: 'III',
+    title: 'The turning tide',
+    years: '1777–1778',
+    startId: 11,
+    endId: 14,
+    summary: 'Saratoga brings France into the war, while Valley Forge turns the Continental Army into a more disciplined force.'
+  },
+  {
+    id: 'endgame',
+    number: 'IV',
+    title: 'Betrayal and the endgame',
+    years: '1780–1781',
+    startId: 15,
+    endId: 16,
+    summary: 'After years of attrition, a Franco-American convergence at Yorktown closes the last major campaign.'
+  },
+  {
+    id: 'republic',
+    number: 'V',
+    title: 'A republic begins',
+    years: '1783',
+    startId: 17,
+    endId: 18,
+    summary: 'British occupation ends and Washington’s resignation establishes civilian authority over the victorious army.'
+  }
+];
+
+export function getChapterForEvent(eventId) {
+  return chapters.find(chapter => eventId >= chapter.startId && eventId <= chapter.endId) || chapters[0];
+}
+
 export const armyData = [
   { year: 1775, continental: 27000, british: 8500, militia: 10000, label: "Army Established" },
   { year: 1776, continental: 20000, british: 32000, militia: 45000, label: "Peak Militia" },

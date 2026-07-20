@@ -567,7 +567,7 @@ export default function Map({
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
         attributionControl={false}
-        scrollWheelZoom={true}
+        scrollWheelZoom={scrollWheelZoom}
         dragging={true}
         doubleClickZoom={true}
         touchZoom={true}

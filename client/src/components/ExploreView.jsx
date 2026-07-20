@@ -1,599 +1,418 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import Map from './Map';
 import EventCard from './EventCard';
 import HorizontalTimeline from './HorizontalTimeline';
 import SearchBar from './SearchBar';
 import MobileBottomSheet from './MobileBottomSheet';
 
+const SPEED_PRESETS = [
+  { label: '1×', ms: 4200 },
+  { label: '1.5×', ms: 2800 },
+  { label: '2×', ms: 1800 },
+];
+
+const EVENT_TYPES = [
+  { id: 'battle', label: 'Battles', color: '#9e2a2b' },
+  { id: 'political', label: 'Political', color: '#163d67' },
+  { id: 'military', label: 'Military', color: '#4f6b55' },
+];
+
 function FilterIcon({ type }) {
-  switch (type) {
-    case 'battle':
-      return <svg viewBox="0 0 16 16" width="14" height="14"><line x1="4" y1="4" x2="12" y2="12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><line x1="12" y1="4" x2="4" y2="12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>;
-    case 'political':
-      return <svg viewBox="0 0 16 16" width="14" height="14"><rect x="3.5" y="2" width="9" height="12" rx="1" stroke="currentColor" strokeWidth="1.6" fill="none"/><line x1="5.5" y1="5.5" x2="10.5" y2="5.5" stroke="currentColor" strokeWidth="1.2"/><line x1="5.5" y1="8" x2="10.5" y2="8" stroke="currentColor" strokeWidth="1.2"/></svg>;
-    case 'diplomatic':
-      return <svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.6" fill="none"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>;
-    case 'military':
-      return <svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 2L13 5V10C13 12.5 10.5 14.5 8 15C5.5 14.5 3 12.5 3 10V5L8 2Z" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinejoin="round"/></svg>;
-    default:
-      return null;
+  if (type === 'battle') {
+    return <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>;
   }
+  if (type === 'political') {
+    return <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h8v11H4zM6 6h4M6 8.5h4" /></svg>;
+  }
+  return <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5 12.5 5v4.5c0 2-2 3.5-4.5 4-2.5-.5-4.5-2-4.5-4V5z" /></svg>;
 }
 
 function FilterBar({ activeFilters, onToggle }) {
-  const types = [
-    { id: 'battle', label: 'Battles', color: '#7A1212' },
-    { id: 'political', label: 'Political', color: '#0A244A' },
-    { id: 'diplomatic', label: 'Diplomatic', color: '#C5A02F' },
-    { id: 'military', label: 'Military', color: '#228B22' },
-  ];
-
   return (
-    <div className="filter-bar">
-      {types.map(t => (
-        <button
-          key={t.id}
-          className={`filter-btn ${activeFilters.has(t.id) ? 'active' : ''}`}
-          onClick={() => onToggle(t.id)}
-          style={{ '--filter-color': t.color }}
-        >
-          <span className="filter-icon"><FilterIcon type={t.id} /></span>
-          {t.label}
-        </button>
-      ))}
+    <div className="filter-bar" aria-label="Map event layers">
+      {EVENT_TYPES.map(type => {
+        const active = activeFilters.has(type.id);
+        return (
+          <button
+            key={type.id}
+            className={`filter-btn ${active ? 'active' : ''}`}
+            onClick={() => onToggle(type.id)}
+            style={{ '--filter-color': type.color }}
+            aria-pressed={active}
+          >
+            <span className="filter-icon"><FilterIcon type={type.id} /></span>
+            {type.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-const SPEED_PRESETS = [
-  { label: '1x', ms: 4000 },
-  { label: '1.5x', ms: 2500 },
-  { label: '2x', ms: 1500 },
-];
-
 export default function ExploreView({
   events,
+  chapters,
   colonyBoundaries,
   darkMode,
   onExitToWelcome,
   initialEventId,
   onConsumeInitialEvent,
-  onEventChange, // New prop to sync URL
+  onEventChange,
 }) {
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [playSpeed, setPlaySpeed] = useState(4000);
+  const [playSpeed, setPlaySpeed] = useState(SPEED_PRESETS[0].ms);
   const [fillColonies, setFillColonies] = useState(false);
-  const [activeFilters, setActiveFilters] = useState(
-    new Set(['battle', 'political', 'diplomatic', 'military'])
-  );
-  const [isMobile, setIsMobile] = useState(
-    () => window.matchMedia('(max-width: 768px)').matches
-  );
+  const [activeFilters, setActiveFilters] = useState(new Set(EVENT_TYPES.map(type => type.id)));
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches);
+  const storyStepRefs = useRef(new Map());
+  const observerLock = useRef(false);
+  const reduceMotion = useReducedMotion();
 
-  // Derive the current event
   const currentEvent = events[currentEventIndex];
-
-  // Sync current event to URL when the selected event changes
-  const lastSyncedEventId = useRef(null);
-  useEffect(() => {
-    if (!currentEvent || currentEvent.id === lastSyncedEventId.current) return;
-    lastSyncedEventId.current = currentEvent.id;
-    onEventChange?.(currentEvent.id);
-  }, [currentEvent, onEventChange]);
-
-  useEffect(() => {
-    if (initialEventId != null) {
-      const idx = events.findIndex(e => e.id === initialEventId);
-      if (idx !== -1 && idx !== currentEventIndex) {
-        setCurrentEventIndex(idx);
-        setIsPlaying(false);
-      }
-      onConsumeInitialEvent?.();
-    }
-  }, [initialEventId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const viewRef = useRef(null);
-  const mapContainerRef = useRef(null);
-  const isScrolling = useRef(false);
-  const accumulatedDelta = useRef(0);
-  const accumulatedDeltaX = useRef(0);
-  const touchStart = useRef(null);
-
-  const currentYear = currentEvent?.year || 1773;
+  const activeChapterIndex = chapters.findIndex(
+    chapter => currentEvent.id >= chapter.startId && currentEvent.id <= chapter.endId,
+  );
+  const activeChapter = chapters[Math.max(activeChapterIndex, 0)];
   const progress = ((currentEventIndex + 1) / events.length) * 100;
-
   const filteredEvents = useMemo(
-    () => events.filter(e => activeFilters.has(e.type)),
-    [events, activeFilters]
+    () => events.filter(event => activeFilters.has(event.type) || event.id === currentEvent.id),
+    [activeFilters, currentEvent.id, events],
   );
 
-  const mapEvents = filteredEvents.filter((_, i) => {
-    const originalIndex = events.indexOf(filteredEvents[i]);
-    return originalIndex <= currentEventIndex;
-  });
-
-  const mapActiveId = currentEvent?.id;
-  const displayEvent = currentEvent;
-
-  const speedIndex = SPEED_PRESETS.findIndex(s => s.ms === playSpeed);
-  const speedLabel = SPEED_PRESETS[speedIndex]?.label || '1x';
-
-  // --- Play/Pause auto-advance ---
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setCurrentEventIndex(prev => {
-        if (prev >= events.length - 1) {
-          setIsPlaying(false);
-          return prev;
-        }
-        return prev + 1;
+  const goToIndex = useCallback((nextIndex, behavior = 'smooth') => {
+    const bounded = Math.max(0, Math.min(nextIndex, events.length - 1));
+    setCurrentEventIndex(bounded);
+    if (!isMobile) {
+      observerLock.current = true;
+      storyStepRefs.current.get(events[bounded].id)?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : behavior,
+        block: 'center',
       });
-    }, playSpeed);
-    return () => clearInterval(interval);
-  }, [isPlaying, playSpeed, events.length]);
+      window.setTimeout(() => {
+        observerLock.current = false;
+      }, reduceMotion ? 50 : 650);
+    }
+  }, [events, isMobile, reduceMotion]);
 
   useEffect(() => {
-    const mql = window.matchMedia('(max-width: 768px)');
-    const onChange = (e) => setIsMobile(e.matches);
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
+    const media = window.matchMedia('(max-width: 900px)');
+    const handleChange = event => setIsMobile(event.matches);
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
   }, []);
 
-  // --- Speed cycle ---
-  const cycleSpeed = useCallback(() => {
-    setPlaySpeed(prev => {
-      const idx = SPEED_PRESETS.findIndex(s => s.ms === prev);
-      const next = (idx + 1) % SPEED_PRESETS.length;
-      return SPEED_PRESETS[next].ms;
-    });
-  }, []);
+  useEffect(() => {
+    if (initialEventId == null) return;
+    const index = events.findIndex(event => event.id === initialEventId);
+    if (index !== -1) {
+      window.requestAnimationFrame(() => goToIndex(index, 'auto'));
+    }
+    onConsumeInitialEvent?.();
+  }, [events, goToIndex, initialEventId, onConsumeInitialEvent]);
 
-  // --- Filter toggle ---
-  const toggleFilter = useCallback((type) => {
-    setActiveFilters(prev => {
-      const next = new Set(prev);
-      if (next.has(type)) {
-        if (next.size > 1) next.delete(type);
-      } else {
-        next.add(type);
+  useEffect(() => {
+    onEventChange?.(currentEvent.id);
+  }, [currentEvent.id, onEventChange]);
+
+  useEffect(() => {
+    if (isMobile) return undefined;
+    const observer = new IntersectionObserver(
+      entries => {
+        if (observerLock.current) return;
+        const visible = entries
+          .filter(entry => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        const index = Number(visible.target.dataset.eventIndex);
+        if (Number.isFinite(index)) {
+          setCurrentEventIndex(index);
+          setIsPlaying(false);
+        }
+      },
+      { rootMargin: '-28% 0px -38% 0px', threshold: [0.25, 0.5, 0.75] },
+    );
+
+    storyStepRefs.current.forEach(node => observer.observe(node));
+    return () => observer.disconnect();
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isPlaying) return undefined;
+    if (currentEventIndex >= events.length - 1) {
+      setIsPlaying(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => goToIndex(currentEventIndex + 1), playSpeed);
+    return () => window.clearTimeout(timer);
+  }, [currentEventIndex, events.length, goToIndex, isPlaying, playSpeed]);
+
+  useEffect(() => {
+    const handleKeyDown = event => {
+      if (event.target.closest('input, textarea, select, button, a')) return;
+      if (event.key === ' ') {
+        event.preventDefault();
+        setIsPlaying(current => !current);
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        setIsPlaying(false);
+        goToIndex(currentEventIndex + 1);
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+        event.preventDefault();
+        setIsPlaying(false);
+        goToIndex(currentEventIndex - 1);
       }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentEventIndex, goToIndex]);
+
+  const toggleFilter = useCallback(type => {
+    setActiveFilters(current => {
+      const next = new Set(current);
+      if (next.has(type) && next.size > 1) next.delete(type);
+      else next.add(type);
       return next;
     });
   }, []);
 
-  // --- Preset filters ---
-  const FILTER_PRESETS = [
-    { label: 'All Events', filters: ['battle', 'political', 'diplomatic', 'military'] },
-    { label: 'Major Battles', filters: ['battle'] },
-    { label: 'Political Milestones', filters: ['political'] },
-    { label: 'Turning Points', filters: ['battle', 'diplomatic'] },
-  ];
-
-  const applyPreset = useCallback((filterIds) => {
-    setActiveFilters(new Set(filterIds));
+  const cycleSpeed = useCallback(() => {
+    setPlaySpeed(current => {
+      const index = SPEED_PRESETS.findIndex(preset => preset.ms === current);
+      return SPEED_PRESETS[(index + 1) % SPEED_PRESETS.length].ms;
+    });
   }, []);
 
-  // --- Wheel navigation ---
-  useEffect(() => {
-    const THRESHOLD_X = 30;
-    const THRESHOLD_Y = 50;
-    const LOCKOUT_MS = 350;
-
-    const handleWheel = (e) => {
-      e.preventDefault();
-      if (isScrolling.current) return;
-
-      const useHorizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5;
-
-      if (useHorizontal) {
-        accumulatedDeltaX.current += e.deltaX;
-        accumulatedDelta.current = 0;
-      } else {
-        accumulatedDelta.current += e.deltaY;
-        accumulatedDeltaX.current = 0;
-      }
-
-      const triggered = useHorizontal
-        ? Math.abs(accumulatedDeltaX.current) >= THRESHOLD_X
-        : Math.abs(accumulatedDelta.current) >= THRESHOLD_Y;
-
-      if (triggered) {
-        isScrolling.current = true;
-        setIsPlaying(false);
-        const delta = useHorizontal ? accumulatedDeltaX.current : accumulatedDelta.current;
-
-        if (delta > 0) {
-          setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-        } else {
-          setCurrentEventIndex(prev => Math.max(prev - 1, 0));
-        }
-
-        accumulatedDelta.current = 0;
-        accumulatedDeltaX.current = 0;
-        setTimeout(() => { isScrolling.current = false; }, LOCKOUT_MS);
-      }
-    };
-
-    const el = viewRef.current;
-    if (!el) return;
-    el.addEventListener('wheel', handleWheel, { passive: false });
-    return () => el.removeEventListener('wheel', handleWheel);
-  }, [events.length]);
-
-  // --- Touch swipe navigation ---
-  useEffect(() => {
-    const SWIPE_THRESHOLD = 40;
-
-    const handleTouchStart = (e) => {
-      touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    };
-
-    const handleTouchEnd = (e) => {
-      if (!touchStart.current || isScrolling.current) return;
-      const dx = touchStart.current.x - e.changedTouches[0].clientX;
-      const dy = touchStart.current.y - e.changedTouches[0].clientY;
-      touchStart.current = null;
-
-      const useHorizontal = Math.abs(dx) > Math.abs(dy) * 0.5;
-      const delta = useHorizontal ? dx : dy;
-
-      if (Math.abs(delta) >= SWIPE_THRESHOLD) {
-        isScrolling.current = true;
-        setIsPlaying(false);
-        if (delta > 0) {
-          setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-        } else {
-          setCurrentEventIndex(prev => Math.max(prev - 1, 0));
-        }
-        setTimeout(() => { isScrolling.current = false; }, 350);
-      }
-    };
-
-    const el = mapContainerRef.current;
-    if (!el) return;
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchend', handleTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [events.length]);
-
-  // --- Keyboard navigation ---
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-
-      if (e.key === ' ') {
-        e.preventDefault();
-        setIsPlaying(prev => !prev);
-        return;
-      }
-
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        setIsPlaying(false);
-        isScrolling.current = true;
-        setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-        setTimeout(() => { isScrolling.current = false; }, 300);
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        setIsPlaying(false);
-        isScrolling.current = true;
-        setCurrentEventIndex(prev => Math.max(prev - 1, 0));
-        setTimeout(() => { isScrolling.current = false; }, 300);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [events.length]);
-
-  // --- Map event click handler ---
-  const handleMapEventClick = useCallback((id) => {
-    setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
-
-  // --- Timeline click handler ---
-  const handleTimelineClick = useCallback((id) => {
-    setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
-
-  // --- Search select handler ---
-  const handleSearchSelect = useCallback((id) => {
-    setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
-
-  // --- Prev/Next handlers ---
-  const handlePrevEvent = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentEventIndex(prev => Math.max(prev - 1, 0));
-  }, []);
-
-  const handleNextEvent = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-  }, [events.length]);
-
-  // --- Replay handler ---
-  const handleReplay = useCallback(() => {
-    setCurrentEventIndex(0);
-    setIsPlaying(true);
-  }, []);
-
-  // --- Onboarding hint (first visit) ---
-  const [showHint, setShowHint] = useState(() => {
-    try {
-      return !sessionStorage.getItem('amreviz-hint-dismissed');
-    } catch { return true; }
-  });
-
-  useEffect(() => {
-    if (!showHint) return;
-    const timer = setTimeout(() => {
-      setShowHint(false);
-      try { sessionStorage.setItem('amreviz-hint-dismissed', '1'); } catch {}
-    }, 6000);
-    return () => clearTimeout(timer);
-  }, [showHint]);
-
-  const dismissHint = useCallback(() => {
-    setShowHint(false);
-    try { sessionStorage.setItem('amreviz-hint-dismissed', '1'); } catch {}
-  }, []);
-
-  const activeFilterCount = activeFilters.size;
-  const isAtEnd = currentEventIndex === events.length - 1;
+  const handleEventSelect = useCallback(eventId => {
+    const index = events.findIndex(event => event.id === eventId);
+    if (index !== -1) {
+      setIsPlaying(false);
+      goToIndex(index);
+    }
+  }, [events, goToIndex]);
 
   const controlsContent = (
     <>
       <button
-        className={`explore-btn ${isPlaying ? 'active' : ''}`}
-        onClick={() => setIsPlaying(prev => !prev)}
+        className={`explore-btn primary ${isPlaying ? 'active' : ''}`}
+        onClick={() => setIsPlaying(current => !current)}
+        aria-pressed={isPlaying}
       >
         {isPlaying ? (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            Pause
-          </>
+          <><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10M11 3v10" /></svg>Pause</>
         ) : (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Play
-          </>
+          <><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 3 8 5-8 5z" /></svg>Play</>
         )}
       </button>
-
-      <button className="speed-indicator" onClick={cycleSpeed}>
-        {speedLabel}
+      <button className="speed-indicator" onClick={cycleSpeed} aria-label="Change playback speed">
+        {SPEED_PRESETS.find(preset => preset.ms === playSpeed)?.label}
       </button>
-
-      <span className="controls-divider" />
-
+      <span className="controls-divider" aria-hidden="true" />
       <button
         className={`explore-btn ${timelineOpen ? 'active' : ''}`}
-        onClick={() => setTimelineOpen(prev => !prev)}
+        onClick={() => setTimelineOpen(current => !current)}
+        aria-expanded={timelineOpen}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12M4 5v6M8 4v8M12 6v4" /></svg>
         Timeline
       </button>
-
-      <span className="controls-divider" />
-
       <button
         className={`explore-btn ${filtersOpen ? 'active' : ''}`}
-        onClick={() => setFiltersOpen(prev => !prev)}
+        onClick={() => setFiltersOpen(current => !current)}
+        aria-expanded={filtersOpen}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        Filter
-        {activeFilterCount < 4 && (
-          <span className="filter-count-badge">{activeFilterCount}</span>
-        )}
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12L9.5 8v4l-3 1V8z" /></svg>
+        Layers
       </button>
-
-      <SearchBar
-        events={events}
-        onEventSelect={handleSearchSelect}
-        darkMode={darkMode}
-      />
+      <SearchBar events={events} onEventSelect={handleEventSelect} darkMode={darkMode} />
     </>
   );
 
-  return (
-    <div className={`scrollytelling-view ${darkMode ? 'dark' : ''}`} ref={viewRef}>
-      {/* Full-screen Map */}
-      <div className="scrolly-map-container" ref={mapContainerRef}>
-        <Map
-          events={mapEvents}
-          colonyBoundaries={colonyBoundaries}
-          activeEventId={mapActiveId}
-          onEventClick={handleMapEventClick}
-          showColonies={true}
-          fillColonies={fillColonies}
-          darkMode={darkMode}
-          hideFutureEvents={false}
-          scrollWheelZoom={false}
-          timelineOpen={timelineOpen}
-        />
+  const mapStage = (
+    <>
+      <Map
+        events={filteredEvents}
+        colonyBoundaries={colonyBoundaries}
+        activeEventId={currentEvent.id}
+        onEventClick={handleEventSelect}
+        showColonies
+        fillColonies={fillColonies}
+        darkMode={darkMode}
+        hideFutureEvents={false}
+        scrollWheelZoom={false}
+        timelineOpen={timelineOpen}
+      />
+      <div className="map-reading">
+        <span className="map-reading-kicker">Chapter {activeChapter.number}</span>
+        <strong>{activeChapter.title}</strong>
+        <span>{activeChapter.years}</span>
       </div>
+      <div className="explore-status" aria-label={`Event ${currentEventIndex + 1} of ${events.length}`}>
+        <span>{String(currentEventIndex + 1).padStart(2, '0')}</span>
+        <div className="status-track"><motion.div animate={{ width: `${progress}%` }} /></div>
+        <span>{events.length}</span>
+      </div>
+      <div className="map-source">Map: Esri shaded relief · Event locations approximate</div>
+    </>
+  );
 
-      {/* Compact status chip — year + progress merged */}
-      <div className="explore-status-chip">
-        <motion.span
-          className="status-chip-year"
-          key={currentYear}
-          initial={{ opacity: 0, y: -6 }}
+  const filterPanel = (
+    <AnimatePresence>
+      {filtersOpen && (
+        <motion.div
+          className="filters-panel"
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
         >
-          {currentYear}
-        </motion.span>
-        <div className="status-chip-progress">
-          <div className="status-chip-track">
-            <motion.div
-              className="status-chip-fill"
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.3 }}
-            />
+          <div className="filters-panel-heading">
+            <p className="editorial-kicker">Map layers</p>
+            <span>Choose which events remain visible.</span>
           </div>
-          <span className="status-chip-counter">{currentEventIndex + 1}/{events.length}</span>
-        </div>
-      </div>
-
-      {/* Desktop: absolute-positioned controls */}
-      <div className={`explore-controls desktop-controls ${timelineOpen ? 'timeline-open' : ''}`}>
-        {controlsContent}
-      </div>
-
-      {/* Filters panel — floating above controls, now includes legend */}
-      <AnimatePresence>
-        {filtersOpen && (
-          <motion.div
-            className={`filters-panel ${timelineOpen ? 'timeline-open' : ''}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="filter-presets">
-              {FILTER_PRESETS.map((preset) => {
-                const isActive = preset.filters.length === activeFilters.size &&
-                  preset.filters.every(f => activeFilters.has(f));
-                return (
-                  <button
-                    key={preset.label}
-                    className={`filter-preset-chip ${isActive ? 'active' : ''}`}
-                    onClick={() => applyPreset(preset.filters)}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
-            <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
-            <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
-              <input
-                type="checkbox"
-                checked={fillColonies}
-                onChange={() => setFillColonies(!fillColonies)}
-              />
-              Color colonies
-            </label>
-            <div className="filters-legend-section">
-              <h4 className="filters-legend-title">Map Legend</h4>
-              <div className="filters-legend-rows">
-                <span className="filters-legend-item">
-                  <span className="legend-dot" style={{ background: '#1e3a5f' }} />
-                  American
-                </span>
-                <span className="filters-legend-item">
-                  <span className="legend-dot" style={{ background: '#8b2323' }} />
-                  British
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Desktop: bottom-positioned event card */}
-      <div className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}>
-        <AnimatePresence mode="wait">
-          <EventCard
-            event={displayEvent}
-            darkMode={darkMode}
-            timelineOpen={timelineOpen}
-            onPrev={handlePrevEvent}
-            onNext={handleNextEvent}
-            hasPrev={currentEventIndex > 0}
-            hasNext={currentEventIndex < events.length - 1}
-          />
-        </AnimatePresence>
-      </div>
-
-      {/* Desktop: Collapsible Timeline */}
-      <AnimatePresence>
-        {timelineOpen && (
-          <motion.div
-            className={`explore-timeline-container ${isMobile ? 'mobile-fixed-timeline' : 'desktop-timeline'}`}
-            initial={{ opacity: 0, y: 60 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 60 }}
-            transition={{ duration: 0.3 }}
-          >
-            <HorizontalTimeline
-              events={filteredEvents}
-              activeEventId={currentEvent?.id}
-              onEventClick={handleTimelineClick}
-              darkMode={darkMode}
+          <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={fillColonies}
+              onChange={() => setFillColonies(current => !current)}
             />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            Shade colonial boundaries
+          </label>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
-      {/* Mobile/Tablet: draggable bottom sheet */}
-      {isMobile && (
+  if (isMobile) {
+    return (
+      <section className={`scrollytelling-view mobile-story ${darkMode ? 'dark' : ''}`} aria-label="Interactive story">
+        <div className="mobile-map-stage">{mapStage}</div>
+        {filterPanel}
         <MobileBottomSheet
-          eventId={currentEvent?.id}
+          eventId={currentEvent.id}
           darkMode={darkMode}
           controlsContent={controlsContent}
           timelineOpen={timelineOpen}
         >
+          {timelineOpen && (
+            <HorizontalTimeline
+              events={events}
+              activeEventId={currentEvent.id}
+              onEventClick={handleEventSelect}
+              darkMode={darkMode}
+            />
+          )}
           <EventCard
-            event={displayEvent}
+            event={currentEvent}
             darkMode={darkMode}
-            timelineOpen={timelineOpen}
-            onPrev={handlePrevEvent}
-            onNext={handleNextEvent}
+            chapter={activeChapter}
+            eventNumber={currentEventIndex + 1}
+            totalEvents={events.length}
+            onPrev={() => goToIndex(currentEventIndex - 1)}
+            onNext={() => goToIndex(currentEventIndex + 1)}
             hasPrev={currentEventIndex > 0}
             hasNext={currentEventIndex < events.length - 1}
           />
         </MobileBottomSheet>
-      )}
+      </section>
+    );
+  }
 
-      {/* Onboarding hint */}
-      <AnimatePresence>
-        {showHint && (
-          <motion.div
-            className="explore-onboarding-hint"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.4 }}
-          >
-            <span>Use arrow keys, swipe, or Play to move through events</span>
-            <button className="hint-dismiss" onClick={dismissHint} aria-label="Dismiss hint">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* End of Timeline overlay */}
-      {isAtEnd && (
-        <motion.div
-          className="story-end"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          <p>End of Timeline</p>
-          <div className="story-end-actions">
-            <button className="explore-btn" onClick={handleReplay}>Replay</button>
-            <button className="explore-btn" onClick={onExitToWelcome}>Start Over</button>
+  return (
+    <section className={`scrollytelling-view desktop-story ${darkMode ? 'dark' : ''}`} aria-label="Interactive story">
+      <div className="story-layout">
+        <aside className="story-map-column" aria-label="Interactive event map">
+          <div className="story-map-sticky">
+            {mapStage}
+            <div className="explore-controls">{controlsContent}</div>
+            {filterPanel}
+            <AnimatePresence>
+              {timelineOpen && (
+                <motion.div
+                  className="explore-timeline-container"
+                  initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 24 }}
+                >
+                  <HorizontalTimeline
+                    events={events}
+                    activeEventId={currentEvent.id}
+                    onEventClick={handleEventSelect}
+                    darkMode={darkMode}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </motion.div>
-      )}
-    </div>
+        </aside>
+
+        <article className="story-rail">
+          <header className="story-introduction">
+            <p className="editorial-kicker">The chronology</p>
+            <h1>Ten years that remade the Atlantic world</h1>
+            <p>
+              Move through five chapters. The map follows each political rupture,
+              battlefield reversal, and final act of restraint.
+            </p>
+            <div className="story-instructions">
+              <span>Scroll to read</span>
+              <span aria-hidden="true">↓</span>
+            </div>
+          </header>
+
+          {chapters.map(chapter => {
+            const chapterEvents = events.filter(
+              event => event.id >= chapter.startId && event.id <= chapter.endId,
+            );
+            return (
+              <section className="story-chapter" key={chapter.id} aria-labelledby={`chapter-${chapter.id}`}>
+                <header className="chapter-header">
+                  <span className="chapter-number">{chapter.number}</span>
+                  <p className="editorial-kicker">{chapter.years}</p>
+                  <h2 id={`chapter-${chapter.id}`}>{chapter.title}</h2>
+                  <p>{chapter.summary}</p>
+                </header>
+                {chapterEvents.map(event => {
+                  const index = events.findIndex(item => item.id === event.id);
+                  return (
+                    <div
+                      className={`story-step ${currentEvent.id === event.id ? 'active' : ''}`}
+                      key={event.id}
+                      data-event-index={index}
+                      ref={node => {
+                        if (node) storyStepRefs.current.set(event.id, node);
+                        else storyStepRefs.current.delete(event.id);
+                      }}
+                    >
+                      <EventCard
+                        event={event}
+                        darkMode={darkMode}
+                        chapter={chapter}
+                        eventNumber={index + 1}
+                        totalEvents={events.length}
+                        isActive={currentEvent.id === event.id}
+                      />
+                    </div>
+                  );
+                })}
+              </section>
+            );
+          })}
+
+          <footer className="story-end">
+            <p className="editorial-kicker">The republic begins</p>
+            <h2>The war ends. The experiment does not.</h2>
+            <p>
+              Independence settled sovereignty, but left the new nation to define
+              citizenship, representation, and the reach of its founding promises.
+            </p>
+            <button className="text-link-button" onClick={onExitToWelcome}>Return to the introduction</button>
+          </footer>
+        </article>
+      </div>
+    </section>
   );
 }

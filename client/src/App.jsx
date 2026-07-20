@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
 import ExploreView from './components/ExploreView';
 import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './components/Charts';
 import BattleComparison from './components/BattleComparison';
 import AnimatedCounter from './components/AnimatedCounter';
-import { events, armyData, economicData, battleData, campaignData } from './data/events';
+import { events, armyData, economicData, battleData, campaignData, chapters } from './data/events';
 import { colonyBoundaries } from './data/colonyBoundaries';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
 import useHashRouter from './hooks/useHashRouter';
@@ -14,14 +14,20 @@ import './App.css';
 function ModeToggle({ darkMode, onToggle }) {
   return (
     <button
-      className="mode-toggle"
+      className="icon-button"
       onClick={onToggle}
       aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={darkMode ? 'Light mode' : 'Dark mode'}
     >
       {darkMode ? (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
       ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z" />
+        </svg>
       )}
     </button>
   );
@@ -30,118 +36,136 @@ function ModeToggle({ darkMode, onToggle }) {
 function HelpToggle() {
   return (
     <button
-      className="mode-toggle help-toggle"
-      onClick={() => {
-        const event = new KeyboardEvent('keydown', { key: '?' });
-        window.dispatchEvent(event);
-      }}
+      className="icon-button"
+      onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }))}
       aria-label="Show keyboard shortcuts"
-      title="Keyboard Shortcuts (?)"
+      title="Keyboard shortcuts"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span aria-hidden="true">?</span>
     </button>
   );
 }
 
 function ViewToggle({ view, onViewChange }) {
-  const views = [
-    { id: 'explore', label: 'Explore' },
-    { id: 'data', label: 'Data' }
-  ];
-
   return (
-    <div className="view-toggle">
-      {views.map((item) => (
+    <nav className="view-toggle" aria-label="Primary views">
+      {[
+        { id: 'explore', label: 'Story' },
+        { id: 'data', label: 'Data' },
+      ].map((item) => (
         <button
           key={item.id}
           className={view === item.id ? 'active' : ''}
           onClick={() => onViewChange(item.id)}
-          style={{ position: 'relative' }}
+          aria-current={view === item.id ? 'page' : undefined}
         >
-          {view === item.id && (
-            <motion.div
-              layoutId="activeView"
-              className="active-bg"
-              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: '6px',
-                background: 'var(--color-bg-light)',
-                boxShadow: 'var(--shadow-sm)',
-                zIndex: 0
-              }}
-            />
-          )}
-          <span style={{ position: 'relative', zIndex: 1 }}>
-            {item.label}
-          </span>
+          {item.label}
         </button>
       ))}
-    </div>
+    </nav>
+  );
+}
+
+function SectionHeading({ number, eyebrow, title, children }) {
+  return (
+    <header className="data-group-header">
+      <span className="section-number">{number}</span>
+      <div>
+        <p className="editorial-kicker">{eyebrow}</p>
+        <h3 className="data-group-title">{title}</h3>
+        {children && <p className="data-group-dek">{children}</p>}
+      </div>
+    </header>
   );
 }
 
 function DataView({ darkMode, onNavigateToEvent }) {
-  const battles = events.filter(e => e.casualties);
-
-  const handleBattleClick = (eventId) => {
-    onNavigateToEvent?.(eventId);
-  };
+  const battles = events.filter(event => event.casualties);
 
   const handleYearClick = (year) => {
-    const match = events.find(e => e.year === year);
+    const match = events.find(event => event.year === year);
     if (match) onNavigateToEvent?.(match.id);
   };
 
   return (
-    <div className="data-view">
-      <header className="data-section">
-        <h2>Forces & Economy</h2>
+    <article className="data-view">
+      <header className="data-hero">
+        <p className="editorial-kicker">The war in numbers</p>
+        <h2>How an outmatched rebellion endured</h2>
         <p className="data-subtitle">
-          Visualizing the Revolution through numbers
+          The Revolution was not a steady march toward victory. These graphics show
+          an army repeatedly rebuilt, a trade system abruptly severed, and battles
+          whose human cost rarely matched their strategic result.
         </p>
+        <div className="data-hero-meta">
+          <span>5 graphics</span>
+          <span>1770–1783</span>
+          <span>Updated from cited historical records</span>
+        </div>
       </header>
 
-      <div className="data-insights">
+      <dl className="data-insights">
         <div className="insight-card">
-          <h4>Peak Continental Army</h4>
-          <AnimatedCounter value={35000} className="insight-value" />
-          <p>troops in 1778 after Valley Forge training</p>
+          <dt>Peak Continental Army</dt>
+          <dd><AnimatedCounter value={35000} className="insight-value" /></dd>
+          <p>troops in 1778, after the winter at Valley Forge</p>
         </div>
         <div className="insight-card">
-          <h4>Trade Collapse</h4>
-          <AnimatedCounter value={75} prefix="-" suffix="%" className="insight-value" />
-          <p>drop in British imports 1774-1776</p>
+          <dt>British import collapse</dt>
+          <dd><AnimatedCounter value={97} suffix="%" className="insight-value" /></dd>
+          <p>from the 1771 peak to the Declaration of Independence</p>
         </div>
         <div className="insight-card">
-          <h4>War Deaths</h4>
-          <AnimatedCounter value={25000} className="insight-value" />
-          <p>American casualties (combat + disease)</p>
+          <dt>Major battles examined</dt>
+          <dd><AnimatedCounter value={7} className="insight-value" /></dd>
+          <p>with force strength, casualties, and outcomes compared</p>
         </div>
-      </div>
+      </dl>
 
-      <section className="data-group">
-        <h3 className="data-group-title">Military Strength & Theater</h3>
-        <div className="data-grid">
+      <section className="data-group" aria-labelledby="forces-title">
+        <SectionHeading number="01" eyebrow="Military capacity" title="An army built and rebuilt">
+          Continental strength surged after crisis years, but sustaining the force remained a constant struggle.
+        </SectionHeading>
+        <div id="forces-title" className="data-grid data-grid-featured">
           <ArmyChart data={armyData} darkMode={darkMode} onYearClick={handleYearClick} />
           <CampaignTimeline data={campaignData} darkMode={darkMode} />
         </div>
       </section>
 
-      <section className="data-group">
-        <h3 className="data-group-title">Economic Impact</h3>
-        <TradeChart data={economicData} darkMode={darkMode} />
+      <section className="data-group" aria-labelledby="trade-title">
+        <SectionHeading number="02" eyebrow="Economic rupture" title="Trade falls off a cliff">
+          Indexed to the 1771 peak, the scale of wartime separation becomes unmistakable.
+        </SectionHeading>
+        <div id="trade-title">
+          <TradeChart data={economicData} darkMode={darkMode} />
+        </div>
       </section>
 
-      <section className="data-group">
-        <h3 className="data-group-title">Battle Analysis</h3>
-        <div className="data-grid">
-          <CasualtiesChart data={battleData} darkMode={darkMode} onBattleClick={handleBattleClick} />
+      <section className="data-group" aria-labelledby="battle-title">
+        <SectionHeading number="03" eyebrow="The cost of battle" title="Victory and loss were rarely proportional">
+          Compare absolute casualties with the share of each force taken out of action.
+        </SectionHeading>
+        <div id="battle-title" className="data-grid">
+          <CasualtiesChart
+            data={battleData}
+            darkMode={darkMode}
+            onBattleClick={onNavigateToEvent}
+          />
           <BattleComparison battles={battles} darkMode={darkMode} />
         </div>
       </section>
-    </div>
+
+      <footer className="data-methodology">
+        <p className="editorial-kicker">Methodology</p>
+        <h3>About the figures</h3>
+        <p>
+          Revolutionary-era troop and casualty estimates vary by source. Figures here
+          use rounded historical estimates and should be read as comparative scale,
+          not exact accounting. Battle records are drawn from the American Battlefield
+          Trust; political context is cross-referenced with National Park Service records.
+        </p>
+      </footer>
+    </article>
   );
 }
 
@@ -149,128 +173,103 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(() => {
     try {
       return localStorage.getItem('amreviz-dark-mode') === 'true';
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   });
-  
   const [view, setView, subId] = useHashRouter('welcome');
+  const [pendingEventId, setPendingEventId] = useState(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     localStorage.setItem('amreviz-dark-mode', darkMode);
     document.body.className = darkMode ? 'dark-mode' : 'light-mode';
   }, [darkMode]);
 
-  // Global keyboard shortcuts
   useEffect(() => {
-    const handleKey = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-      if (e.key === 'd' || e.key === 'D') {
-        if (!e.ctrlKey && !e.metaKey) setDarkMode(prev => !prev);
+    if (view === 'explore' && subId != null) setPendingEventId(subId);
+  }, [view, subId]);
+
+  useEffect(() => {
+    const handleKey = (event) => {
+      if (event.target.closest('input, textarea, select, button, a')) return;
+      if ((event.key === 'd' || event.key === 'D') && !event.ctrlKey && !event.metaKey) {
+        setDarkMode(current => !current);
       }
-      if (e.key === '1') setView('explore');
-      if (e.key === '2') setView('data');
+      if (event.key === '1') setView('explore');
+      if (event.key === '2') setView('data');
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [setView]);
 
-  // Track view direction for transitions
-  const viewOrder = { welcome: 0, explore: 1, data: 2 };
-  const prevViewRef = useRef(view);
-  const direction = viewOrder[view] >= viewOrder[prevViewRef.current] ? 1 : -1;
-  useEffect(() => { prevViewRef.current = view; }, [view]);
-
-  const handleBeginJourney = () => {
-    setView('explore');
-  };
-
-  const handleExitToWelcome = () => {
-    setView('welcome');
-  };
-
-  const [pendingEventId, setPendingEventId] = useState(null);
-
-  // Sync subId from URL to pendingEventId
-  useEffect(() => {
-    if (view === 'explore' && subId != null) {
-      setPendingEventId(subId);
-    }
-  }, [view, subId]);
-
   const handleNavigateToEvent = useCallback((eventId) => {
     setView('explore', eventId);
   }, [setView]);
 
-  const handleEventChange = useCallback((eventId) => {
-    setView('explore', eventId);
-  }, [setView]);
-
   const showHeader = view !== 'welcome';
-
-  const pageVariants = {
-    initial: { opacity: 0, y: direction * 30, scale: 0.98 },
-    animate: { opacity: 1, y: 0, scale: 1 },
-    exit: { opacity: 0, y: direction * -30, scale: 0.98 },
-    transition: { duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }
-  };
+  const pageMotion = reduceMotion
+    ? { initial: false, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.01 } }
+    : {
+        initial: { opacity: 0, y: 12 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -8 },
+        transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] },
+      };
 
   return (
     <div className={`app ${darkMode ? 'dark' : 'light'}`}>
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <AnimatePresence>
         {showHeader && (
           <motion.header
             className="app-header"
-            initial={{ y: -64, opacity: 0 }}
+            initial={reduceMotion ? false : { y: -48, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -64, opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            exit={reduceMotion ? undefined : { y: -48, opacity: 0 }}
           >
-            <div className="header-content">
-              <h1>The American Revolution</h1>
-              <p>An Interactive Journey Through Independence</p>
+            <button className="masthead-home" onClick={() => setView('welcome')} aria-label="Return to introduction">
+              <span className="masthead-edition">1773—1783</span>
+              <span className="masthead-title">The American Revolution</span>
+            </button>
+            <div className="header-context" aria-hidden="true">
+              {view === 'explore' ? `${chapters.length} chapters · ${events.length} events` : 'A visual record of war and independence'}
             </div>
             <div className="header-controls">
               <ViewToggle view={view} onViewChange={setView} />
               <HelpToggle />
-              <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(!darkMode)} />
+              <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(current => !current)} />
             </div>
           </motion.header>
         )}
       </AnimatePresence>
 
-      <main className={`app-main ${view === 'welcome' ? 'no-header' : ''}`}>
+      <main id="main-content" className={`app-main view-${view}`}>
         <AnimatePresence mode="wait">
           {view === 'welcome' && (
             <WelcomeScreen
               key="welcome"
-              onBegin={handleBeginJourney}
+              onBegin={() => setView('explore')}
+              onOpenData={() => setView('data')}
               darkMode={darkMode}
             />
           )}
-
           {view === 'explore' && (
-            <motion.div
-              key="explore"
-              className="story-view-wrapper"
-              {...pageVariants}
-            >
+            <motion.div key="explore" className="story-view-wrapper" {...pageMotion}>
               <ExploreView
                 events={events}
+                chapters={chapters}
                 colonyBoundaries={colonyBoundaries}
                 darkMode={darkMode}
-                onExitToWelcome={handleExitToWelcome}
+                onExitToWelcome={() => setView('welcome')}
                 initialEventId={pendingEventId}
                 onConsumeInitialEvent={() => setPendingEventId(null)}
-                onEventChange={handleEventChange}
+                onEventChange={eventId => setView('explore', eventId)}
               />
             </motion.div>
           )}
-
           {view === 'data' && (
-            <motion.div
-              className="data-view-container"
-              key="data"
-              {...pageVariants}
-            >
+            <motion.div className="data-view-container" key="data" {...pageMotion}>
               <DataView darkMode={darkMode} onNavigateToEvent={handleNavigateToEvent} />
             </motion.div>
           )}

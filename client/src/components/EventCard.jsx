@@ -1,97 +1,111 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
-const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'];
+const monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
-export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNext, hasPrev, hasNext }) {
+const typeLabels = {
+  battle: 'Battle',
+  political: 'Political',
+  military: 'Military',
+};
+
+export default function EventCard({
+  event,
+  darkMode,
+  chapter,
+  eventNumber,
+  totalEvents,
+  isActive = true,
+  onPrev,
+  onNext,
+  hasPrev,
+  hasNext,
+}) {
+  const reduceMotion = useReducedMotion();
   if (!event) return null;
 
   const date = new Date(event.date);
   const formattedDate = `${monthNames[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
-
-  const typeColors = {
-    battle: darkMode ? '#A33030' : '#7A1212',
-    political: darkMode ? '#2C4B7A' : '#0A244A',
-    diplomatic: darkMode ? '#E0C060' : '#C5A02F',
-    military: darkMode ? '#2E8B57' : '#228B22'
-  };
-
-  const typeLabels = {
-    battle: 'Battle',
-    political: 'Political',
-    diplomatic: 'Diplomatic',
-    military: 'Military'
-  };
+  const casualtyTotal = event.casualties
+    ? event.casualties.american + event.casualties.british
+    : null;
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        className={`event-card-fixed ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}
-        initial={{ opacity: 0, rotateY: -8, x: 30, scale: 0.95 }}
-        animate={{ opacity: 1, rotateY: 0, x: 0, scale: 1 }}
-        exit={{ opacity: 0, rotateY: 8, x: -20, scale: 0.95 }}
-        transition={{ duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }}
-        key={event.id}
-        style={{ perspective: 1000, transformStyle: 'preserve-3d' }}
-      >
-        <div className="event-card-topline">
-          <div
-            className="event-card-type-badge"
-            style={{ backgroundColor: typeColors[event.type] }}
+    <motion.article
+      className={`event-card-fixed ${darkMode ? 'dark' : ''} ${isActive ? 'active' : ''}`}
+      initial={reduceMotion ? false : { opacity: 0.72, y: 14 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ amount: 0.4, once: false }}
+      transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+      aria-label={`${event.title}, ${formattedDate}`}
+    >
+      <div className="event-card-furniture">
+        <span className={`event-card-type-badge type-${event.type}`}>{typeLabels[event.type]}</span>
+        <span>{chapter?.title}</span>
+        <span>{String(eventNumber).padStart(2, '0')} / {totalEvents}</span>
+      </div>
+
+      <time className="event-card-date-inline" dateTime={event.date}>{formattedDate}</time>
+      <h3 className="event-card-title">{event.title}</h3>
+
+      <div className="event-card-location-row">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+          <circle cx="8" cy="6.5" r="2.25" />
+          <path d="M8 14s4.5-4.1 4.5-7.5a4.5 4.5 0 1 0-9 0C3.5 9.9 8 14 8 14Z" />
+        </svg>
+        <span>{event.location.replace('\n', ', ')}</span>
+      </div>
+
+      {event.casualties && (
+        <dl className="event-card-figures" aria-label="Battle summary">
+          <div>
+            <dt>Forces engaged</dt>
+            <dd>{(event.forces.american + event.forces.british).toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt>Casualties</dt>
+            <dd>{casualtyTotal.toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt>Outcome</dt>
+            <dd>{event.outcome === 'indecisive' ? 'Indecisive' : `${event.outcome === 'american' ? 'American' : 'British'} victory`}</dd>
+          </div>
+        </dl>
+      )}
+
+      <p className="event-card-description">{event.description}</p>
+
+      <aside className="event-card-significance">
+        <span>Why it matters</span>
+        <p>{event.significance}</p>
+      </aside>
+
+      <p className="event-card-source">
+        Sources: National Park Service; American Battlefield Trust for battle estimates.
+      </p>
+
+      {(onPrev || onNext) && (
+        <nav className="event-card-nav" aria-label="Event navigation">
+          <button
+            className="event-card-nav-btn"
+            onClick={onPrev}
+            disabled={!hasPrev}
+            aria-label="Previous event"
           >
-            {typeLabels[event.type]}
-          </div>
-          <span className="event-card-date-inline">{formattedDate}</span>
-        </div>
-
-        <h2 className="event-card-title">{event.title}</h2>
-
-        <div className="event-card-location-row">
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="8" cy="7" r="2.5"/>
-            <path d="M8 14s5-4.5 5-7a5 5 0 1 0-10 0c0 2.5 5 7 5 7z"/>
-          </svg>
-          <span className="event-card-location">
-            {event.location.split('\n').map((line, i) => (
-              <span key={i}>{line}{i < event.location.split('\n').length - 1 && ', '}</span>
-            ))}
-          </span>
-        </div>
-
-        <p className="event-card-description">{event.description}</p>
-
-        <div className="event-card-significance">
-          <strong>Why This Matters</strong>
-          <p>{event.significance}</p>
-        </div>
-
-        {(onPrev || onNext) && (
-          <div className="event-card-nav">
-            <button
-              className="event-card-nav-btn"
-              onClick={onPrev}
-              disabled={!hasPrev}
-              aria-label="Previous event"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="10 12 6 8 10 4"/>
-              </svg>
-              Prev
-            </button>
-            <button
-              className="event-card-nav-btn"
-              onClick={onNext}
-              disabled={!hasNext}
-              aria-label="Next event"
-            >
-              Next
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 4 10 8 6 12"/>
-              </svg>
-            </button>
-          </div>
-        )}
-      </motion.div>
-    </AnimatePresence>
+            <span aria-hidden="true">←</span> Previous
+          </button>
+          <button
+            className="event-card-nav-btn"
+            onClick={onNext}
+            disabled={!hasNext}
+            aria-label="Next event"
+          >
+            Next <span aria-hidden="true">→</span>
+          </button>
+        </nav>
+      )}
+    </motion.article>
   );
 }
