@@ -75,6 +75,8 @@ export default function ExploreView({
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_LAYOUT_QUERY).matches);
   const storyStepRefs = useRef(new Map());
   const observerLock = useRef(false);
+  const unlockObserverTimeout = useRef(null);
+  const scrollSettleCleanup = useRef(null);
   const handledNavigationKey = useRef(null);
   const reduceMotion = useReducedMotion();
 
@@ -91,21 +93,89 @@ export default function ExploreView({
     [activeFilters, currentEvent.id, events],
   );
 
+  const clearScrollLockTimers = useCallback(() => {
+    if (unlockObserverTimeout.current != null) {
+      window.clearTimeout(unlockObserverTimeout.current);
+      unlockObserverTimeout.current = null;
+    }
+    if (scrollSettleCleanup.current) {
+      scrollSettleCleanup.current();
+      scrollSettleCleanup.current = null;
+    }
+  }, []);
+
+  const lockObserverUntilScrollSettles = useCallback((maxWaitMs) => {
+    clearScrollLockTimers();
+    observerLock.current = true;
+
+    let lastScrollY = window.scrollY;
+    let sawScroll = false;
+    let quietTimeout = null;
+
+    const unlock = () => {
+      clearScrollLockTimers();
+      observerLock.current = false;
+    };
+
+    const scheduleQuietUnlock = () => {
+      if (quietTimeout != null) window.clearTimeout(quietTimeout);
+      quietTimeout = window.setTimeout(() => {
+        if (Math.abs(window.scrollY - lastScrollY) < 1) unlock();
+        else scheduleQuietUnlock();
+      }, 140);
+    };
+
+    const onScroll = () => {
+      sawScroll = true;
+      lastScrollY = window.scrollY;
+      scheduleQuietUnlock();
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    // Instant jumps may emit no scroll events; unlock shortly if none arrive.
+    quietTimeout = window.setTimeout(() => {
+      if (!sawScroll) unlock();
+    }, 160);
+    unlockObserverTimeout.current = window.setTimeout(unlock, maxWaitMs);
+
+    scrollSettleCleanup.current = () => {
+      window.removeEventListener('scroll', onScroll);
+      if (quietTimeout != null) window.clearTimeout(quietTimeout);
+    };
+  }, [clearScrollLockTimers]);
+
+  useEffect(() => () => clearScrollLockTimers(), [clearScrollLockTimers]);
+
   const goToIndex = useCallback((nextIndex, behavior = 'smooth') => {
     const bounded = Math.max(0, Math.min(nextIndex, events.length - 1));
     setCurrentEventIndex(bounded);
     if (!isMobile) {
-      const scrollBehavior = reduceMotion || behavior === 'instant' ? 'auto' : behavior;
-      observerLock.current = true;
-      storyStepRefs.current.get(events[bounded].id)?.scrollIntoView({
+      const preferInstant = reduceMotion || behavior === 'instant';
+      const scrollBehavior = preferInstant ? 'auto' : behavior;
+      const target = storyStepRefs.current.get(events[bounded].id);
+      lockObserverUntilScrollSettles(preferInstant ? 900 : 1200);
+
+      if (!target) return;
+
+      const root = document.documentElement;
+      const previousScrollBehavior = root.style.scrollBehavior;
+      // CSS `scroll-behavior: smooth` can animate even when scrollIntoView asks for "auto".
+      if (preferInstant) root.style.scrollBehavior = 'auto';
+
+      target.scrollIntoView({
         behavior: scrollBehavior,
         block: 'center',
       });
-      window.setTimeout(() => {
-        observerLock.current = false;
-      }, scrollBehavior === 'auto' ? 50 : 650);
+
+      if (preferInstant) {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            root.style.scrollBehavior = previousScrollBehavior;
+          });
+        });
+      }
     }
-  }, [events, isMobile, reduceMotion]);
+  }, [events, isMobile, lockObserverUntilScrollSettles, reduceMotion]);
 
   useEffect(() => {
     const media = window.matchMedia(MOBILE_LAYOUT_QUERY);
@@ -147,7 +217,7 @@ export default function ExploreView({
           setIsPlaying(false);
         }
       },
-      { rootMargin: '-28% 0px -38% 0px', threshold: [0.25, 0.5, 0.75] },
+      { rootMargin: '-30% 0px -30% 0px', threshold: [0.25, 0.5, 0.75] },
     );
 
     storyStepRefs.current.forEach(node => observer.observe(node));

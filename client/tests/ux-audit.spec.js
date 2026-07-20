@@ -129,6 +129,34 @@ test.describe('Desktop story interactions', () => {
     await expect(page.locator('button.explore-btn.primary')).toHaveText('Play');
     await expect(page.locator('button.explore-btn.primary')).toHaveAttribute('aria-pressed', 'false');
   });
+
+  test('timeline jumps settle without intermediate event flicker', async ({ page }) => {
+    await page.goto('/#/explore');
+    await expect(page.locator('.desktop-story')).toBeVisible();
+    await page.getByRole('button', { name: 'Timeline' }).click();
+
+    await page.evaluate(() => {
+      window.__statuses = [];
+      const status = document.querySelector('.explore-status');
+      const push = () => {
+        const value = status?.getAttribute('aria-label');
+        if (value && window.__statuses[window.__statuses.length - 1] !== value) {
+          window.__statuses.push(value);
+        }
+      };
+      push();
+      new MutationObserver(push).observe(status, { attributes: true, childList: true, subtree: true });
+    });
+
+    await page.locator('.h-timeline-event', { hasText: 'British Surrender at Saratoga' }).click();
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 11 of 18');
+    await expect(page).toHaveURL(/#\/explore\/11$/);
+    await page.waitForTimeout(900);
+
+    const statuses = await page.evaluate(() => window.__statuses);
+    expect(statuses.filter((value) => value !== 'Event 1 of 18' && value !== 'Event 11 of 18')).toEqual([]);
+    expect(statuses.at(-1)).toBe('Event 11 of 18');
+  });
 });
 
 test.describe('Tablet story layout', () => {

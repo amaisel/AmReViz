@@ -147,40 +147,53 @@ function MapController({ center, zoom, autoFly }) {
   const map = useMap();
   const prevCenterRef = useRef(null);
   const prevZoomRef = useRef(null);
+  const moveTimeoutRef = useRef(null);
+
+  useEffect(() => () => {
+    if (moveTimeoutRef.current != null) window.clearTimeout(moveTimeoutRef.current);
+  }, []);
 
   useEffect(() => {
-    if (autoFly && center) {
-      const prevCenter = prevCenterRef.current;
-      const prevZoom = prevZoomRef.current;
-      
-      // Use a small epsilon to avoid jitter from floating point precision
-      const EPSILON = 0.0001;
-      const centerChanged = !prevCenter ||
-        Math.abs(prevCenter[0] - center[0]) > EPSILON ||
-        Math.abs(prevCenter[1] - center[1]) > EPSILON;
-      
-      const zoomChanged = prevZoom !== zoom;
+    if (!autoFly || !center) return undefined;
 
-      if (centerChanged || zoomChanged) {
-        // If moving a significant distance, use flyTo for smoothness
-        const dist = prevCenter ? Math.sqrt(Math.pow(prevCenter[0] - center[0], 2) + Math.pow(prevCenter[1] - center[1], 2)) : 0;
-        
-        if (dist > 2) {
-          map.flyTo(center, zoom, {
-            duration: 0.8,
-            easeLinearity: 0.25
-          });
-        } else {
-          map.setView(center, zoom, {
-            animate: true,
-            duration: 0.4
-          });
-        }
-        
-        prevCenterRef.current = center;
-        prevZoomRef.current = zoom;
+    const prevCenter = prevCenterRef.current;
+    const prevZoom = prevZoomRef.current;
+
+    const EPSILON = 0.0001;
+    const centerChanged = !prevCenter ||
+      Math.abs(prevCenter[0] - center[0]) > EPSILON ||
+      Math.abs(prevCenter[1] - center[1]) > EPSILON;
+    const zoomChanged = prevZoom !== zoom;
+    if (!centerChanged && !zoomChanged) return undefined;
+
+    // Wait briefly so rapid intermediate active-event updates collapse into one move.
+    if (moveTimeoutRef.current != null) window.clearTimeout(moveTimeoutRef.current);
+    moveTimeoutRef.current = window.setTimeout(() => {
+      const dist = prevCenter
+        ? Math.sqrt((prevCenter[0] - center[0]) ** 2 + (prevCenter[1] - center[1]) ** 2)
+        : Number.POSITIVE_INFINITY;
+
+      map.stop();
+      if (dist > 2) {
+        map.flyTo(center, zoom, {
+          duration: 0.7,
+          easeLinearity: 0.25,
+        });
+      } else {
+        map.setView(center, zoom, {
+          animate: true,
+          duration: 0.35,
+          easeLinearity: 0.25,
+        });
       }
-    }
+
+      prevCenterRef.current = center;
+      prevZoomRef.current = zoom;
+    }, 80);
+
+    return () => {
+      if (moveTimeoutRef.current != null) window.clearTimeout(moveTimeoutRef.current);
+    };
   }, [center, zoom, map, autoFly]);
 
   return null;

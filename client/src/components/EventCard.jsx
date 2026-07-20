@@ -35,10 +35,10 @@ export default function EventCard({
   return (
     <Motion.article
       className={`event-card-fixed ${darkMode ? 'dark' : ''} ${isActive ? 'active' : ''}`}
-      initial={reduceMotion ? false : { opacity: 0.72, y: 14 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ amount: 0.4, once: false }}
-      transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+      initial={reduceMotion ? false : { opacity: 0.78 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ amount: 0.45, once: true }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       aria-label={`${event.title}, ${formattedDate}`}
     >
       <div className="event-card-furniture">
