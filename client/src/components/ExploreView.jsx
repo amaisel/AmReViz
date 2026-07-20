@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import Map from './Map';
+import EventMap from './Map';
 import EventCard from './EventCard';
 import HorizontalTimeline from './HorizontalTimeline';
 import SearchBar from './SearchBar';
@@ -233,7 +233,7 @@ export default function ExploreView({
 
   const mapStage = (
     <>
-      <Map
+      <EventMap
         events={filteredEvents}
         colonyBoundaries={colonyBoundaries}
         activeEventId={currentEvent.id}
