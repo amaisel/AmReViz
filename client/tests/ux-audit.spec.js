@@ -41,37 +41,6 @@ test.describe('Editorial experience', () => {
     await expect(page).toHaveURL(/#\/explore\/11$/);
   });
 
-  test('story navigation syncs the URL without fighting scroll', async ({ page }) => {
-    await page.addInitScript(() => {
-      window.__scrollCalls = [];
-      Element.prototype.scrollIntoView = function scrollIntoView(options) {
-        window.__scrollCalls.push({
-          index: this.dataset?.eventIndex,
-          behavior: options?.behavior ?? 'auto',
-        });
-      };
-    });
-
-    await page.goto('/#/explore');
-    await expect(page.locator('.desktop-story')).toBeVisible();
-    await page.evaluate(() => {
-      window.__scrollCalls = [];
-      document.activeElement?.blur();
-    });
-
-    await page.evaluate(() => {
-      document.body.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'ArrowDown',
-        bubbles: true,
-        cancelable: true,
-      }));
-    });
-
-    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 2 of 18');
-    await expect(page).toHaveURL(/#\/explore\/2$/);
-    await expect.poll(() => page.evaluate(() => window.__scrollCalls.length)).toBe(1);
-  });
-
   test('late deep links settle on the requested event', async ({ page }) => {
     await page.goto('/#/explore/18');
     await expect(page.getByRole('heading', { name: 'Washington Resigns Commission' })).toBeVisible();
@@ -80,36 +49,6 @@ test.describe('Editorial experience', () => {
     await page.waitForTimeout(1200);
     await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 18 of 18');
     await expect(page).toHaveURL(/#\/explore\/18$/);
-  });
-
-  test('keyboard shortcuts dialog blocks story shortcuts', async ({ page }) => {
-    await page.goto('/#/explore');
-    await expect(page.locator('.desktop-story')).toBeVisible();
-    await page.getByRole('button', { name: 'Show keyboard shortcuts' }).click();
-
-    const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
-    await expect(dialog).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Close keyboard shortcuts' })).toBeFocused();
-
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Space');
-    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 1 of 18');
-    await expect(page.locator('button.explore-btn.primary')).toHaveText(/Play|Replay/);
-  });
-
-  test('timeline space selection does not toggle playback', async ({ page }) => {
-    await page.goto('/#/explore');
-    await expect(page.locator('.desktop-story')).toBeVisible();
-    await page.getByRole('button', { name: 'Timeline' }).click();
-
-    const secondEvent = page.getByRole('button', { name: /First Continental Congress/i });
-    await secondEvent.focus();
-    await page.keyboard.press('Space');
-
-    await expect(page).toHaveURL(/#\/explore\/2$/);
-    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 2 of 18');
-    await expect(page.locator('button.explore-btn.primary')).toHaveText('Play');
-    await expect(page.locator('button.explore-btn.primary')).toHaveAttribute('aria-pressed', 'false');
   });
 
   test('final event offers replay instead of a stuck pause state', async ({ page }) => {
@@ -134,7 +73,66 @@ test.describe('Editorial experience', () => {
   });
 });
 
+test.describe('Desktop story interactions', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop project only');
+
+  test('story navigation syncs the URL without fighting scroll', async ({ page }) => {
+    await page.goto('/#/explore');
+    await expect(page.locator('.desktop-story')).toBeVisible();
+    await expect(page.locator('.story-step')).toHaveCount(18);
+    await page.evaluate(() => {
+      window.__scrollCalls = [];
+      Element.prototype.scrollIntoView = function scrollIntoView(options) {
+        window.__scrollCalls.push({
+          index: this.dataset?.eventIndex,
+          behavior: options?.behavior ?? 'auto',
+        });
+      };
+      document.activeElement?.blur();
+    });
+
+    await page.keyboard.press('ArrowDown');
+
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 2 of 18');
+    await expect(page).toHaveURL(/#\/explore\/2$/);
+    await expect.poll(async () => page.evaluate(() => window.__scrollCalls)).toEqual([
+      { index: '1', behavior: 'smooth' },
+    ]);
+  });
+
+  test('keyboard shortcuts dialog blocks story shortcuts', async ({ page }) => {
+    await page.goto('/#/explore');
+    await expect(page.locator('.desktop-story')).toBeVisible();
+    await page.getByRole('button', { name: 'Show keyboard shortcuts' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+    await expect(dialog).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Close keyboard shortcuts' })).toBeFocused();
+
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Space');
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 1 of 18');
+    await expect(page.locator('button.explore-btn.primary')).toHaveText(/Play|Replay/);
+  });
+
+  test('timeline space selection does not toggle playback', async ({ page }) => {
+    await page.goto('/#/explore');
+    await expect(page.locator('.desktop-story')).toBeVisible();
+    await page.getByRole('button', { name: 'Timeline' }).click();
+
+    const secondEvent = page.locator('.h-timeline-event', { hasText: 'First Continental Congress' });
+    await secondEvent.focus();
+    await page.keyboard.press('Space');
+
+    await expect(page).toHaveURL(/#\/explore\/2$/);
+    await expect(page.locator('.explore-status')).toHaveAttribute('aria-label', 'Event 2 of 18');
+    await expect(page.locator('button.explore-btn.primary')).toHaveText('Play');
+    await expect(page.locator('button.explore-btn.primary')).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
 test.describe('Tablet story layout', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop project only');
   test.use({ viewport: { width: 850, height: 900 } });
 
   test('centers the active marker in the compact layout', async ({ page }) => {

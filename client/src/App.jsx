@@ -178,22 +178,16 @@ export default function App() {
     }
   });
   const [view, setView, , syncView, navigationRequest] = useHashRouter('welcome');
-  const [pendingEventId, setPendingEventId] = useState(() => (
-    navigationRequest.view === 'explore' ? navigationRequest.subId : null
-  ));
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const reduceMotion = useReducedMotion();
+  const exploreNavigation = navigationRequest.view === 'explore'
+    ? { eventId: navigationRequest.subId, key: navigationRequest.key }
+    : null;
 
   useEffect(() => {
     localStorage.setItem('amreviz-dark-mode', darkMode);
     document.body.className = darkMode ? 'dark-mode' : 'light-mode';
   }, [darkMode]);
-
-  useEffect(() => {
-    setPendingEventId(
-      navigationRequest.view === 'explore' ? navigationRequest.subId : null,
-    );
-  }, [navigationRequest]);
 
   useEffect(() => {
     const handleKey = (event) => {
@@ -210,7 +204,6 @@ export default function App() {
   }, [setView, shortcutsOpen]);
 
   const handleNavigateToEvent = useCallback((eventId) => {
-    setPendingEventId(eventId);
     setView('explore', eventId);
   }, [setView]);
 
@@ -278,8 +271,7 @@ export default function App() {
                 colonyBoundaries={colonyBoundaries}
                 darkMode={darkMode}
                 onExitToWelcome={() => setView('welcome')}
-                initialEventId={pendingEventId}
-                onConsumeInitialEvent={() => setPendingEventId(null)}
+                navigationRequest={exploreNavigation}
                 onEventChange={handleStoryEventChange}
                 keyboardShortcutsOpen={shortcutsOpen}
               />

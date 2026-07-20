@@ -57,14 +57,13 @@ export default function ExploreView({
   colonyBoundaries,
   darkMode,
   onExitToWelcome,
-  initialEventId,
-  onConsumeInitialEvent,
+  navigationRequest = null,
   onEventChange,
   keyboardShortcutsOpen = false,
 }) {
   const [currentEventIndex, setCurrentEventIndex] = useState(() => {
-    if (initialEventId == null) return 0;
-    const initialIndex = events.findIndex(event => event.id === initialEventId);
+    if (navigationRequest?.eventId == null) return 0;
+    const initialIndex = events.findIndex(event => event.id === navigationRequest.eventId);
     return initialIndex === -1 ? 0 : initialIndex;
   });
   const [isPlaying, setIsPlaying] = useState(false);
@@ -76,6 +75,7 @@ export default function ExploreView({
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_LAYOUT_QUERY).matches);
   const storyStepRefs = useRef(new Map());
   const observerLock = useRef(false);
+  const handledNavigationKey = useRef(null);
   const reduceMotion = useReducedMotion();
 
   const currentEvent = events[currentEventIndex];
@@ -84,6 +84,8 @@ export default function ExploreView({
   );
   const activeChapter = chapters[Math.max(activeChapterIndex, 0)];
   const progress = ((currentEventIndex + 1) / events.length) * 100;
+  const atLastEvent = currentEventIndex >= events.length - 1;
+  const effectivelyPlaying = isPlaying && !atLastEvent;
   const filteredEvents = useMemo(
     () => events.filter(event => activeFilters.has(event.type) || event.id === currentEvent.id),
     [activeFilters, currentEvent.id, events],
@@ -113,14 +115,18 @@ export default function ExploreView({
   }, []);
 
   useEffect(() => {
-    if (initialEventId == null) return;
-    const index = events.findIndex(event => event.id === initialEventId);
-    const frame = window.requestAnimationFrame(() => {
-      if (index !== -1) goToIndex(index, 'instant');
-      onConsumeInitialEvent?.();
-    });
+    if (!navigationRequest) return undefined;
+    if (handledNavigationKey.current === navigationRequest.key) return undefined;
+
+    handledNavigationKey.current = navigationRequest.key;
+    if (navigationRequest.eventId == null) return undefined;
+
+    const index = events.findIndex(event => event.id === navigationRequest.eventId);
+    if (index === -1) return undefined;
+
+    const frame = window.requestAnimationFrame(() => goToIndex(index, 'instant'));
     return () => window.cancelAnimationFrame(frame);
-  }, [events, goToIndex, initialEventId, onConsumeInitialEvent]);
+  }, [events, goToIndex, navigationRequest]);
 
   useEffect(() => {
     onEventChange?.(currentEvent.id);
@@ -149,29 +155,25 @@ export default function ExploreView({
   }, [isMobile]);
 
   useEffect(() => {
-    if (!isPlaying) return undefined;
-    if (currentEventIndex >= events.length - 1) {
-      setIsPlaying(false);
-      return undefined;
-    }
+    if (!effectivelyPlaying) return undefined;
     const timer = window.setTimeout(() => {
       const nextIndex = currentEventIndex + 1;
       goToIndex(nextIndex);
       if (nextIndex >= events.length - 1) setIsPlaying(false);
     }, playSpeed);
     return () => window.clearTimeout(timer);
-  }, [currentEventIndex, events.length, goToIndex, isPlaying, playSpeed]);
+  }, [currentEventIndex, effectivelyPlaying, events.length, goToIndex, playSpeed]);
 
   const togglePlayback = useCallback(() => {
-    if (isPlaying) {
+    if (effectivelyPlaying) {
       setIsPlaying(false);
       return;
     }
-    if (currentEventIndex >= events.length - 1) {
+    if (atLastEvent) {
       goToIndex(0, 'instant');
     }
     setIsPlaying(true);
-  }, [currentEventIndex, events.length, goToIndex, isPlaying]);
+  }, [atLastEvent, effectivelyPlaying, goToIndex]);
 
   useEffect(() => {
     const handleKeyDown = event => {
@@ -219,17 +221,16 @@ export default function ExploreView({
     }
   }, [currentEventIndex, events, goToIndex]);
 
-  const atLastEvent = currentEventIndex >= events.length - 1;
-  const playbackLabel = isPlaying ? 'Pause' : atLastEvent ? 'Replay' : 'Play';
+  const playbackLabel = effectivelyPlaying ? 'Pause' : atLastEvent ? 'Replay' : 'Play';
 
   const controlsContent = (
     <>
       <button
-        className={`explore-btn primary ${isPlaying ? 'active' : ''}`}
+        className={`explore-btn primary ${effectivelyPlaying ? 'active' : ''}`}
         onClick={togglePlayback}
-        aria-pressed={isPlaying}
+        aria-pressed={effectivelyPlaying}
       >
-        {isPlaying ? (
+        {effectivelyPlaying ? (
           <><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10M11 3v10" /></svg>Pause</>
         ) : (
           <><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 3 8 5-8 5z" /></svg>{playbackLabel}</>
