@@ -549,6 +549,7 @@ button,
 
 .story-map-column {
   position: relative;
+  align-self: stretch;
   min-width: 0;
   border-right: 1px solid var(--line-strong);
 }
