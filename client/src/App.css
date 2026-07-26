@@ -4077,3 +4077,183 @@ body.dark-mode {
     font-size: 0.85rem;
   }
 }
+
+/* ===== DESKTOP SPLIT STORY VIEW ===== */
+@media (min-width: 900px) {
+  .scrollytelling-view {
+    --desktop-story-panel-width: clamp(390px, 40vw, 640px);
+    --desktop-controls-height: 120px;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .scrolly-map-container {
+    right: var(--desktop-story-panel-width);
+    width: auto;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card {
+    top: 0;
+    right: 0;
+    bottom: var(--desktop-controls-height);
+    left: auto;
+    width: var(--desktop-story-panel-width);
+    max-height: none;
+    padding: clamp(1.4rem, 2.2vw, 2rem);
+    background: rgba(242, 240, 233, 0.97);
+    border-top: 0;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0;
+    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.1);
+    transition: none;
+  }
+
+  .scrollytelling-view.dark:not(.view-mode-cards) .desktop-event-card {
+    background: rgba(13, 17, 23, 0.97);
+    border-top: 0;
+    border-left-color: rgba(255, 255, 255, 0.08);
+    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.35);
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card:has(.data-interlude-card) {
+    max-height: none;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-fixed {
+    display: block;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-title {
+    font-size: clamp(1.45rem, 1.8vw, 1.8rem);
+    line-height: 1.2;
+    margin-bottom: 0.65rem;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-location-row {
+    margin-bottom: 0.9rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .scrollytelling-view.dark:not(.view-mode-cards) .desktop-event-card .event-card-location-row {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-image {
+    width: 100%;
+    max-height: 240px;
+    aspect-ratio: 16 / 9;
+    margin: 0 0 1rem;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-description {
+    margin-bottom: 0.8rem;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border-left: 3px solid var(--color-american);
+  }
+
+  .scrollytelling-view.dark:not(.view-mode-cards) .desktop-event-card .event-card-significance {
+    border-left-color: #8ba3c4;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-nav {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .scrollytelling-view.dark:not(.view-mode-cards) .desktop-event-card .event-card-nav {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-event-card .data-interlude-card .interlude-chart-wrap {
+    margin-top: 1rem;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .explore-controls.desktop-controls {
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: var(--desktop-story-panel-width);
+    height: var(--desktop-controls-height);
+    display: grid;
+    grid-template-columns: auto auto auto 1fr;
+    grid-template-areas:
+      "play speed filter focus"
+      "search search search search";
+    align-content: center;
+    gap: 0.5rem 0.6rem;
+    padding: 0.75rem 1rem;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .scrollytelling-view.dark:not(.view-mode-cards) .explore-controls.desktop-controls {
+    border-left-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .playback-btn {
+    grid-area: play;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .speed-indicator {
+    grid-area: speed;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .filter-toggle-btn {
+    grid-area: filter;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .view-mode-toggle-btn {
+    grid-area: focus;
+    justify-self: end;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .explore-btn {
+    min-height: 40px;
+    padding: 0.45rem 0.65rem;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .controls-divider {
+    display: none;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .search-bar-wrapper {
+    grid-area: search;
+    width: 100%;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .search-input-container,
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .search-input,
+  .scrollytelling-view:not(.view-mode-cards) .desktop-controls .search-input:focus {
+    width: 100%;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .filters-panel {
+    right: 1rem;
+    bottom: calc(var(--desktop-controls-height) + 0.5rem);
+    left: auto;
+    width: calc(var(--desktop-story-panel-width) - 2rem);
+    max-height: min(55vh, 520px);
+    overflow-y: auto;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .explore-onboarding-hint {
+    right: var(--desktop-story-panel-width);
+    bottom: 1.25rem;
+  }
+
+  .scrollytelling-view:not(.view-mode-cards) .story-end {
+    right: calc(var(--desktop-story-panel-width) / 2);
+    bottom: calc(var(--desktop-controls-height) + 1.5rem);
+    left: auto;
+    width: min(320px, calc(var(--desktop-story-panel-width) - 3rem));
+    padding: 1.25rem 1.5rem;
+    transform: translateX(50%);
+  }
+}

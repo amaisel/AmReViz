@@ -451,7 +451,7 @@ export default function ExploreView({
   const controlsContent = (
     <>
       <button
-        className={`explore-btn ${isPlaying ? 'active' : ''}`}
+        className={`explore-btn playback-btn ${isPlaying ? 'active' : ''}`}
         onClick={togglePlayback}
       >
         {isPlaying ? (
@@ -474,7 +474,7 @@ export default function ExploreView({
       <span className="controls-divider" />
 
       <button
-        className={`explore-btn ${filtersOpen ? 'active' : ''}`}
+        className={`explore-btn filter-toggle-btn ${filtersOpen ? 'active' : ''}`}
         onClick={() => setFiltersOpen(prev => !prev)}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -494,7 +494,7 @@ export default function ExploreView({
 
       <button
         type="button"
-        className={`explore-btn ${viewMode === 'cards' ? 'active' : ''}`}
+        className={`explore-btn view-mode-toggle-btn ${viewMode === 'cards' ? 'active' : ''}`}
         onClick={toggleViewMode}
         aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
       >
@@ -587,7 +587,7 @@ export default function ExploreView({
         )}
       </AnimatePresence>
 
-      {/* Desktop: bottom-positioned event or interlude card */}
+      {/* Desktop: event or interlude story panel */}
       <div className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}>
         {cardContent}
       </div>

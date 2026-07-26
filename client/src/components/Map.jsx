@@ -675,9 +675,8 @@ export default function Map({
   // transform the chart instead — that was the remaining lag on northbound hops.
   const zoom = 6;
 
-  // Fraction of the viewport hidden behind the bottom sheet (mobile) or the
-  // bottom event card (desktop); the camera aims at the strip above it.
-  const coveredRatio = isMobile ? 0.55 : 0.48;
+  // The mobile bottom sheet covers part of the map; desktop uses a side rail.
+  const coveredRatio = isMobile ? 0.55 : 0;
 
   const visibleEvents = events.filter(event => {
     if (!hideFutureEvents) return true;
