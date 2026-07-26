@@ -13,7 +13,7 @@ import {
   Legend,
   ReferenceLine
 } from 'recharts';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 const CustomTooltip = ({ active, payload, label, darkMode }) => {
   if (active && payload && payload.length) {
@@ -55,7 +55,7 @@ export function ArmyChart({ data, darkMode, onYearClick, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
 
   return (
-    <motion.div
+    <Motion.div
       className={`chart-container ${compact ? 'compact' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -137,7 +137,7 @@ export function ArmyChart({ data, darkMode, onYearClick, compact = false }) {
           />
         </AreaChart>
       </ResponsiveContainer>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -145,7 +145,7 @@ export function TradeChart({ data, darkMode, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
 
   return (
-    <motion.div
+    <Motion.div
       className={`chart-container ${compact ? 'compact' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -212,7 +212,7 @@ export function TradeChart({ data, darkMode, compact = false }) {
           />
         </LineChart>
       </ResponsiveContainer>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -220,7 +220,7 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
   const textColor = darkMode ? '#8B949E' : '#4A5568';
 
   return (
-    <motion.div
+    <Motion.div
       className={`chart-container ${compact ? 'compact' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -268,7 +268,7 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
           <Bar dataKey="britishCasualties" name="British" fill="#7A1212" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -298,7 +298,7 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
   };
 
   return (
-    <motion.div
+    <Motion.div
       className="chart-container"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -373,6 +373,6 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </motion.div>
+    </Motion.div>
   );
 }

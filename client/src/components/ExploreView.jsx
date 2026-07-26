@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import Map from './Map';
 import EventCard from './EventCard';
 import DataInterludeCard from './DataInterludeCard';
@@ -120,7 +120,9 @@ export default function ExploreView({
   }, [currentEvent, onEventChange]);
 
   useEffect(() => {
-    if (initialEventId != null) {
+    if (initialEventId == null) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
       // Interludes share their anchor event's URL — if the current item already
       // anchors to the requested event, the deep link is satisfied and jumping
       // would yank us off the interlude.
@@ -132,8 +134,10 @@ export default function ExploreView({
         }
       }
       onConsumeInitialEvent?.();
-    }
-  }, [initialEventId]); // eslint-disable-line react-hooks/exhaustive-deps
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentEvent?.id, initialEventId, onConsumeInitialEvent, storyItems]);
 
   const viewRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -160,16 +164,24 @@ export default function ExploreView({
   const speedIndex = SPEED_PRESETS.findIndex(s => s.ms === playSpeed);
   const speedLabel = SPEED_PRESETS[speedIndex]?.label || '1x';
 
-  // --- Play/Pause auto-advance (interludes hold 1.5x longer for reading) ---
-  useEffect(() => {
-    if (!isPlaying) return;
+  const togglePlayback = useCallback(() => {
     if (currentIndex >= storyItems.length - 1) {
       setIsPlaying(false);
       return;
     }
+    setIsPlaying(prev => !prev);
+  }, [currentIndex, storyItems.length]);
+
+  // --- Play/Pause auto-advance (interludes hold 1.5x longer for reading) ---
+  useEffect(() => {
+    const lastIndex = storyItems.length - 1;
+    if (!isPlaying || currentIndex >= lastIndex) return undefined;
+
+    const nextIndex = Math.min(currentIndex + 1, lastIndex);
     const delay = storyItems[currentIndex]?.kind === 'interlude' ? playSpeed * 1.5 : playSpeed;
     const timer = setTimeout(() => {
-      setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
+      setCurrentIndex(nextIndex);
+      if (nextIndex >= lastIndex) setIsPlaying(false);
     }, delay);
     return () => clearTimeout(timer);
   }, [isPlaying, playSpeed, currentIndex, storyItems]);
@@ -283,7 +295,7 @@ export default function ExploreView({
 
       if (e.key === ' ') {
         e.preventDefault();
-        setIsPlaying(prev => !prev);
+        togglePlayback();
         return;
       }
 
@@ -304,7 +316,7 @@ export default function ExploreView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [storyItems.length, viewMode, toggleViewMode]);
+  }, [storyItems.length, togglePlayback, viewMode, toggleViewMode]);
 
   // --- Jump to an event by id (map, timeline, search, interlude charts) ---
   const jumpToEvent = useCallback((id) => {
@@ -344,14 +356,22 @@ export default function ExploreView({
     if (!showHint) return;
     const timer = setTimeout(() => {
       setShowHint(false);
-      try { sessionStorage.setItem('amreviz-hint-dismissed', '1'); } catch {}
+      try {
+        sessionStorage.setItem('amreviz-hint-dismissed', '1');
+      } catch {
+        // Session storage can be unavailable in privacy-restricted contexts.
+      }
     }, 6000);
     return () => clearTimeout(timer);
   }, [showHint]);
 
   const dismissHint = useCallback(() => {
     setShowHint(false);
-    try { sessionStorage.setItem('amreviz-hint-dismissed', '1'); } catch {}
+    try {
+      sessionStorage.setItem('amreviz-hint-dismissed', '1');
+    } catch {
+      // Session storage can be unavailable in privacy-restricted contexts.
+    }
   }, []);
 
   const activeFilterCount = activeFilters.size;
@@ -432,7 +452,7 @@ export default function ExploreView({
     <>
       <button
         className={`explore-btn ${isPlaying ? 'active' : ''}`}
-        onClick={() => setIsPlaying(prev => !prev)}
+        onClick={togglePlayback}
       >
         {isPlaying ? (
           <>
@@ -520,14 +540,13 @@ export default function ExploreView({
           darkMode={darkMode}
           hideFutureEvents={false}
           scrollWheelZoom={false}
-          timelineOpen={timelineOpen}
           mapVisible={viewMode === 'map'}
         />
       </div>
 
       {/* Compact status chip — year + progress merged */}
       <div className="explore-status-chip">
-        <motion.span
+        <Motion.span
           className="status-chip-year"
           key={currentYear}
           initial={{ opacity: 0.6 }}
@@ -535,10 +554,10 @@ export default function ExploreView({
           transition={{ duration: 0.2 }}
         >
           {currentYear}
-        </motion.span>
+        </Motion.span>
         <div className="status-chip-progress">
           <div className="status-chip-track">
-            <motion.div
+            <Motion.div
               className="status-chip-fill"
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.3 }}
@@ -556,7 +575,7 @@ export default function ExploreView({
       {/* Filters panel — floating above controls on desktop, inside the sheet on mobile */}
       <AnimatePresence>
         {filtersOpen && !isMobile && (
-          <motion.div
+          <Motion.div
             className={`filters-panel ${timelineOpen ? 'timeline-open' : ''}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -564,7 +583,7 @@ export default function ExploreView({
             transition={{ duration: 0.2 }}
           >
             {filtersPanelContent}
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 
@@ -587,7 +606,7 @@ export default function ExploreView({
           panelContent={
             <AnimatePresence>
               {filtersOpen && (
-                <motion.div
+                <Motion.div
                   className="sheet-filters-panel"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -595,7 +614,7 @@ export default function ExploreView({
                   transition={{ duration: 0.2 }}
                 >
                   {filtersPanelContent}
-                </motion.div>
+                </Motion.div>
               )}
             </AnimatePresence>
           }
@@ -607,7 +626,7 @@ export default function ExploreView({
       {/* Onboarding hint */}
       <AnimatePresence>
         {showHint && (
-          <motion.div
+          <Motion.div
             className="explore-onboarding-hint"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -622,13 +641,13 @@ export default function ExploreView({
             <button className="hint-dismiss" onClick={dismissHint} aria-label="Dismiss hint">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
             </button>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 
       {/* End of Timeline overlay */}
       {isAtEnd && (
-        <motion.div
+        <Motion.div
           className="story-end"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -639,7 +658,7 @@ export default function ExploreView({
             <button className="explore-btn" onClick={handleReplay}>Replay</button>
             <button className="explore-btn" onClick={onExitToWelcome}>Start Over</button>
           </div>
-        </motion.div>
+        </Motion.div>
       )}
     </div>
   );

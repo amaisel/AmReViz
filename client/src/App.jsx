@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
 import ExploreView from './components/ExploreView';
 import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './components/Charts';
@@ -10,6 +10,8 @@ import { colonyBoundaries } from './data/colonyBoundaries';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
 import useHashRouter from './hooks/useHashRouter';
 import './App.css';
+
+const VIEW_ORDER = { welcome: 0, explore: 1, data: 2 };
 
 function ModeToggle({ darkMode, onToggle }) {
   return (
@@ -59,7 +61,7 @@ function ViewToggle({ view, onViewChange }) {
           style={{ position: 'relative' }}
         >
           {view === item.id && (
-            <motion.div
+            <Motion.div
               layoutId="activeView"
               className="active-bg"
               transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
@@ -153,6 +155,12 @@ export default function App() {
   });
   
   const [view, setView, subId] = useHashRouter('welcome');
+  const [direction, setDirection] = useState(1);
+
+  const navigateToView = useCallback((nextView, nextSubId = null) => {
+    setDirection(VIEW_ORDER[nextView] >= VIEW_ORDER[view] ? 1 : -1);
+    setView(nextView, nextSubId);
+  }, [setView, view]);
 
   useEffect(() => {
     localStorage.setItem('amreviz-dark-mode', darkMode);
@@ -166,25 +174,19 @@ export default function App() {
       if (e.key === 'd' || e.key === 'D') {
         if (!e.ctrlKey && !e.metaKey) setDarkMode(prev => !prev);
       }
-      if (e.key === '1') setView('explore');
-      if (e.key === '2') setView('data');
+      if (e.key === '1') navigateToView('explore');
+      if (e.key === '2') navigateToView('data');
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [setView]);
-
-  // Track view direction for transitions
-  const viewOrder = { welcome: 0, explore: 1, data: 2 };
-  const prevViewRef = useRef(view);
-  const direction = viewOrder[view] >= viewOrder[prevViewRef.current] ? 1 : -1;
-  useEffect(() => { prevViewRef.current = view; }, [view]);
+  }, [navigateToView]);
 
   const handleBeginJourney = () => {
-    setView('explore');
+    navigateToView('explore');
   };
 
   const handleExitToWelcome = () => {
-    setView('welcome');
+    navigateToView('welcome');
   };
 
   // Seed from the URL so a deep link like #/explore/5 survives the first render
@@ -192,14 +194,26 @@ export default function App() {
 
   // Sync subId from URL to pendingEventId
   useEffect(() => {
-    if (view === 'explore' && subId != null) {
+    if (view !== 'explore' || subId == null) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
       setPendingEventId(subId);
-    }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [view, subId]);
 
   const handleNavigateToEvent = useCallback((eventId) => {
+    navigateToView('explore', eventId);
+  }, [navigateToView]);
+
+  const handleStoryEventChange = useCallback((eventId) => {
     setView('explore', eventId);
   }, [setView]);
+
+  const handleConsumeInitialEvent = useCallback(() => {
+    setPendingEventId(null);
+  }, []);
 
   const showHeader = view !== 'welcome';
 
@@ -214,7 +228,7 @@ export default function App() {
     <div className={`app ${darkMode ? 'dark' : 'light'}`}>
       <AnimatePresence>
         {showHeader && (
-          <motion.header
+          <Motion.header
             className="app-header"
             initial={{ y: -64, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -226,11 +240,11 @@ export default function App() {
               <p>An Interactive Journey Through Independence</p>
             </div>
             <div className="header-controls">
-              <ViewToggle view={view} onViewChange={setView} />
+              <ViewToggle view={view} onViewChange={navigateToView} />
               <HelpToggle />
               <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(!darkMode)} />
             </div>
-          </motion.header>
+          </Motion.header>
         )}
       </AnimatePresence>
 
@@ -245,7 +259,7 @@ export default function App() {
           )}
 
           {view === 'explore' && (
-            <motion.div
+            <Motion.div
               key="explore"
               className="story-view-wrapper"
               {...pageVariants}
@@ -256,20 +270,20 @@ export default function App() {
                 darkMode={darkMode}
                 onExitToWelcome={handleExitToWelcome}
                 initialEventId={pendingEventId}
-                onConsumeInitialEvent={() => setPendingEventId(null)}
-                onEventChange={handleNavigateToEvent}
+                onConsumeInitialEvent={handleConsumeInitialEvent}
+                onEventChange={handleStoryEventChange}
               />
-            </motion.div>
+            </Motion.div>
           )}
 
           {view === 'data' && (
-            <motion.div
+            <Motion.div
               className="data-view-container"
               key="data"
               {...pageVariants}
             >
               <DataView darkMode={darkMode} onNavigateToEvent={handleNavigateToEvent} />
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
       </main>

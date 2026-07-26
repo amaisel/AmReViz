@@ -95,10 +95,10 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
 
 // Memoized Event Marker to prevent flickering
 const EventMarker = memo(({ event, isActive, isFuture, proximity, onClick }) => {
-  const proximityBucket = Math.round(proximity * 100);
+  const stableProximity = Math.round(proximity * 100) / 100;
   const icon = useMemo(() => {
-    return createEventIcon(event, isActive, isFuture, proximity);
-  }, [event, isActive, isFuture, proximityBucket]);
+    return createEventIcon(event, isActive, isFuture, stableProximity);
+  }, [event, isActive, isFuture, stableProximity]);
 
   return (
     <Marker
@@ -649,7 +649,6 @@ export default function Map({
   autoFly = true,
   hideFutureEvents = false,
   scrollWheelZoom = false,
-  timelineOpen = false,
   mapVisible = true,
 }) {
   const [isMobile, setIsMobile] = useState(
@@ -761,7 +760,7 @@ export default function Map({
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
         attributionControl={false}
-        scrollWheelZoom={true}
+        scrollWheelZoom={scrollWheelZoom}
         dragging={true}
         doubleClickZoom={true}
         touchZoom={true}

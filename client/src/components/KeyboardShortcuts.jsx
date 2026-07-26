@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 export default function KeyboardShortcuts({ darkMode }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,14 +32,14 @@ export default function KeyboardShortcuts({ darkMode }) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
+        <Motion.div
           className="shortcuts-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => setIsOpen(false)}
         >
-          <motion.div
+          <Motion.div
             className={`shortcuts-panel ${darkMode ? 'dark' : ''}`}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -53,8 +53,8 @@ export default function KeyboardShortcuts({ darkMode }) {
                 <span>{s.desc}</span>
               </div>
             ))}
-          </motion.div>
-        </motion.div>
+          </Motion.div>
+        </Motion.div>
       )}
     </AnimatePresence>
   );

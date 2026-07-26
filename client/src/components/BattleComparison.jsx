@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import AnimatedCounter from './AnimatedCounter';
 
 export default function BattleComparison({ battles, darkMode }) {
@@ -26,7 +26,7 @@ export default function BattleComparison({ battles, darkMode }) {
   };
 
   return (
-    <motion.div
+    <Motion.div
       className="chart-container battle-comparison"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -55,7 +55,7 @@ export default function BattleComparison({ battles, darkMode }) {
       </div>
 
       <AnimatePresence mode="wait">
-        <motion.div
+        <Motion.div
           key={selected.id}
           className="comparison-content"
           initial={{ opacity: 0, scale: 0.98 }}
@@ -95,7 +95,7 @@ export default function BattleComparison({ battles, darkMode }) {
                 </div>
               </div>
               <div className="comparison-bar">
-                <motion.div
+                <Motion.div
                   className="bar-fill"
                   style={{ background: '#0A244A' }}
                   initial={{ width: 0 }}
@@ -123,7 +123,7 @@ export default function BattleComparison({ battles, darkMode }) {
                 </div>
               </div>
               <div className="comparison-bar">
-                <motion.div
+                <Motion.div
                   className="bar-fill"
                   style={{ background: '#7A1212' }}
                   initial={{ width: 0 }}
@@ -147,8 +147,8 @@ export default function BattleComparison({ battles, darkMode }) {
           }}>
             {selected.description}
           </div>
-        </motion.div>
+        </Motion.div>
       </AnimatePresence>
-    </motion.div>
+    </Motion.div>
   );
 }
