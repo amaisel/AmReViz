@@ -141,9 +141,17 @@ export default function ExploreView({
 
   const viewRef = useRef(null);
   const mapContainerRef = useRef(null);
+  const desktopCardRef = useRef(null);
   const isScrolling = useRef(false);
   const accumulatedDelta = useRef(0);
   const accumulatedDeltaX = useRef(0);
+
+  // Each story step starts at the top, even if the previous card was scrolled.
+  useEffect(() => {
+    if (desktopCardRef.current) {
+      desktopCardRef.current.scrollTop = 0;
+    }
+  }, [currentIndex, viewMode]);
 
   const currentYear = currentEvent?.year || 1773;
   const progress = ((currentIndex + 1) / storyItems.length) * 100;
@@ -235,6 +243,21 @@ export default function ExploreView({
 
     const handleWheel = (e) => {
       if (viewMode === 'cards') return;
+
+      // Let vertically scrollable story and filter panels consume the wheel
+      // until they reach an edge; only then resume timeline navigation.
+      const scrollPanel = e.target.closest?.('.desktop-event-card, .filters-panel');
+      const isVerticalGesture = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+      if (scrollPanel && isVerticalGesture && scrollPanel.scrollHeight > scrollPanel.clientHeight + 1) {
+        const atTop = scrollPanel.scrollTop <= 1;
+        const atBottom =
+          scrollPanel.scrollTop + scrollPanel.clientHeight >= scrollPanel.scrollHeight - 1;
+        const canContinueScrolling =
+          (e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom);
+
+        if (canContinueScrolling) return;
+      }
+
       e.preventDefault();
       if (isScrolling.current) return;
 
@@ -588,7 +611,10 @@ export default function ExploreView({
       </AnimatePresence>
 
       {/* Desktop: event or interlude story panel */}
-      <div className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}>
+      <div
+        className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}
+        ref={desktopCardRef}
+      >
         {cardContent}
       </div>
 
