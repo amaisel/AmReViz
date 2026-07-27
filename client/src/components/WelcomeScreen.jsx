@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion as Motion } from 'framer-motion';
+import { events, eventRange } from '../data/events';
 
 function ParticleCanvas({ darkMode }) {
   const canvasRef = useRef(null);
@@ -88,10 +89,10 @@ function ParticleCanvas({ darkMode }) {
 }
 
 const KEY_STATS = [
-  { value: '18', label: 'Key Events' },
-  { value: '10', label: 'Major Battles' },
+  { value: String(events.length), label: 'Key Events' },
+  { value: String(events.filter(event => event.type === 'battle').length), label: 'Battles & Sieges' },
   { value: '13', label: 'Colonies' },
-  { value: '1773–83', label: 'Decade of Change' },
+  { value: `${eventRange.start}–${String(eventRange.end).slice(-2)}`, label: 'Road to Peace' },
 ];
 
 export default function WelcomeScreen({ onBegin, darkMode }) {
@@ -182,10 +183,9 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
 
         <div className="welcome-description">
           <p>
-            Experience the birth of a nation through time and space. This visualization
-            guides you through the key events of the Revolutionary War — from the Boston
-            Tea Party to the British surrender at Yorktown — in both chronological and
-            geospatial order.
+            Follow the Revolution from coordinated resistance to international war and
+            negotiated peace. The story connects legislation, protest, diplomacy, campaigns,
+            battles, and their consequences across the Atlantic world.
           </p>
         </div>
 
@@ -260,9 +260,9 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
           zIndex: 1,
         }}
       >
-        <span className="year-start">1773</span>
+        <span className="year-start">{eventRange.start}</span>
         <div className="year-line"></div>
-        <span className="year-end">1783</span>
+        <span className="year-end">{eventRange.end}</span>
       </div>
     </Motion.div>
   );

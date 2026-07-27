@@ -41,7 +41,9 @@ const CustomTooltip = ({ active, payload, label, darkMode }) => {
             color: entry.color
           }}>
             {entry.name}: {typeof entry.value === 'number'
-              ? entry.value.toLocaleString()
+              ? entry.value.toLocaleString(undefined, entry.value < 100
+                ? { maximumFractionDigits: 3 }
+                : undefined)
               : entry.value}
           </p>
         ))}
@@ -51,7 +53,18 @@ const CustomTooltip = ({ active, payload, label, darkMode }) => {
   return null;
 };
 
-export function ArmyChart({ data, darkMode, onYearClick, compact = false }) {
+const ChartSource = ({ source, note }) => (
+  <div className="chart-source-row">
+    {note && <span>{note}</span>}
+    {source && (
+      <a className="chart-source" href={source.url} target="_blank" rel="noreferrer">
+        Source: {source.label} ↗
+      </a>
+    )}
+  </div>
+);
+
+export function ArmyChart({ data, darkMode, onYearClick, source, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
 
   return (
@@ -61,27 +74,32 @@ export function ArmyChart({ data, darkMode, onYearClick, compact = false }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       role="region"
-      aria-label="Troop Strength Over Time Chart"
+      aria-label="American Troops Furnished by Year Chart"
     >
       {!compact && (
         <>
-          <h3 className="chart-title">Troop Strength Over Time</h3>
+          <h3 className="chart-title">American Troops Furnished by Year</h3>
           <p className="chart-takeaway">
-            The Continental Army peaked at 35,000 after Valley Forge training in 1778, while British forces
-            remained relatively stable before declining after Yorktown.
+            These annual service totals are higher than the army present at any one time because
+            short enlistments, militia tours, and reenlistments could count the same person again.
           </p>
         </>
       )}
-      <ResponsiveContainer width="100%" height={compact ? 200 : 280}>
+      <ResponsiveContainer
+        width="100%"
+        height={compact ? 200 : 280}
+        minWidth={0}
+        initialDimension={{ width: 320, height: compact ? 200 : 280 }}
+      >
         <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="colorContinental" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#0A244A" stopOpacity={0.8} />
               <stop offset="95%" stopColor="#0A244A" stopOpacity={0.1} />
             </linearGradient>
-            <linearGradient id="colorBritish" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#7A1212" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="#7A1212" stopOpacity={0.1} />
+            <linearGradient id="colorMilitia" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#C5A02F" stopOpacity={0.75} />
+              <stop offset="95%" stopColor="#C5A02F" stopOpacity={0.15} />
             </linearGradient>
           </defs>
           <XAxis
@@ -98,7 +116,7 @@ export function ArmyChart({ data, darkMode, onYearClick, compact = false }) {
             tickFormatter={(value) => `${value / 1000}k`}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
-            label={{ value: 'Troops', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
+            label={{ value: 'Troops furnished', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
           />
           <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
           <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }} />
@@ -116,33 +134,47 @@ export function ArmyChart({ data, darkMode, onYearClick, compact = false }) {
           />
           <Area
             type="monotone"
-            dataKey="continental"
-            name="Continental Army"
+            dataKey="continentalPay"
+            name="In Continental pay"
             stroke="#0A244A"
             fill="url(#colorContinental)"
             strokeWidth={3}
+            stackId="troops"
             dot={{ fill: '#0A244A', r: 4 }}
             activeDot={{ r: 6, cursor: 'pointer' }}
             onClick={(data) => onYearClick?.(data?.year)}
           />
           <Area
             type="monotone"
-            dataKey="british"
-            name="British Army"
-            stroke="#7A1212"
-            fill="url(#colorBritish)"
+            dataKey="militia"
+            name="Militia & short-term troops"
+            stroke="#C5A02F"
+            fill="url(#colorMilitia)"
             strokeWidth={3}
-            dot={{ fill: '#7A1212', r: 4 }}
+            stackId="troops"
+            dot={{ fill: '#C5A02F', r: 4 }}
             activeDot={{ r: 6, cursor: 'pointer' }}
+            onClick={(data) => onYearClick?.(data?.year)}
           />
         </AreaChart>
       </ResponsiveContainer>
+      {!compact && (
+        <ChartSource
+          source={source}
+          note="Militia records are fragmentary; the source labels part of this series conjectural."
+        />
+      )}
     </Motion.div>
   );
 }
 
-export function TradeChart({ data, darkMode, compact = false }) {
+export function TradeChart({ data, darkMode, source, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
+  const peakImports = data.find(entry => entry.year === 1771)?.colonialImports ?? 0;
+  const finalImports = data.find(entry => entry.year === 1776)?.colonialImports ?? 0;
+  const importDrop = peakImports
+    ? ((1 - finalImports / peakImports) * 100).toFixed(1)
+    : '0.0';
 
   return (
     <Motion.div
@@ -157,12 +189,17 @@ export function TradeChart({ data, darkMode, compact = false }) {
         <>
           <h3 className="chart-title">Colonial Trade Impact</h3>
           <p className="chart-takeaway">
-            British imports collapsed by 97% between 1771 and 1776 as boycotts and war
-            severed trade. Values in millions of British Pounds Sterling (£).
+            Recorded imports from England fell {importDrop}% between 1771 and 1776 as boycotts and
+            war severed trade. Official customs values in millions of pounds sterling (£).
           </p>
         </>
       )}
-      <ResponsiveContainer width="100%" height={compact ? 200 : 280}>
+      <ResponsiveContainer
+        width="100%"
+        height={compact ? 200 : 280}
+        minWidth={0}
+        initialDimension={{ width: 320, height: compact ? 200 : 280 }}
+      >
         <LineChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
           <XAxis
             dataKey="year"
@@ -195,7 +232,7 @@ export function TradeChart({ data, darkMode, compact = false }) {
           <Line
             type="monotone"
             dataKey="colonialExports"
-            name="Colonial Exports"
+            name="Exports to England"
             stroke="#0A244A"
             strokeWidth={3}
             dot={{ fill: '#0A244A', r: 5 }}
@@ -204,7 +241,7 @@ export function TradeChart({ data, darkMode, compact = false }) {
           <Line
             type="monotone"
             dataKey="colonialImports"
-            name="Imports from Britain"
+            name="Imports from England"
             stroke="#7A1212"
             strokeWidth={3}
             dot={{ fill: '#7A1212', r: 5 }}
@@ -212,6 +249,12 @@ export function TradeChart({ data, darkMode, compact = false }) {
           />
         </LineChart>
       </ResponsiveContainer>
+      {!compact && (
+        <ChartSource
+          source={source}
+          note="The Census recommends these official values as a relative trade index, not current market values."
+        />
+      )}
     </Motion.div>
   );
 }
@@ -232,49 +275,66 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
         <>
           <h3 className="chart-title">Casualties by Major Battle</h3>
           <p className="chart-takeaway">
-            Long Island was the deadliest engagement for Americans,
-            while Bunker Hill cost the British nearly half their force.
-            Click a bar to view the battle on the map.
+            These selected engagements mix killed, wounded, missing, and captured; they must not
+            be added to estimate total war deaths. Click a bar to inspect its definition.
           </p>
         </>
       )}
-      <ResponsiveContainer width="100%" height={compact ? 240 : 320}>
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
-          onClick={(state) => {
-            if (state?.activePayload?.[0]?.payload?.id) {
-              onBattleClick?.(state.activePayload[0].payload.id);
-            }
+      <div
+        className="chart-scroll-frame"
+        tabIndex={0}
+        aria-label="Scrollable chronological battle casualty chart"
+      >
+        <div
+          style={{
+            minWidth: `${compact ? Math.max(360, data.length * 80) : Math.max(900, data.length * 88)}px`,
+            height: compact ? '240px' : '340px'
           }}
-          style={{ cursor: 'pointer' }}
         >
-          <XAxis
-            dataKey="title"
-            stroke={textColor}
-            tick={{ fontSize: 11, fill: textColor, angle: -45, textAnchor: 'end' }}
-            interval={0}
-            height={80}
-            axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
-          />
-          <YAxis
-            stroke={textColor}
-            tick={{ fontSize: 12, fill: textColor }}
-            axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
-            tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
-            label={{ value: 'Casualties', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
-          />
-          <Tooltip content={<CustomTooltip darkMode={darkMode} />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
-          <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '13px' }} />
-          <Bar dataKey="americanCasualties" name="American" fill="#0A244A" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="britishCasualties" name="British" fill="#7A1212" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={0}
+            initialDimension={{ width: compact ? 360 : 900, height: compact ? 240 : 340 }}
+          >
+            <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 70 }}
+              onClick={(state) => {
+                if (state?.activePayload?.[0]?.payload?.id) {
+                  onBattleClick?.(state.activePayload[0].payload.id);
+                }
+              }}
+              style={{ cursor: 'pointer' }}
+            >
+              <XAxis
+                dataKey="title"
+                stroke={textColor}
+                tick={{ fontSize: 11, fill: textColor, angle: -45, textAnchor: 'end' }}
+                interval={0}
+                height={90}
+                axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
+              />
+              <YAxis
+                stroke={textColor}
+                tick={{ fontSize: 12, fill: textColor }}
+                axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
+                tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
+                label={{ value: 'Estimated casualties', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
+              />
+              <Tooltip content={<CustomTooltip darkMode={darkMode} />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
+              <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '13px' }} />
+              <Bar dataKey="americanCasualties" name="American / allied" fill="#0A244A" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="britishCasualties" name="Crown / allied" fill="#7A1212" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </Motion.div>
   );
 }
 
 export function CampaignTimeline({ data, darkMode, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
-  const baseDate = new Date('1775-01-01').getTime();
+  const baseDate = Date.UTC(1775, 0, 1);
   const dayMs = 86400000;
 
   const regionColors = { north: '#0A244A', mid: '#C5A02F', south: '#7A1212' };
@@ -294,12 +354,12 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
 
   const formatDayOffset = (dayOffset) => {
     const d = new Date(baseDate + dayOffset * dayMs);
-    return `${d.getFullYear()}`;
+    return `${d.getUTCFullYear()}`;
   };
 
   return (
     <Motion.div
-      className="chart-container"
+      className={`chart-container ${compact ? 'compact' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: compact ? 0 : 0.35 }}
@@ -310,8 +370,8 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
         <>
           <h3 className="chart-title">Theater of Operations</h3>
           <p className="chart-takeaway">
-            The war's focus shifted from New England (1775) through the
-            Mid-Atlantic (1776–78) to the decisive Southern theater (1780–81).
+            The conflict overlapped across Canada, New England, the Mid-Atlantic, the Gulf,
+            and the South before American-French forces converged on Yorktown.
           </p>
         </>
       )}
@@ -323,7 +383,12 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
           </span>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={compact ? 220 : 300}>
+      <ResponsiveContainer
+        width="100%"
+        height={compact ? 240 : Math.max(300, data.length * 36)}
+        minWidth={0}
+        initialDimension={{ width: 320, height: compact ? 240 : Math.max(300, data.length * 36) }}
+      >
         <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
           <XAxis
             type="number"
@@ -357,7 +422,10 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                   }}>
                     <p style={{ margin: '0 0 4px', fontWeight: 'bold', color: darkMode ? '#E6EDF5' : '#0A244A' }}>{d.name}</p>
-                    <p style={{ margin: '2px 0', color: textColor }}>{new Date(d.startDate).toLocaleDateString()} to {new Date(d.endDate).toLocaleDateString()}</p>
+                    <p style={{ margin: '2px 0', color: textColor }}>
+                      {new Date(d.startDate).toLocaleDateString(undefined, { timeZone: 'UTC' })} to{' '}
+                      {new Date(d.endDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                    </p>
                     <p style={{ margin: '2px 0', color: textColor }}>{d.duration} days</p>
                   </div>
                 );
@@ -373,6 +441,9 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      {!compact && (
+        <ChartSource note="Campaign boundaries are interpretive ranges for the selected operations, not a count of continuous fighting." />
+      )}
     </Motion.div>
   );
 }

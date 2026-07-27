@@ -30,11 +30,14 @@ html, body {
 
 body {
   margin: 0;
+  width: 100%;
   min-width: 320px;
 }
 
 #root {
   height: 100%;
+  width: 100%;
+  min-width: 0;
 }
 
 h1, h2, h3, h4, h5, h6 {

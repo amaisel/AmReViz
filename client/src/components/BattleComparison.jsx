@@ -17,7 +17,8 @@ export default function BattleComparison({ battles, darkMode }) {
   const outcomeColor = {
     american: '#0A244A',
     british: '#7A1212',
-    indecisive: '#C5A02F'
+    indecisive: '#C5A02F',
+    allied: '#1F6F46'
   };
 
   const calculateRate = (casualties, forces) => {
@@ -73,16 +74,21 @@ export default function BattleComparison({ battles, darkMode }) {
                 display: 'inline-block'
               }}
             >
-              {outcomeLabel[selected.outcome]}
+              {selected.outcomeLabel || outcomeLabel[selected.outcome]}
             </div>
             <p style={{ fontSize: '0.85rem', color: '#888' }}>
-              {selected.location} • {new Date(selected.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+              {selected.location} • {new Date(selected.date).toLocaleDateString(undefined, {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                timeZone: 'UTC'
+              })}
             </p>
           </div>
 
           <div className="comparison-grid">
             <div className="comparison-side american">
-              <h4>Continental Army</h4>
+              <h4>{selected.combatants?.american || 'American / allied'}</h4>
               <div className="comparison-stat">
                 <span className="comparison-label">Total Forces</span>
                 <AnimatedCounter value={selected.forces.american} className="comparison-value" duration={0.8} />
@@ -110,7 +116,7 @@ export default function BattleComparison({ battles, darkMode }) {
             </div>
 
             <div className="comparison-side british">
-              <h4>British Forces</h4>
+              <h4>{selected.combatants?.british || 'Crown / allied'}</h4>
               <div className="comparison-stat">
                 <span className="comparison-label">Total Forces</span>
                 <AnimatedCounter value={selected.forces.british} className="comparison-value" duration={0.8} />
@@ -147,6 +153,21 @@ export default function BattleComparison({ battles, darkMode }) {
           }}>
             {selected.description}
           </div>
+          {selected.statNote && (
+            <p className="comparison-stat-note">
+              <strong>Reading the numbers:</strong> {selected.statNote}
+            </p>
+          )}
+          {selected.source && (
+            <a
+              className="comparison-source"
+              href={selected.source.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Source: {selected.source.label} ↗
+            </a>
+          )}
         </Motion.div>
       </AnimatePresence>
     </Motion.div>
