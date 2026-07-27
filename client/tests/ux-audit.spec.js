@@ -1,80 +1,133 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+const baseUrl = globalThis.process?.env.AMREVIZ_TEST_URL || 'http://localhost:5174/';
+
 test.describe('AmReViz UX & Accessibility Audit', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the app (running on localhost:5174)
-    await page.goto('http://localhost:5174/');
-    // Wait for the welcome screen content to be definitely ready
-    await page.waitForSelector('.welcome-content');
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('region', { name: 'The American Revolution' })).toBeVisible();
   });
 
-  test('Welcome screen accessibility and main action', async ({ page }) => {
-    // Check if the main heading is present
+  test('welcome screen is accessible and exposes both entry points', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'The American Revolution' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Begin exploring' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Open the data' })).toBeVisible();
 
-    // Check accessibility of the welcome screen
-    const accessibilityScanResults = await new AxeBuilder({ page }).analyze();
-    console.log('Welcome Screen Accessibility Violations:', accessibilityScanResults.violations.length);
+    const { violations } = await new AxeBuilder({ page }).analyze();
+    const seriousViolations = violations.filter(
+      ({ impact }) => impact === 'serious' || impact === 'critical',
+    );
+
+    expect(
+      seriousViolations,
+      seriousViolations.map(({ id, help }) => `${id}: ${help}`).join('\n'),
+    ).toEqual([]);
   });
 
-  test('Map keyboard navigation validation', async ({ page }) => {
-    // Go to Explore view using the ARIA label
-    await page.click('button[aria-label*="Enter Explore mode"]');
+  test('desktop explore view keeps the vertical split and keyboard-ready markers', async ({ page }) => {
+    await page.getByRole('button', { name: 'Begin exploring' }).click();
+    await expect(page.locator('.leaflet-container')).toBeVisible();
+    await expect(page.locator('.desktop-event-card')).toBeVisible();
 
-    // Wait for map to load
-    await page.waitForSelector('.leaflet-container', { timeout: 10000 });
+    const split = await page.evaluate(() => {
+      const map = document.querySelector('.map-container');
+      const panel = document.querySelector('.desktop-event-card');
+      const mapRect = map?.getBoundingClientRect();
+      const panelRect = panel?.getBoundingClientRect();
 
-    // Check if markers have tabindex="0" and role="button"
+      return {
+        mapWidth: mapRect?.width ?? 0,
+        panelWidth: panelRect?.width ?? 0,
+        viewportWidth: window.innerWidth,
+      };
+    });
+
+    expect(split.mapWidth).toBeGreaterThan(split.viewportWidth * 0.5);
+    expect(split.panelWidth).toBeGreaterThan(split.viewportWidth * 0.3);
+    expect(split.mapWidth + split.panelWidth).toBeCloseTo(split.viewportWidth, 0);
+
     const markers = page.locator('.custom-marker [role="button"]');
-    await expect(markers.first()).toBeVisible();
-    
-    const count = await markers.count();
-    expect(count).toBeGreaterThan(0);
-    
-    for (let i = 0; i < Math.min(count, 5); i++) {
-      const marker = markers.nth(i);
-      const tabIndex = await marker.getAttribute('tabindex');
-      expect(tabIndex).toBe('0');
-      const role = await marker.getAttribute('role');
-      expect(role).toBe('button');
+    expect(await markers.count()).toBeGreaterThan(0);
+
+    for (let index = 0; index < Math.min(await markers.count(), 5); index += 1) {
+      await expect(markers.nth(index)).toHaveAttribute('tabindex', '0');
+      await expect(markers.nth(index)).toHaveAttribute('role', 'button');
     }
   });
 
-  test('Search bar keyboard navigation validation', async ({ page }) => {
-    // Go to Explore view
-    await page.click('button[aria-label*="Enter Explore mode"]');
-    
-    // Find search input
-    const searchInput = page.getByPlaceholder(/Search events/i);
-    await searchInput.fill('Boston');
-    
-    // Wait for results
-    await page.waitForSelector('.search-result-item');
-    
-    // Navigate results with arrow keys
-    await page.keyboard.press('ArrowDown');
-    
-    // Check if first search result is highlighted/selected
-    const firstResult = page.locator('.search-result-item').first();
-    await expect(firstResult).toHaveClass(/active/);
-    
-    // Clear search
-    await page.click('.search-clear-btn');
-    await expect(searchInput).toHaveValue('');
+  test('search distinguishes the 1775 capture from the 1777 fall of Ticonderoga', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Begin exploring' }).click();
+
+    const searchInput = page.getByRole('textbox', { name: 'Search historical events' });
+    await searchInput.fill('Ticonderoga');
+
+    const options = page.getByRole('option');
+    const capture = options.filter({ hasText: 'Capture of Fort Ticonderoga' });
+    const fall = options.filter({ hasText: 'Fall of Fort Ticonderoga' });
+    await expect(capture).toHaveCount(1);
+    await expect(capture).toContainText('1775');
+    await expect(fall).toHaveCount(1);
+    await expect(fall).toContainText('1777');
+
+    await searchInput.press('ArrowDown');
+    await searchInput.press('ArrowDown');
+    await searchInput.press('Enter');
+
+    await expect(page).toHaveURL(/#\/explore\/109$/);
+    await expect(page.getByRole('heading', { name: 'Fall of Fort Ticonderoga' })).toBeVisible();
+    await expect(page.getByText('July 2, 1777 – July 6, 1777')).toBeVisible();
   });
 
-  test('Mobile bottom sheet baseline', async ({ page, isMobile }) => {
-    if (!isMobile) return;
+  test('data view shows sourced totals and updates the battle comparison', async ({ page }) => {
+    await page.getByRole('button', { name: 'Open the data' }).click();
 
-    // Go to Explore view
-    await page.getByRole('button', { name: /Explore/i }).first().click();
+    await expect(page.getByRole('heading', { name: 'War in Numbers' })).toBeVisible();
+    await expect(page.getByText('217,000')).toBeVisible();
+    await expect(page.getByText('4,435')).toBeVisible();
+    await expect(page.getByText('6,188')).toBeVisible();
 
-    // Check for bottom sheet
-    await expect(page.locator('.bottom-sheet')).toBeVisible();
-    
-    // Check for nested scroll indicators (Timeline inside bottom sheet)
-    const timelineInSheet = await page.locator('.bottom-sheet .horizontal-timeline').count();
-    expect(timelineInSheet).toBeGreaterThan(0);
+    const battleSelect = page.getByRole('combobox', { name: 'Select a battle to compare' });
+    await battleSelect.scrollIntoViewIfNeeded();
+    await expect(battleSelect).toBeInViewport();
+    await battleSelect.selectOption({ label: 'Fall of Fort Ticonderoga (1777)' });
+
+    const comparison = page.getByRole('region', { name: 'Battle Comparison Tool' });
+    await expect(comparison).toContainText('July 2, 1777');
+    await expect(comparison).toContainText('3,000');
+    await expect(comparison).toContainText('7,800');
+    await expect(comparison).toContainText('Fort Ticonderoga (1777)');
+  });
+
+  test('mobile explore view uses a bounded, expandable bottom sheet', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Begin exploring' }).click();
+
+    const sheet = page.locator('.bottom-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(page.locator('.desktop-event-card')).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Expand event details' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Expand event details' }).click();
+    await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
+
+    await expect
+      .poll(() => sheet.evaluate((element) => element.getBoundingClientRect().top))
+      .toBeLessThan(100);
+
+    await page.getByRole('button', { name: 'Next event' }).click();
+    await expect(page.getByRole('button', { name: 'Expand event details' })).toBeVisible();
+
+    const layout = await page.evaluate(() => ({
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      bodyOverflow: getComputedStyle(document.body).overflow,
+    }));
+
+    expect(layout.documentWidth).toBe(layout.viewportWidth);
+    expect(layout.bodyOverflow).toBe('hidden');
   });
 });
