@@ -1,0 +1,95 @@
+{
+  "14-monmouth.jpg": {
+    "event": "Battle of Monmouth",
+    "article": "https://en.wikipedia.org/wiki/Battle_of_Monmouth",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/9/9f/BattleofMonmouth.jpg",
+    "bytes": 2197691
+  },
+  "16-yorktown.jpg": {
+    "event": "Siege of Yorktown",
+    "article": "https://en.wikipedia.org/wiki/Siege_of_Yorktown",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/b/b8/Surrender_of_Lord_Cornwallis.jpg",
+    "bytes": 4738255
+  },
+  "18-washington-resigns.jpg": {
+    "event": "Washington Resigns Commission",
+    "article": "https://en.wikipedia.org/wiki/George_Washington's_resignation_as_commander-in-chief",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/7/75/General_George_Washington_Resigning_his_Commission.jpg",
+    "bytes": 5092706
+  },
+  "01-boston-tea-party.jpg": {
+    "event": "Boston Tea Party",
+    "article": "https://en.wikipedia.org/wiki/Boston_Tea_Party",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Boston_Tea_Party_w.jpg/3840px-Boston_Tea_Party_w.jpg"
+  },
+  "02-first-continental-congress.jpg": {
+    "event": "First Continental Congress",
+    "article": "https://en.wikipedia.org/wiki/First_Continental_Congress",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/9/99/Flickr_-_USCapitol_-_The_First_Continental_Congress%2C_1774.jpg"
+  },
+  "03-lexington-concord.jpg": {
+    "event": "Battles of Lexington and Concord",
+    "article": "https://en.wikipedia.org/wiki/Battles_of_Lexington_and_Concord",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/The_Battle_of_Lexington.jpg/3840px-The_Battle_of_Lexington.jpg"
+  },
+  "04-second-continental-congress.jpg": {
+    "event": "Second Continental Congress Convenes",
+    "article": "https://en.wikipedia.org/wiki/Second_Continental_Congress",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/0/0d/Congress_voting_independence.jpg"
+  },
+  "05-bunker-hill.jpg": {
+    "event": "Battle of Bunker Hill",
+    "article": "https://en.wikipedia.org/wiki/Battle_of_Bunker_Hill",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/The_Battle_of_Bunker%27s_Hill_Bridgeman_Images.jpg/3840px-The_Battle_of_Bunker%27s_Hill_Bridgeman_Images.jpg"
+  },
+  "06-common-sense.jpg": {
+    "event": "Publication of Common Sense",
+    "article": "https://en.wikipedia.org/wiki/Common_Sense",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Commonsense.jpg"
+  },
+  "07-evacuation-boston.jpg": {
+    "event": "British Evacuation of Boston",
+    "article": "https://en.wikipedia.org/wiki/Evacuation_Day_(Massachusetts)",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/c/cb/The_Evacuation_of_Boston.jpg"
+  },
+  "08-declaration.jpg": {
+    "event": "Declaration of Independence",
+    "article": "https://en.wikipedia.org/wiki/United_States_Declaration_of_Independence",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/United_States_Declaration_of_Independence.jpg/3840px-United_States_Declaration_of_Independence.jpg"
+  },
+  "09-long-island.jpg": {
+    "event": "Battle of Long Island",
+    "article": "https://en.wikipedia.org/wiki/Battle_of_Long_Island",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/BattleofLongisland.jpg/3840px-BattleofLongisland.jpg"
+  },
+  "10-trenton.jpg": {
+    "event": "Battle of Trenton",
+    "article": "https://en.wikipedia.org/wiki/Battle_of_Trenton",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/9/9c/Battle_of_Trenton_by_Charles_McBarron.jpg"
+  },
+  "11-saratoga.jpg": {
+    "event": "British Surrender at Saratoga",
+    "article": "https://en.wikipedia.org/wiki/Battles_of_Saratoga",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/7/71/Surrender_of_General_Burgoyne.jpg"
+  },
+  "12-articles-confederation.jpg": {
+    "event": "Articles of Confederation Adopted",
+    "article": "https://en.wikipedia.org/wiki/Articles_of_Confederation",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Articles_page1.jpg/3840px-Articles_page1.jpg"
+  },
+  "13-valley-forge.jpg": {
+    "event": "Valley Forge Winter Encampment",
+    "article": "https://en.wikipedia.org/wiki/Valley_Forge",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/5/55/Washington_and_Lafayette_at_Valley_Forge.jpg"
+  },
+  "15-arnold-treason.jpg": {
+    "event": "Arnold's Treason Discovered",
+    "article": "https://en.wikipedia.org/wiki/Benedict_Arnold",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/6/62/Benedict_Arnold_1color.jpg"
+  },
+  "17-evacuation-new-york.jpg": {
+    "event": "British Evacuation of New York",
+    "article": "https://en.wikipedia.org/wiki/Evacuation_Day_(New_York)",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Evacuation_Day_and_Washington%27s_Triumphal_Entry.jpg/3840px-Evacuation_Day_and_Washington%27s_Triumphal_Entry.jpg"
+  }
+}

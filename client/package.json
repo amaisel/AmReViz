@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fetch:images": "node scripts/fetch-event-images.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
@@ -30,6 +31,9 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3",
     "vite": "^7.2.4"
   }
 }

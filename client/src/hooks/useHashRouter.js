@@ -8,8 +8,9 @@ const legacyMap = { story: 'explore', timeline: 'explore' };
 function parseHash() {
   const hash = window.location.hash.replace('#/', '').replace('#', '');
   const [viewPart, subPart] = hash.split('/');
-  
-  const view = validViews.includes(viewPart) ? viewPart : 'welcome';
+
+  const normalizedView = legacyMap[viewPart] || viewPart;
+  const view = validViews.includes(normalizedView) ? normalizedView : 'welcome';
   const subId = subPart ? parseInt(subPart, 10) : null;
   
   return { view, subId };
@@ -22,10 +23,9 @@ export default function useHashRouter(defaultView = 'welcome') {
   });
 
   const setView = useCallback((newView, subId = null) => {
-    setRouteState((prev) => {
-      if (prev.view === newView && prev.subId === subId) return prev;
-      return { view: newView, subId };
-    });
+    setRouteState(prev =>
+      prev.view === newView && prev.subId === subId ? prev : { view: newView, subId }
+    );
     let newHash = '';
     if (newView !== 'welcome') {
       newHash = `#/${newView}`;

@@ -1,10 +1,25 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import Map from './Map';
 import EventCard from './EventCard';
-import HorizontalTimeline from './HorizontalTimeline';
+import DataInterludeCard from './DataInterludeCard';
 import SearchBar from './SearchBar';
 import MobileBottomSheet from './MobileBottomSheet';
+import { interludes } from '../data/interludes';
+
+// Interleave data interludes into the event sequence after their anchor events
+function buildStoryItems(events) {
+  const items = [];
+  for (const event of events) {
+    items.push({ kind: 'event', key: `event-${event.id}`, event });
+    for (const interlude of interludes) {
+      if (interlude.afterEventId === event.id) {
+        items.push({ kind: 'interlude', key: interlude.id, interlude, anchor: event });
+      }
+    }
+  }
+  return items;
+}
 
 function FilterIcon({ type }) {
   switch (type) {
@@ -61,9 +76,20 @@ export default function ExploreView({
   onConsumeInitialEvent,
   onEventChange, // New prop to sync URL
 }) {
-  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const storyItems = useMemo(() => buildStoryItems(events), [events]);
+
+  // Seed from the deep-linked event so the mount-time URL sync doesn't
+  // clobber the requested event with event 0
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    if (initialEventId != null) {
+      const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === initialEventId);
+      if (idx !== -1) return idx;
+    }
+    return 0;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(false);
+  // Timeline feature disabled for now; downstream layout props still expect it
+  const timelineOpen = false;
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(4000);
   const [fillColonies, setFillColonies] = useState(false);
@@ -73,9 +99,17 @@ export default function ExploreView({
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia('(max-width: 768px)').matches
   );
+  const [viewMode, setViewMode] = useState('map'); // 'map' | 'cards'
 
-  // Derive the current event
-  const currentEvent = events[currentEventIndex];
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => (prev === 'map' ? 'cards' : 'map'));
+  }, []);
+
+  // Derive the current story item; interludes anchor to the event before them
+  // so the map, year chip, and URL stay on the last real event
+  const currentItem = storyItems[currentIndex];
+  const isInterlude = currentItem?.kind === 'interlude';
+  const currentEvent = isInterlude ? currentItem.anchor : currentItem?.event;
 
   // Sync current event to URL when the selected event changes
   const lastSyncedEventId = useRef(null);
@@ -86,56 +120,79 @@ export default function ExploreView({
   }, [currentEvent, onEventChange]);
 
   useEffect(() => {
-    if (initialEventId != null) {
-      const idx = events.findIndex(e => e.id === initialEventId);
-      if (idx !== -1 && idx !== currentEventIndex) {
-        setCurrentEventIndex(idx);
-        setIsPlaying(false);
+    if (initialEventId == null) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      // Interludes share their anchor event's URL — if the current item already
+      // anchors to the requested event, the deep link is satisfied and jumping
+      // would yank us off the interlude.
+      if (currentEvent?.id !== initialEventId) {
+        const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === initialEventId);
+        if (idx !== -1) {
+          setCurrentIndex(idx);
+          setIsPlaying(false);
+        }
       }
       onConsumeInitialEvent?.();
-    }
-  }, [initialEventId]); // eslint-disable-line react-hooks/exhaustive-deps
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentEvent?.id, initialEventId, onConsumeInitialEvent, storyItems]);
 
   const viewRef = useRef(null);
   const mapContainerRef = useRef(null);
+  const desktopCardRef = useRef(null);
   const isScrolling = useRef(false);
   const accumulatedDelta = useRef(0);
   const accumulatedDeltaX = useRef(0);
-  const touchStart = useRef(null);
+
+  // Each story step starts at the top, even if the previous card was scrolled.
+  useEffect(() => {
+    if (desktopCardRef.current) {
+      desktopCardRef.current.scrollTop = 0;
+    }
+  }, [currentIndex, viewMode]);
 
   const currentYear = currentEvent?.year || 1773;
-  const progress = ((currentEventIndex + 1) / events.length) * 100;
+  const progress = ((currentIndex + 1) / storyItems.length) * 100;
 
   const filteredEvents = useMemo(
     () => events.filter(e => activeFilters.has(e.type)),
     [events, activeFilters]
   );
 
+  const anchorEventIndex = currentEvent ? events.indexOf(currentEvent) : 0;
   const mapEvents = filteredEvents.filter((_, i) => {
     const originalIndex = events.indexOf(filteredEvents[i]);
-    return originalIndex <= currentEventIndex;
+    return originalIndex <= anchorEventIndex;
   });
 
   const mapActiveId = currentEvent?.id;
-  const displayEvent = currentEvent;
 
   const speedIndex = SPEED_PRESETS.findIndex(s => s.ms === playSpeed);
   const speedLabel = SPEED_PRESETS[speedIndex]?.label || '1x';
 
-  // --- Play/Pause auto-advance ---
+  const togglePlayback = useCallback(() => {
+    if (currentIndex >= storyItems.length - 1) {
+      setIsPlaying(false);
+      return;
+    }
+    setIsPlaying(prev => !prev);
+  }, [currentIndex, storyItems.length]);
+
+  // --- Play/Pause auto-advance (interludes hold 1.5x longer for reading) ---
   useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setCurrentEventIndex(prev => {
-        if (prev >= events.length - 1) {
-          setIsPlaying(false);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, playSpeed);
-    return () => clearInterval(interval);
-  }, [isPlaying, playSpeed, events.length]);
+    const lastIndex = storyItems.length - 1;
+    if (!isPlaying || currentIndex >= lastIndex) return undefined;
+
+    const nextIndex = Math.min(currentIndex + 1, lastIndex);
+    const delay = storyItems[currentIndex]?.kind === 'interlude' ? playSpeed * 1.5 : playSpeed;
+    const timer = setTimeout(() => {
+      setCurrentIndex(nextIndex);
+      if (nextIndex >= lastIndex) setIsPlaying(false);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [isPlaying, playSpeed, currentIndex, storyItems]);
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 768px)');
@@ -185,6 +242,22 @@ export default function ExploreView({
     const LOCKOUT_MS = 350;
 
     const handleWheel = (e) => {
+      if (viewMode === 'cards') return;
+
+      // Let vertically scrollable story and filter panels consume the wheel
+      // until they reach an edge; only then resume timeline navigation.
+      const scrollPanel = e.target.closest?.('.desktop-event-card, .filters-panel');
+      const isVerticalGesture = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+      if (scrollPanel && isVerticalGesture && scrollPanel.scrollHeight > scrollPanel.clientHeight + 1) {
+        const atTop = scrollPanel.scrollTop <= 1;
+        const atBottom =
+          scrollPanel.scrollTop + scrollPanel.clientHeight >= scrollPanel.scrollHeight - 1;
+        const canContinueScrolling =
+          (e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom);
+
+        if (canContinueScrolling) return;
+      }
+
       e.preventDefault();
       if (isScrolling.current) return;
 
@@ -208,9 +281,9 @@ export default function ExploreView({
         const delta = useHorizontal ? accumulatedDeltaX.current : accumulatedDelta.current;
 
         if (delta > 0) {
-          setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+          setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
         } else {
-          setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+          setCurrentIndex(prev => Math.max(prev - 1, 0));
         }
 
         accumulatedDelta.current = 0;
@@ -223,55 +296,29 @@ export default function ExploreView({
     if (!el) return;
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [events.length]);
-
-  // --- Touch swipe navigation ---
-  useEffect(() => {
-    const SWIPE_THRESHOLD = 40;
-
-    const handleTouchStart = (e) => {
-      touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    };
-
-    const handleTouchEnd = (e) => {
-      if (!touchStart.current || isScrolling.current) return;
-      const dx = touchStart.current.x - e.changedTouches[0].clientX;
-      const dy = touchStart.current.y - e.changedTouches[0].clientY;
-      touchStart.current = null;
-
-      const useHorizontal = Math.abs(dx) > Math.abs(dy) * 0.5;
-      const delta = useHorizontal ? dx : dy;
-
-      if (Math.abs(delta) >= SWIPE_THRESHOLD) {
-        isScrolling.current = true;
-        setIsPlaying(false);
-        if (delta > 0) {
-          setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-        } else {
-          setCurrentEventIndex(prev => Math.max(prev - 1, 0));
-        }
-        setTimeout(() => { isScrolling.current = false; }, 350);
-      }
-    };
-
-    const el = mapContainerRef.current;
-    if (!el) return;
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchend', handleTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [events.length]);
+  }, [storyItems.length, viewMode]);
 
   // --- Keyboard navigation ---
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        toggleViewMode();
+        return;
+      }
+
+      if (e.key === 'Escape' && viewMode === 'cards') {
+        if (document.querySelector('.shortcuts-overlay')) return;
+        e.preventDefault();
+        setViewMode('map');
+        return;
+      }
+
       if (e.key === ' ') {
         e.preventDefault();
-        setIsPlaying(prev => !prev);
+        togglePlayback();
         return;
       }
 
@@ -279,56 +326,45 @@ export default function ExploreView({
         e.preventDefault();
         setIsPlaying(false);
         isScrolling.current = true;
-        setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
+        setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
         setTimeout(() => { isScrolling.current = false; }, 300);
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
         setIsPlaying(false);
         isScrolling.current = true;
-        setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+        setCurrentIndex(prev => Math.max(prev - 1, 0));
         setTimeout(() => { isScrolling.current = false; }, 300);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [events.length]);
+  }, [storyItems.length, togglePlayback, viewMode, toggleViewMode]);
 
-  // --- Map event click handler ---
-  const handleMapEventClick = useCallback((id) => {
+  // --- Jump to an event by id (map, timeline, search, interlude charts) ---
+  const jumpToEvent = useCallback((id) => {
     setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
+    const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === id);
+    if (idx !== -1) setCurrentIndex(idx);
+  }, [storyItems]);
 
-  // --- Timeline click handler ---
-  const handleTimelineClick = useCallback((id) => {
-    setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
-
-  // --- Search select handler ---
-  const handleSearchSelect = useCallback((id) => {
-    setIsPlaying(false);
-    const idx = events.findIndex(e => e.id === id);
-    if (idx !== -1) setCurrentEventIndex(idx);
-  }, [events]);
+  const handleMapEventClick = jumpToEvent;
+  const handleSearchSelect = jumpToEvent;
 
   // --- Prev/Next handlers ---
   const handlePrevEvent = useCallback(() => {
     setIsPlaying(false);
-    setCurrentEventIndex(prev => Math.max(prev - 1, 0));
+    setCurrentIndex(prev => Math.max(prev - 1, 0));
   }, []);
 
   const handleNextEvent = useCallback(() => {
     setIsPlaying(false);
-    setCurrentEventIndex(prev => Math.min(prev + 1, events.length - 1));
-  }, [events.length]);
+    setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
+  }, [storyItems.length]);
 
   // --- Replay handler ---
   const handleReplay = useCallback(() => {
-    setCurrentEventIndex(0);
+    setCurrentIndex(0);
     setIsPlaying(true);
   }, []);
 
@@ -343,24 +379,103 @@ export default function ExploreView({
     if (!showHint) return;
     const timer = setTimeout(() => {
       setShowHint(false);
-      try { sessionStorage.setItem('amreviz-hint-dismissed', '1'); } catch {}
+      try {
+        sessionStorage.setItem('amreviz-hint-dismissed', '1');
+      } catch {
+        // Session storage can be unavailable in privacy-restricted contexts.
+      }
     }, 6000);
     return () => clearTimeout(timer);
   }, [showHint]);
 
   const dismissHint = useCallback(() => {
     setShowHint(false);
-    try { sessionStorage.setItem('amreviz-hint-dismissed', '1'); } catch {}
+    try {
+      sessionStorage.setItem('amreviz-hint-dismissed', '1');
+    } catch {
+      // Session storage can be unavailable in privacy-restricted contexts.
+    }
   }, []);
 
   const activeFilterCount = activeFilters.size;
-  const isAtEnd = currentEventIndex === events.length - 1;
+  const isAtEnd = currentIndex === storyItems.length - 1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < storyItems.length - 1;
+
+  const cardContent = isInterlude ? (
+    <DataInterludeCard
+      interlude={currentItem.interlude}
+      darkMode={darkMode}
+      timelineOpen={timelineOpen}
+      onPrev={handlePrevEvent}
+      onNext={handleNextEvent}
+      hasPrev={hasPrev}
+      hasNext={hasNext}
+      onBattleClick={jumpToEvent}
+    />
+  ) : (
+    <EventCard
+      event={currentEvent}
+      darkMode={darkMode}
+      timelineOpen={timelineOpen}
+      onPrev={handlePrevEvent}
+      onNext={handleNextEvent}
+      hasPrev={hasPrev}
+      hasNext={hasNext}
+    />
+  );
+
+  const filtersPanelContent = (
+    <>
+      <div className="filter-presets">
+        {FILTER_PRESETS.map((preset) => {
+          const isActive = preset.filters.length === activeFilters.size &&
+            preset.filters.every(f => activeFilters.has(f));
+          return (
+            <button
+              key={preset.label}
+              className={`filter-preset-chip ${isActive ? 'active' : ''}`}
+              onClick={() => applyPreset(preset.filters)}
+            >
+              {preset.label}
+            </button>
+          );
+        })}
+      </div>
+      <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+      {viewMode === 'map' && (
+        <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
+          <input
+            type="checkbox"
+            checked={fillColonies}
+            onChange={() => setFillColonies(!fillColonies)}
+          />
+          Color colonies
+        </label>
+      )}
+      {viewMode === 'map' && (
+        <div className="filters-legend-section">
+          <h4 className="filters-legend-title">Map Legend</h4>
+          <div className="filters-legend-rows">
+            <span className="filters-legend-item">
+              <span className="legend-dot" style={{ background: '#1e3a5f' }} />
+              American
+            </span>
+            <span className="filters-legend-item">
+              <span className="legend-dot" style={{ background: '#8b2323' }} />
+              British
+            </span>
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   const controlsContent = (
     <>
       <button
-        className={`explore-btn ${isPlaying ? 'active' : ''}`}
-        onClick={() => setIsPlaying(prev => !prev)}
+        className={`explore-btn playback-btn ${isPlaying ? 'active' : ''}`}
+        onClick={togglePlayback}
       >
         {isPlaying ? (
           <>
@@ -382,17 +497,7 @@ export default function ExploreView({
       <span className="controls-divider" />
 
       <button
-        className={`explore-btn ${timelineOpen ? 'active' : ''}`}
-        onClick={() => setTimelineOpen(prev => !prev)}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
-        Timeline
-      </button>
-
-      <span className="controls-divider" />
-
-      <button
-        className={`explore-btn ${filtersOpen ? 'active' : ''}`}
+        className={`explore-btn filter-toggle-btn ${filtersOpen ? 'active' : ''}`}
         onClick={() => setFiltersOpen(prev => !prev)}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -407,13 +512,47 @@ export default function ExploreView({
         onEventSelect={handleSearchSelect}
         darkMode={darkMode}
       />
+
+      <span className="controls-divider" />
+
+      <button
+        type="button"
+        className={`explore-btn view-mode-toggle-btn ${viewMode === 'cards' ? 'active' : ''}`}
+        onClick={toggleViewMode}
+        aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
+      >
+        {viewMode === 'map' ? (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="4 14 4 20 10 20" />
+              <polyline points="20 10 20 4 14 4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+            <span>Focus cards</span>
+          </>
+        ) : (
+          <>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+              <line x1="8" y1="2" x2="8" y2="18" />
+              <line x1="16" y1="6" x2="16" y2="22" />
+            </svg>
+            <span>Show map</span>
+          </>
+        )}
+      </button>
     </>
   );
 
   return (
-    <div className={`scrollytelling-view ${darkMode ? 'dark' : ''}`} ref={viewRef}>
-      {/* Full-screen Map */}
-      <div className="scrolly-map-container" ref={mapContainerRef}>
+    <div className={`scrollytelling-view ${darkMode ? 'dark' : ''} view-mode-${viewMode}`} ref={viewRef}>
+      {/* Full-screen Map — CSS-hidden in cards mode; never unmount */}
+      <div
+        className="scrolly-map-container"
+        ref={mapContainerRef}
+        aria-hidden={viewMode === 'cards'}
+      >
         <Map
           events={mapEvents}
           colonyBoundaries={colonyBoundaries}
@@ -424,29 +563,30 @@ export default function ExploreView({
           darkMode={darkMode}
           hideFutureEvents={false}
           scrollWheelZoom={false}
-          timelineOpen={timelineOpen}
+          mapVisible={viewMode === 'map'}
         />
       </div>
 
       {/* Compact status chip — year + progress merged */}
       <div className="explore-status-chip">
-        <motion.span
+        <Motion.span
           className="status-chip-year"
           key={currentYear}
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0.6 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
         >
           {currentYear}
-        </motion.span>
+        </Motion.span>
         <div className="status-chip-progress">
           <div className="status-chip-track">
-            <motion.div
+            <Motion.div
               className="status-chip-fill"
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
-          <span className="status-chip-counter">{currentEventIndex + 1}/{events.length}</span>
+          <span className="status-chip-counter">{currentIndex + 1}/{storyItems.length}</span>
         </div>
       </div>
 
@@ -455,133 +595,85 @@ export default function ExploreView({
         {controlsContent}
       </div>
 
-      {/* Filters panel — floating above controls, now includes legend */}
+      {/* Filters panel — floating above controls on desktop, inside the sheet on mobile */}
       <AnimatePresence>
-        {filtersOpen && (
-          <motion.div
+        {filtersOpen && !isMobile && (
+          <Motion.div
             className={`filters-panel ${timelineOpen ? 'timeline-open' : ''}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="filter-presets">
-              {FILTER_PRESETS.map((preset) => {
-                const isActive = preset.filters.length === activeFilters.size &&
-                  preset.filters.every(f => activeFilters.has(f));
-                return (
-                  <button
-                    key={preset.label}
-                    className={`filter-preset-chip ${isActive ? 'active' : ''}`}
-                    onClick={() => applyPreset(preset.filters)}
-                  >
-                    {preset.label}
-                  </button>
-                );
-              })}
-            </div>
-            <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
-            <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
-              <input
-                type="checkbox"
-                checked={fillColonies}
-                onChange={() => setFillColonies(!fillColonies)}
-              />
-              Color colonies
-            </label>
-            <div className="filters-legend-section">
-              <h4 className="filters-legend-title">Map Legend</h4>
-              <div className="filters-legend-rows">
-                <span className="filters-legend-item">
-                  <span className="legend-dot" style={{ background: '#1e3a5f' }} />
-                  American
-                </span>
-                <span className="filters-legend-item">
-                  <span className="legend-dot" style={{ background: '#8b2323' }} />
-                  British
-                </span>
-              </div>
-            </div>
-          </motion.div>
+            {filtersPanelContent}
+          </Motion.div>
         )}
       </AnimatePresence>
 
-      {/* Desktop: bottom-positioned event card */}
-      <div className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}>
-        <AnimatePresence mode="wait">
-          <EventCard
-            event={displayEvent}
-            darkMode={darkMode}
-            timelineOpen={timelineOpen}
-            onPrev={handlePrevEvent}
-            onNext={handleNextEvent}
-            hasPrev={currentEventIndex > 0}
-            hasNext={currentEventIndex < events.length - 1}
-          />
-        </AnimatePresence>
+      {/* Desktop: event or interlude story panel */}
+      <div
+        className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}
+        ref={desktopCardRef}
+      >
+        {cardContent}
       </div>
-
-      {/* Desktop: Collapsible Timeline */}
-      <AnimatePresence>
-        {timelineOpen && (
-          <motion.div
-            className={`explore-timeline-container ${isMobile ? 'mobile-fixed-timeline' : 'desktop-timeline'}`}
-            initial={{ opacity: 0, y: 60 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 60 }}
-            transition={{ duration: 0.3 }}
-          >
-            <HorizontalTimeline
-              events={filteredEvents}
-              activeEventId={currentEvent?.id}
-              onEventClick={handleTimelineClick}
-              darkMode={darkMode}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Mobile/Tablet: draggable bottom sheet */}
       {isMobile && (
         <MobileBottomSheet
-          eventId={currentEvent?.id}
+          eventId={currentItem?.key}
           darkMode={darkMode}
           controlsContent={controlsContent}
-          timelineOpen={timelineOpen}
+          locked={viewMode === 'cards'}
+          onPrev={handlePrevEvent}
+          onNext={handleNextEvent}
+          hasPrev={hasPrev}
+          hasNext={hasNext}
+          panelContent={
+            <AnimatePresence>
+              {filtersOpen && (
+                <Motion.div
+                  className="sheet-filters-panel"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {filtersPanelContent}
+                </Motion.div>
+              )}
+            </AnimatePresence>
+          }
         >
-          <EventCard
-            event={displayEvent}
-            darkMode={darkMode}
-            timelineOpen={timelineOpen}
-            onPrev={handlePrevEvent}
-            onNext={handleNextEvent}
-            hasPrev={currentEventIndex > 0}
-            hasNext={currentEventIndex < events.length - 1}
-          />
+          {cardContent}
         </MobileBottomSheet>
       )}
 
       {/* Onboarding hint */}
       <AnimatePresence>
         {showHint && (
-          <motion.div
+          <Motion.div
             className="explore-onboarding-hint"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.4 }}
           >
-            <span>Use arrow keys, swipe, or Play to move through events</span>
+            <span>
+              {isMobile
+                ? 'Swipe up or down to move through events'
+                : 'Use arrow keys, scroll, or Play to move through events'}
+            </span>
             <button className="hint-dismiss" onClick={dismissHint} aria-label="Dismiss hint">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
             </button>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 
       {/* End of Timeline overlay */}
       {isAtEnd && (
-        <motion.div
+        <Motion.div
           className="story-end"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -592,7 +684,7 @@ export default function ExploreView({
             <button className="explore-btn" onClick={handleReplay}>Replay</button>
             <button className="explore-btn" onClick={onExitToWelcome}>Start Over</button>
           </div>
-        </motion.div>
+        </Motion.div>
       )}
     </div>
   );

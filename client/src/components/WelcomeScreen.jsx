@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 function ParticleCanvas({ darkMode }) {
   const canvasRef = useRef(null);
@@ -146,7 +146,7 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
   }, [onBegin, handleMouseMove]);
 
   return (
-    <motion.div
+    <Motion.div
       className={`welcome-screen ${darkMode ? 'dark' : ''}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -216,20 +216,20 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
           </button>
         </div>
 
-        <motion.div
+        <Motion.div
           className="welcome-scroll-hint"
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.6 }}
           transition={{ delay: 1.2, duration: 0.8 }}
         >
           <span>or scroll to start exploring</span>
-          <motion.div
+          <Motion.div
             className="scroll-arrow"
             animate={{ y: [0, 8, 0] }}
             transition={{ repeat: Infinity, duration: 1.5 }}
           >
             ↓
-          </motion.div>
+          </Motion.div>
           <button 
             className="welcome-help-hint"
             onClick={() => {
@@ -248,7 +248,7 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
           >
             Press ? for keyboard shortcuts
           </button>
-        </motion.div>
+        </Motion.div>
       </div>
 
       <div
@@ -264,6 +264,6 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
         <div className="year-line"></div>
         <span className="year-end">1783</span>
       </div>
-    </motion.div>
+    </Motion.div>
   );
 }

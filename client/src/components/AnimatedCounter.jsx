@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { motion, useMotionValue, useTransform, animate, useInView } from 'framer-motion';
+import { motion as Motion, useMotionValue, useTransform, animate, useInView } from 'framer-motion';
 
 export default function AnimatedCounter({ value, prefix = '', suffix = '', duration = 1.5, className = '' }) {
   const ref = useRef(null);
@@ -17,5 +17,5 @@ export default function AnimatedCounter({ value, prefix = '', suffix = '', durat
     }
   }, [isInView, value, motionValue, duration]);
 
-  return <motion.span ref={ref} className={className}>{display}</motion.span>;
+  return <Motion.span ref={ref} className={className}>{display}</Motion.span>;
 }

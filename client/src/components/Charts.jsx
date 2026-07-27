@@ -13,7 +13,7 @@ import {
   Legend,
   ReferenceLine
 } from 'recharts';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 const CustomTooltip = ({ active, payload, label, darkMode }) => {
   if (active && payload && payload.length) {
@@ -51,24 +51,28 @@ const CustomTooltip = ({ active, payload, label, darkMode }) => {
   return null;
 };
 
-export function ArmyChart({ data, darkMode, onYearClick }) {
+export function ArmyChart({ data, darkMode, onYearClick, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
 
   return (
-    <motion.div
-      className="chart-container"
+    <Motion.div
+      className={`chart-container ${compact ? 'compact' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       role="region"
       aria-label="Troop Strength Over Time Chart"
     >
-      <h3 className="chart-title">Troop Strength Over Time</h3>
-      <p className="chart-takeaway">
-        The Continental Army peaked at 35,000 after Valley Forge training in 1778, while British forces
-        remained relatively stable before declining after Yorktown.
-      </p>
-      <ResponsiveContainer width="100%" height={280}>
+      {!compact && (
+        <>
+          <h3 className="chart-title">Troop Strength Over Time</h3>
+          <p className="chart-takeaway">
+            The Continental Army peaked at 35,000 after Valley Forge training in 1778, while British forces
+            remained relatively stable before declining after Yorktown.
+          </p>
+        </>
+      )}
+      <ResponsiveContainer width="100%" height={compact ? 200 : 280}>
         <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="colorContinental" x1="0" y1="0" x2="0" y2="1">
@@ -133,28 +137,32 @@ export function ArmyChart({ data, darkMode, onYearClick }) {
           />
         </AreaChart>
       </ResponsiveContainer>
-    </motion.div>
+    </Motion.div>
   );
 }
 
-export function TradeChart({ data, darkMode }) {
+export function TradeChart({ data, darkMode, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
 
   return (
-    <motion.div
-      className="chart-container"
+    <Motion.div
+      className={`chart-container ${compact ? 'compact' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.15 }}
+      transition={{ duration: 0.5, delay: compact ? 0 : 0.15 }}
       role="region"
       aria-label="Colonial Trade Chart"
     >
-      <h3 className="chart-title">Colonial Trade Impact</h3>
-      <p className="chart-takeaway">
-        British imports collapsed by 97% between 1771 and 1776 as boycotts and war
-        severed trade. Values in millions of British Pounds Sterling (£).
-      </p>
-      <ResponsiveContainer width="100%" height={280}>
+      {!compact && (
+        <>
+          <h3 className="chart-title">Colonial Trade Impact</h3>
+          <p className="chart-takeaway">
+            British imports collapsed by 97% between 1771 and 1776 as boycotts and war
+            severed trade. Values in millions of British Pounds Sterling (£).
+          </p>
+        </>
+      )}
+      <ResponsiveContainer width="100%" height={compact ? 200 : 280}>
         <LineChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
           <XAxis
             dataKey="year"
@@ -204,29 +212,33 @@ export function TradeChart({ data, darkMode }) {
           />
         </LineChart>
       </ResponsiveContainer>
-    </motion.div>
+    </Motion.div>
   );
 }
 
-export function CasualtiesChart({ data, darkMode, onBattleClick }) {
+export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
 
   return (
-    <motion.div
-      className="chart-container"
+    <Motion.div
+      className={`chart-container ${compact ? 'compact' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.25 }}
+      transition={{ duration: 0.5, delay: compact ? 0 : 0.25 }}
       role="region"
       aria-label="Casualties by Major Battle Chart"
     >
-      <h3 className="chart-title">Casualties by Major Battle</h3>
-      <p className="chart-takeaway">
-        Long Island was the deadliest engagement for Americans,
-        while Bunker Hill cost the British nearly half their force.
-        Click a bar to view the battle on the map.
-      </p>
-      <ResponsiveContainer width="100%" height={320}>
+      {!compact && (
+        <>
+          <h3 className="chart-title">Casualties by Major Battle</h3>
+          <p className="chart-takeaway">
+            Long Island was the deadliest engagement for Americans,
+            while Bunker Hill cost the British nearly half their force.
+            Click a bar to view the battle on the map.
+          </p>
+        </>
+      )}
+      <ResponsiveContainer width="100%" height={compact ? 240 : 320}>
         <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
           onClick={(state) => {
             if (state?.activePayload?.[0]?.payload?.id) {
@@ -256,11 +268,11 @@ export function CasualtiesChart({ data, darkMode, onBattleClick }) {
           <Bar dataKey="britishCasualties" name="British" fill="#7A1212" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
-    </motion.div>
+    </Motion.div>
   );
 }
 
-export function CampaignTimeline({ data, darkMode }) {
+export function CampaignTimeline({ data, darkMode, compact = false }) {
   const textColor = darkMode ? '#8B949E' : '#4A5568';
   const baseDate = new Date('1775-01-01').getTime();
   const dayMs = 86400000;
@@ -286,19 +298,23 @@ export function CampaignTimeline({ data, darkMode }) {
   };
 
   return (
-    <motion.div
+    <Motion.div
       className="chart-container"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.35 }}
+      transition={{ duration: 0.5, delay: compact ? 0 : 0.35 }}
       role="region"
       aria-label="Military Campaigns Timeline"
     >
-      <h3 className="chart-title">Theater of Operations</h3>
-      <p className="chart-takeaway">
-        The war's focus shifted from New England (1775) through the
-        Mid-Atlantic (1776–78) to the decisive Southern theater (1780–81).
-      </p>
+      {!compact && (
+        <>
+          <h3 className="chart-title">Theater of Operations</h3>
+          <p className="chart-takeaway">
+            The war's focus shifted from New England (1775) through the
+            Mid-Atlantic (1776–78) to the decisive Southern theater (1780–81).
+          </p>
+        </>
+      )}
       <div className="campaign-legend" style={{ marginBottom: '1rem' }}>
         {Object.entries(regionColors).map(([region, color]) => (
           <span key={region} className="campaign-legend-item" style={{ fontSize: '12px' }}>
@@ -307,7 +323,7 @@ export function CampaignTimeline({ data, darkMode }) {
           </span>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={compact ? 220 : 300}>
         <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
           <XAxis
             type="number"
@@ -357,6 +373,6 @@ export function CampaignTimeline({ data, darkMode }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </motion.div>
+    </Motion.div>
   );
 }
