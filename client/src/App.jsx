@@ -1,15 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
-import ExploreView from './components/ExploreView';
-import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './components/Charts';
-import BattleComparison from './components/BattleComparison';
-import AnimatedCounter from './components/AnimatedCounter';
-import { events, armyData, economicData, battleData, campaignData } from './data/events';
-import { colonyBoundaries } from './data/colonyBoundaries';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
 import useHashRouter from './hooks/useHashRouter';
 import './App.css';
+
+const ExploreRoute = lazy(() => import('./components/ExploreRoute'));
+const DataView = lazy(() => import('./components/DataView'));
 
 const VIEW_ORDER = { welcome: 0, explore: 1, data: 2 };
 
@@ -84,65 +81,11 @@ function ViewToggle({ view, onViewChange }) {
   );
 }
 
-function DataView({ darkMode, onNavigateToEvent }) {
-  const battles = events.filter(e => e.casualties);
-
-  const handleBattleClick = (eventId) => {
-    onNavigateToEvent?.(eventId);
-  };
-
-  const handleYearClick = (year) => {
-    const match = events.find(e => e.year === year);
-    if (match) onNavigateToEvent?.(match.id);
-  };
-
+function ViewLoading({ label }) {
   return (
-    <div className="data-view">
-      <header className="data-section">
-        <h2>Forces & Economy</h2>
-        <p className="data-subtitle">
-          Visualizing the Revolution through numbers
-        </p>
-      </header>
-
-      <div className="data-insights">
-        <div className="insight-card">
-          <h4>Peak Continental Army</h4>
-          <AnimatedCounter value={35000} className="insight-value" />
-          <p>troops in 1778 after Valley Forge training</p>
-        </div>
-        <div className="insight-card">
-          <h4>Trade Collapse</h4>
-          <AnimatedCounter value={75} prefix="-" suffix="%" className="insight-value" />
-          <p>drop in British imports 1774-1776</p>
-        </div>
-        <div className="insight-card">
-          <h4>War Deaths</h4>
-          <AnimatedCounter value={25000} className="insight-value" />
-          <p>American casualties (combat + disease)</p>
-        </div>
-      </div>
-
-      <section className="data-group">
-        <h3 className="data-group-title">Military Strength & Theater</h3>
-        <div className="data-grid">
-          <ArmyChart data={armyData} darkMode={darkMode} onYearClick={handleYearClick} />
-          <CampaignTimeline data={campaignData} darkMode={darkMode} />
-        </div>
-      </section>
-
-      <section className="data-group">
-        <h3 className="data-group-title">Economic Impact</h3>
-        <TradeChart data={economicData} darkMode={darkMode} />
-      </section>
-
-      <section className="data-group">
-        <h3 className="data-group-title">Battle Analysis</h3>
-        <div className="data-grid">
-          <CasualtiesChart data={battleData} darkMode={darkMode} onBattleClick={handleBattleClick} />
-          <BattleComparison battles={battles} darkMode={darkMode} />
-        </div>
-      </section>
+    <div className="view-loading" role="status" aria-live="polite">
+      <span className="view-loading-mark" aria-hidden="true" />
+      <p>Loading {label}…</p>
     </div>
   );
 }
@@ -254,7 +197,9 @@ export default function App() {
             <WelcomeScreen
               key="welcome"
               onBegin={handleBeginJourney}
+              onOpenData={() => navigateToView('data')}
               darkMode={darkMode}
+              onToggleDarkMode={() => setDarkMode(prev => !prev)}
             />
           )}
 
@@ -264,15 +209,15 @@ export default function App() {
               className="story-view-wrapper"
               {...pageVariants}
             >
-              <ExploreView
-                events={events}
-                colonyBoundaries={colonyBoundaries}
-                darkMode={darkMode}
-                onExitToWelcome={handleExitToWelcome}
-                initialEventId={pendingEventId}
-                onConsumeInitialEvent={handleConsumeInitialEvent}
-                onEventChange={handleStoryEventChange}
-              />
+              <Suspense fallback={<ViewLoading label="the map" />}>
+                <ExploreRoute
+                  darkMode={darkMode}
+                  onExitToWelcome={handleExitToWelcome}
+                  initialEventId={pendingEventId}
+                  onConsumeInitialEvent={handleConsumeInitialEvent}
+                  onEventChange={handleStoryEventChange}
+                />
+              </Suspense>
             </Motion.div>
           )}
 
@@ -282,7 +227,9 @@ export default function App() {
               key="data"
               {...pageVariants}
             >
-              <DataView darkMode={darkMode} onNavigateToEvent={handleNavigateToEvent} />
+              <Suspense fallback={<ViewLoading label="the data" />}>
+                <DataView darkMode={darkMode} onNavigateToEvent={handleNavigateToEvent} />
+              </Suspense>
             </Motion.div>
           )}
         </AnimatePresence>

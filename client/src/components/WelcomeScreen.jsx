@@ -1,134 +1,55 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { motion as Motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import { motion as Motion, useReducedMotion } from 'framer-motion';
+import { events } from '../data/events';
 
-function ParticleCanvas({ darkMode }) {
-  const canvasRef = useRef(null);
-  const animFrameRef = useRef(null);
-  const particlesRef = useRef([]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const count = 60;
-    particlesRef.current = Array.from({ length: count }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 2 + 0.5,
-      dx: (Math.random() - 0.5) * 0.3,
-      dy: (Math.random() - 0.5) * 0.3,
-      opacity: Math.random() * 0.4 + 0.1,
-    }));
-
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const color = darkMode ? '200, 210, 230' : '10, 36, 74';
-
-      particlesRef.current.forEach((p) => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${color}, ${p.opacity})`;
-        ctx.fill();
-
-        p.x += p.dx;
-        p.y += p.dy;
-
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
-      });
-
-      for (let i = 0; i < particlesRef.current.length; i++) {
-        for (let j = i + 1; j < particlesRef.current.length; j++) {
-          const a = particlesRef.current[i];
-          const b = particlesRef.current[j];
-          const dist = Math.hypot(a.x - b.x, a.y - b.y);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = `rgba(${color}, ${0.04 * (1 - dist / 120)})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
-      }
-
-      animFrameRef.current = requestAnimationFrame(draw);
-    };
-
-    draw();
-
-    return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animFrameRef.current);
-    };
-  }, [darkMode]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: 'none',
-      }}
-    />
-  );
-}
+const eventRange = {
+  start: events[0]?.year,
+  end: events[events.length - 1]?.year,
+};
 
 const KEY_STATS = [
-  { value: '18', label: 'Key Events' },
-  { value: '10', label: 'Major Battles' },
+  { value: String(events.length), label: 'Source-linked events' },
+  {
+    value: String(events.filter(event => event.type === 'battle').length),
+    label: 'Battles & sieges',
+  },
   { value: '13', label: 'Colonies' },
-  { value: '1773–83', label: 'Decade of Change' },
 ];
 
-export default function WelcomeScreen({ onBegin, darkMode }) {
+export default function WelcomeScreen({
+  onBegin,
+  onOpenData,
+  darkMode,
+  onToggleDarkMode,
+}) {
   const scrollThreshold = useRef(0);
   const hasTriggered = useRef(false);
-  const contentRef = useRef(null);
-  const [mouseOffset, setMouseOffset] = useState({ x: 0, y: 0 });
-
-  const handleMouseMove = useCallback((e) => {
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-    setMouseOffset({
-      x: (e.clientX - cx) / cx * 5,
-      y: (e.clientY - cy) / cy * 5,
-    });
-  }, []);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    const handleWheel = (e) => {
+    const handleWheel = (event) => {
       if (hasTriggered.current) return;
 
-      if (e.deltaY > 0) {
-        scrollThreshold.current += e.deltaY;
-
-        if (scrollThreshold.current > 100) {
+      if (event.deltaY > 0) {
+        scrollThreshold.current += event.deltaY;
+        if (scrollThreshold.current > 110) {
           hasTriggered.current = true;
           onBegin();
         }
       } else {
-        scrollThreshold.current = Math.max(0, scrollThreshold.current + e.deltaY);
+        scrollThreshold.current = Math.max(0, scrollThreshold.current + event.deltaY);
       }
     };
 
-    const handleKeyDown = (e) => {
-      if (hasTriggered.current) return;
+    const handleKeyDown = (event) => {
+      const target = event.target;
+      const isInteractive = target instanceof Element
+        && target.closest('button, a, input, textarea, select, [contenteditable="true"]');
 
-      if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'Enter') {
+      if (hasTriggered.current || isInteractive) return;
+
+      if (event.key === 'ArrowDown' || event.key === ' ') {
+        event.preventDefault();
         hasTriggered.current = true;
         onBegin();
       }
@@ -136,134 +57,137 @@ export default function WelcomeScreen({ onBegin, darkMode }) {
 
     window.addEventListener('wheel', handleWheel, { passive: true });
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('mousemove', handleMouseMove);
 
     return () => {
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [onBegin, handleMouseMove]);
+  }, [onBegin]);
+
+  const openShortcuts = () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '?' }));
+  };
+
+  const reveal = reduceMotion
+    ? { initial: false }
+    : {
+        initial: { opacity: 0, y: 18 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.65, ease: [0.22, 1, 0.36, 1] },
+      };
 
   return (
-    <Motion.div
+    <Motion.section
       className={`welcome-screen ${darkMode ? 'dark' : ''}`}
-      initial={{ opacity: 0 }}
+      aria-labelledby="welcome-title"
+      initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: reduceMotion ? 0 : 0.35 }}
     >
-      <ParticleCanvas darkMode={darkMode} />
+      <div className="welcome-atlas-frame" aria-hidden="true" />
 
-      <div
-        className="welcome-content"
-        ref={contentRef}
-        style={{
-          transform: `translate(${mouseOffset.x}px, ${mouseOffset.y}px)`,
-          transition: 'transform 0.15s ease-out',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <h1 className="welcome-title">The American Revolution</h1>
-
-        <p className="welcome-subtitle">
-          An Interactive Journey Through Independence
+      <header className="welcome-atlas-masthead">
+        <p className="welcome-atlas-eyebrow">
+          <span aria-hidden="true" />
+          {eventRange.start} — {eventRange.end} · An interactive history
         </p>
 
-        <div className="welcome-stat-strip">
+        <button
+          className="welcome-atlas-theme"
+          type="button"
+          onClick={onToggleDarkMode}
+          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-pressed={darkMode}
+        >
+          <span className={!darkMode ? 'active' : ''} aria-hidden="true">☀</span>
+          <span className={darkMode ? 'active' : ''} aria-hidden="true">◐</span>
+        </button>
+      </header>
+
+      <div className="welcome-atlas-layout">
+        <Motion.div className="welcome-atlas-hero" {...reveal}>
+          <h1 className="welcome-title" id="welcome-title">
+            The American
+            <span>Revolution</span>
+          </h1>
+
+          <div className="welcome-atlas-rule" aria-hidden="true">
+            <span />
+            <span />
+          </div>
+
+          <p className="welcome-atlas-description">
+            Follow the Revolution from coordinated resistance to international war and
+            negotiated peace.
+          </p>
+
+          <div className="welcome-atlas-actions">
+            <button
+              className="welcome-atlas-action primary"
+              type="button"
+              onClick={onBegin}
+            >
+              <span>Begin exploring</span>
+              <span aria-hidden="true">→</span>
+            </button>
+            <button
+              className="welcome-atlas-action secondary"
+              type="button"
+              onClick={onOpenData}
+            >
+              Open the data
+            </button>
+          </div>
+        </Motion.div>
+
+        <div className="welcome-atlas-map" aria-hidden="true">
+          <div className="welcome-atlas-coast" />
+          <div className="welcome-atlas-orbit orbit-one" />
+          <div className="welcome-atlas-orbit orbit-two" />
+          <div className="welcome-atlas-route">
+            <span className="route-segment segment-one" />
+            <span className="route-segment segment-two" />
+            <span className="route-segment segment-three" />
+            <span className="route-segment segment-four" />
+            <span className="route-point point-one" />
+            <span className="route-point point-two" />
+            <span className="route-point point-three" />
+            <span className="route-point point-four" />
+            <span className="route-point point-five" />
+          </div>
+          <div className="welcome-atlas-compass">
+            <span>N</span>
+            <i />
+          </div>
+        </div>
+
+        <Motion.aside
+          className="welcome-atlas-legend"
+          aria-label="Project overview"
+          initial={reduceMotion ? false : { opacity: 0, x: 18 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.65, delay: 0.18 }}
+        >
           {KEY_STATS.map((stat) => (
-            <div key={stat.label} className="welcome-stat">
-              <span className="welcome-stat-value">{stat.value}</span>
-              <span className="welcome-stat-label">{stat.label}</span>
+            <div className="welcome-atlas-stat" key={stat.label}>
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
             </div>
           ))}
-        </div>
-
-        <div className="welcome-description">
-          <p>
-            Experience the birth of a nation through time and space. This visualization
-            guides you through the key events of the Revolutionary War — from the Boston
-            Tea Party to the British surrender at Yorktown — in both chronological and
-            geospatial order.
-          </p>
-        </div>
-
-        <div className="welcome-modes">
-          <button 
-            className="welcome-mode-card" 
-            onClick={onBegin}
-            aria-label="Enter Explore mode: View events on an interactive map"
-          >
-            <span className="welcome-mode-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/></svg>
-            </span>
-            <span className="welcome-mode-label">Explore</span>
-            <span className="welcome-mode-desc">Navigate events on an interactive map with timeline playback</span>
-          </button>
-          <button 
-            className="welcome-mode-card" 
-            onClick={() => {
-              window.location.hash = '#data';
-            }}
-            aria-label="Enter Data mode: View statistics and charts"
-          >
-            <span className="welcome-mode-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-            </span>
-            <span className="welcome-mode-label">Data</span>
-            <span className="welcome-mode-desc">Dive into troop strength, trade, casualties, and campaigns</span>
-          </button>
-        </div>
-
-        <Motion.div
-          className="welcome-scroll-hint"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.6 }}
-          transition={{ delay: 1.2, duration: 0.8 }}
-        >
-          <span>or scroll to start exploring</span>
-          <Motion.div
-            className="scroll-arrow"
-            animate={{ y: [0, 8, 0] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-          >
-            ↓
-          </Motion.div>
-          <button 
-            className="welcome-help-hint"
-            onClick={() => {
-              const event = new KeyboardEvent('keydown', { key: '?' });
-              window.dispatchEvent(event);
-            }}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: 'inherit', 
-              fontSize: '0.75rem', 
-              marginTop: '1rem',
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
-          >
-            Press ? for keyboard shortcuts
-          </button>
-        </Motion.div>
+        </Motion.aside>
       </div>
 
-      <div
-        className="welcome-years"
-        style={{
-          transform: `translate(${-mouseOffset.x * 0.5}px, 0)`,
-          transition: 'transform 0.15s ease-out',
-          position: 'absolute',
-          zIndex: 1,
-        }}
-      >
-        <span className="year-start">1773</span>
-        <div className="year-line"></div>
-        <span className="year-end">1783</span>
-      </div>
-    </Motion.div>
+      <footer className="welcome-atlas-footer">
+        <p>
+          <span aria-hidden="true">◇</span>
+          Mapped chronology · sourced estimates · keyboard accessible
+        </p>
+        <button type="button" onClick={openShortcuts} className="welcome-atlas-help">
+          <span aria-hidden="true">?</span>
+          Shortcuts
+        </button>
+      </footer>
+    </Motion.section>
   );
 }
