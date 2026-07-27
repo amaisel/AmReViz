@@ -1,23 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
-import ExploreView from './components/ExploreView';
-import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './components/Charts';
-import BattleComparison from './components/BattleComparison';
-import AnimatedCounter from './components/AnimatedCounter';
-import {
-  armyData,
-  economicData,
-  battleData,
-  campaignData,
-  warSummaryData,
-  aggregateSources
-} from './data/metrics';
-import { events } from './data/events';
-import { colonyBoundaries } from './data/colonyBoundaries';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
 import useHashRouter from './hooks/useHashRouter';
 import './App.css';
+
+const ExploreRoute = lazy(() => import('./components/ExploreRoute'));
+const DataView = lazy(() => import('./components/DataView'));
 
 const VIEW_ORDER = { welcome: 0, explore: 1, data: 2 };
 
@@ -92,99 +81,11 @@ function ViewToggle({ view, onViewChange }) {
   );
 }
 
-function DataView({ darkMode, onNavigateToEvent }) {
-  const battles = events.filter(e => e.casualties && e.forces);
-  const battleCount = events.filter(e => e.type === 'battle').length;
-
-  const handleBattleClick = (eventId) => {
-    onNavigateToEvent?.(eventId);
-  };
-
-  const handleYearClick = (year) => {
-    const match = events.find(e => e.year === year);
-    if (match) onNavigateToEvent?.(match.id);
-  };
-
+function ViewLoading({ label }) {
   return (
-    <div className="data-view">
-      <header className="data-section">
-        <h2>War in Numbers</h2>
-        <p className="data-subtitle">
-          {events.length} source-linked events, including {battleCount} battles and sieges
-        </p>
-      </header>
-
-      <div className="data-insights">
-        <div className="insight-card">
-          <h4>U.S. Servicemembers</h4>
-          <AnimatedCounter value={warSummaryData.servicemembers} className="insight-value" />
-          <p>
-            median of an estimated {warSummaryData.serviceEstimateRange[0].toLocaleString()}–
-            {warSummaryData.serviceEstimateRange[1].toLocaleString()} who served
-          </p>
-        </div>
-        <div className="insight-card">
-          <h4>Recorded Battle Deaths</h4>
-          <AnimatedCounter value={warSummaryData.battleDeaths} className="insight-value" />
-          <p>official U.S. series based on incomplete returns</p>
-        </div>
-        <div className="insight-card">
-          <h4>Non-mortal Woundings</h4>
-          <AnimatedCounter value={warSummaryData.nonMortalWoundings} className="insight-value" />
-          <p>U.S. servicemembers in the same official series</p>
-        </div>
-      </div>
-
-      <aside className="data-method-note">
-        <strong>How to read the estimates</strong>
-        <p>
-          {warSummaryData.note} The war-wide figures above are not calculated by adding the
-          selected engagements below.
-        </p>
-        <p>
-          Battle casualties can include killed, wounded, missing, and captured. “American / allied”
-          and “Crown / allied” are comparison columns, not claims that every combatant was American
-          or British; the story cards identify French, Hessian, Loyalist, Indigenous, and Spanish-led
-          forces where the record supports it.
-        </p>
-        <div className="data-method-links">
-          <a href={warSummaryData.source.url} target="_blank" rel="noreferrer">War-wide U.S. figures ↗</a>
-          <a href={aggregateSources.americanManpower.url} target="_blank" rel="noreferrer">Annual manpower ↗</a>
-          <a href={aggregateSources.englandTrade.url} target="_blank" rel="noreferrer">Colonial trade ↗</a>
-          <a href="https://www.battlefields.org/learn/revolutionary-war/battles" target="_blank" rel="noreferrer">Battle estimates ↗</a>
-          <a href="https://www.nps.gov/subjects/americanrevolution/timeline.htm" target="_blank" rel="noreferrer">Chronology ↗</a>
-        </div>
-      </aside>
-
-      <section className="data-group">
-        <h3 className="data-group-title">Military Strength & Theater</h3>
-        <div className="data-grid">
-          <ArmyChart
-            data={armyData}
-            darkMode={darkMode}
-            onYearClick={handleYearClick}
-            source={aggregateSources.americanManpower}
-          />
-          <CampaignTimeline data={campaignData} darkMode={darkMode} />
-        </div>
-      </section>
-
-      <section className="data-group">
-        <h3 className="data-group-title">Economic Impact</h3>
-        <TradeChart
-          data={economicData}
-          darkMode={darkMode}
-          source={aggregateSources.englandTrade}
-        />
-      </section>
-
-      <section className="data-group">
-        <h3 className="data-group-title">Battle Analysis</h3>
-        <div className="data-grid">
-          <CasualtiesChart data={battleData} darkMode={darkMode} onBattleClick={handleBattleClick} />
-          <BattleComparison battles={battles} darkMode={darkMode} />
-        </div>
-      </section>
+    <div className="view-loading" role="status" aria-live="polite">
+      <span className="view-loading-mark" aria-hidden="true" />
+      <p>Loading {label}…</p>
     </div>
   );
 }
@@ -296,7 +197,9 @@ export default function App() {
             <WelcomeScreen
               key="welcome"
               onBegin={handleBeginJourney}
+              onOpenData={() => navigateToView('data')}
               darkMode={darkMode}
+              onToggleDarkMode={() => setDarkMode(prev => !prev)}
             />
           )}
 
@@ -306,15 +209,15 @@ export default function App() {
               className="story-view-wrapper"
               {...pageVariants}
             >
-              <ExploreView
-                events={events}
-                colonyBoundaries={colonyBoundaries}
-                darkMode={darkMode}
-                onExitToWelcome={handleExitToWelcome}
-                initialEventId={pendingEventId}
-                onConsumeInitialEvent={handleConsumeInitialEvent}
-                onEventChange={handleStoryEventChange}
-              />
+              <Suspense fallback={<ViewLoading label="the map" />}>
+                <ExploreRoute
+                  darkMode={darkMode}
+                  onExitToWelcome={handleExitToWelcome}
+                  initialEventId={pendingEventId}
+                  onConsumeInitialEvent={handleConsumeInitialEvent}
+                  onEventChange={handleStoryEventChange}
+                />
+              </Suspense>
             </Motion.div>
           )}
 
@@ -324,7 +227,9 @@ export default function App() {
               key="data"
               {...pageVariants}
             >
-              <DataView darkMode={darkMode} onNavigateToEvent={handleNavigateToEvent} />
+              <Suspense fallback={<ViewLoading label="the data" />}>
+                <DataView darkMode={darkMode} onNavigateToEvent={handleNavigateToEvent} />
+              </Suspense>
             </Motion.div>
           )}
         </AnimatePresence>
