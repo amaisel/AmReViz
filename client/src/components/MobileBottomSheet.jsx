@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { motion as Motion, useAnimation, useDragControls } from 'framer-motion';
+import { motion as Motion, AnimatePresence, useAnimation, useDragControls } from 'framer-motion';
 import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
 
 const SNAP_FULL_RATIO = 0.9;
@@ -27,7 +27,6 @@ function closestSnap(y, snaps) {
 
 export default function MobileBottomSheet({
   children,
-  controlsContent,
   panelContent,
   eventId,
   darkMode,
@@ -38,6 +37,7 @@ export default function MobileBottomSheet({
   locked = false,
 }) {
   const [snapName, setSnapName] = useState('peek');
+  const [panelOpen, setPanelOpen] = useState(false);
   const [vh, setVh] = useState(window.innerHeight);
   const dragStartY = useRef(null);
   const sheetControls = useAnimation();
@@ -88,6 +88,7 @@ export default function MobileBottomSheet({
   const [lastEventId, setLastEventId] = useState(eventId);
   if (eventId !== lastEventId) {
     setLastEventId(eventId);
+    setPanelOpen(false);
     if (!locked) setSnapName('peek');
   }
 
@@ -205,34 +206,59 @@ export default function MobileBottomSheet({
         bottom: 0
       }}
     >
-      <button
-        type="button"
-        className="bottom-sheet-handle"
-        onPointerDown={(e) => {
-          if (locked) return;
-          dragControls.start(e);
-        }}
-        onClick={() => {
-          if (locked) return;
-          snapTo(snapName === 'peek' ? 'full' : 'peek');
-        }}
-        aria-label={locked ? 'Cards focus mode' : (isFullOpen ? 'Collapse event details' : 'Expand event details')}
-        aria-expanded={locked ? undefined : isFullOpen}
-        disabled={locked}
-      >
-        <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>
-          <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="4 10 8 6 12 10"/>
-          </svg>
-        </span>
-        <div className="bottom-sheet-bar" style={{ width: '40px', height: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: '2px', marginTop: '-4px' }} />
-      </button>
+      <div className="bottom-sheet-header">
+        <button
+          type="button"
+          className="bottom-sheet-handle"
+          onPointerDown={(e) => {
+            if (locked) return;
+            dragControls.start(e);
+          }}
+          onClick={() => {
+            if (locked) return;
+            snapTo(snapName === 'peek' ? 'full' : 'peek');
+          }}
+          aria-label={locked ? 'Cards focus mode' : (isFullOpen ? 'Collapse event details' : 'Expand event details')}
+          aria-expanded={locked ? undefined : isFullOpen}
+          disabled={locked}
+        >
+          <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>
+            <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 10 8 6 12 10"/>
+            </svg>
+          </span>
+          <div className="bottom-sheet-bar" style={{ width: '40px', height: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: '2px', marginTop: '-4px' }} />
+        </button>
 
-      <div className="bottom-sheet-controls">
-        {controlsContent}
+        <button
+          type="button"
+          className={`sheet-panel-toggle ${panelOpen ? 'active' : ''}`}
+          onClick={() => setPanelOpen(prev => !prev)}
+          aria-expanded={panelOpen}
+          aria-label="Story controls"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <line x1="4" y1="9" x2="20" y2="9"/>
+            <line x1="4" y1="16" x2="20" y2="16"/>
+            <circle cx="9" cy="9" r="2.2" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="16" r="2.2" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
       </div>
 
-      {panelContent}
+      <AnimatePresence>
+        {panelOpen && (
+          <Motion.div
+            className="sheet-controls-panel"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {panelContent}
+          </Motion.div>
+        )}
+      </AnimatePresence>
 
       <div
         className={`bottom-sheet-content ${isFullOpen ? 'expanded' : 'peek'}`}

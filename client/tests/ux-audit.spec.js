@@ -83,8 +83,11 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
 
-    // Only one copy of the card and the search field exists on mobile.
+    // Only one copy of the card exists on mobile.
     await expect(page.locator('.event-card-fixed')).toHaveCount(1);
+
+    // Search moved into the controls panel; one copy, once it is open.
+    await page.getByRole('button', { name: 'Story controls' }).click();
     await expect(page.getByRole('combobox', { name: 'Search historical events' })).toHaveCount(1);
   });
 
@@ -490,5 +493,31 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
 
     await page.getByRole('button', { name: 'Expand event details' }).click();
     await expect(hero).toBeVisible();
+  });
+
+  test('story controls sit behind one button, not across the peek sheet', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+
+    // Chrome above the card. It was 214px of a 464px sheet: a 60px handle plus
+    // a 154px control row that wrapped to three lines.
+    const chrome = await page.evaluate(() => {
+      const sheet = document.querySelector('.bottom-sheet');
+      const content = document.querySelector('.bottom-sheet-content');
+      return content.getBoundingClientRect().top - sheet.getBoundingClientRect().top;
+    });
+    expect(chrome).toBeLessThan(80);
+
+    // Everything that left the row is still reachable, one tap away.
+    const toggle = page.getByRole('button', { name: 'Story controls' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Search historical events' })).toBeVisible();
+    // Exact, or this also matches the "Major Battles" preset chip beside it.
+    await expect(page.getByRole('button', { name: 'Battles', exact: true })).toBeVisible();
   });
 });

@@ -494,77 +494,106 @@ export default function ExploreView({
     </>
   );
 
+  const playbackButton = (
+    <button
+      className={`explore-btn playback-btn ${isPlaying ? 'active' : ''}`}
+      onClick={togglePlayback}
+    >
+      {isPlaying ? (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </>
+      ) : (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Play
+        </>
+      )}
+    </button>
+  );
+
+  const speedButton = (
+    <button className="speed-indicator" onClick={cycleSpeed}>
+      {speedLabel}
+    </button>
+  );
+
+  const searchField = (
+    <SearchBar
+      events={events}
+      onEventSelect={handleSearchSelect}
+      darkMode={darkMode}
+    />
+  );
+
+  const filterToggleButton = (
+    <button
+      className={`explore-btn filter-toggle-btn ${filtersOpen ? 'active' : ''}`}
+      onClick={() => setFiltersOpen(prev => !prev)}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filter
+      {activeFilterCount < 4 && (
+        <span className="filter-count-badge">{activeFilterCount}</span>
+      )}
+    </button>
+  );
+
+  const viewModeButton = (
+    <button
+      type="button"
+      className={`explore-btn view-mode-toggle-btn ${viewMode === 'cards' ? 'active' : ''}`}
+      onClick={toggleViewMode}
+      aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
+    >
+      {viewMode === 'map' ? (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="4 14 4 20 10 20" />
+            <polyline points="20 10 20 4 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+          <span>Focus cards</span>
+        </>
+      ) : (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+            <line x1="8" y1="2" x2="8" y2="18" />
+            <line x1="16" y1="6" x2="16" y2="22" />
+          </svg>
+          <span>Show map</span>
+        </>
+      )}
+    </button>
+  );
+
+  // Desktop rail: unchanged in content from the single row it replaces.
   const controlsContent = (
     <>
-      <button
-        className={`explore-btn playback-btn ${isPlaying ? 'active' : ''}`}
-        onClick={togglePlayback}
-      >
-        {isPlaying ? (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            Pause
-          </>
-        ) : (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Play
-          </>
-        )}
-      </button>
-
-      <button className="speed-indicator" onClick={cycleSpeed}>
-        {speedLabel}
-      </button>
-
+      {playbackButton}
+      {speedButton}
       <span className="controls-divider" />
-
-      <button
-        className={`explore-btn filter-toggle-btn ${filtersOpen ? 'active' : ''}`}
-        onClick={() => setFiltersOpen(prev => !prev)}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        Filter
-        {activeFilterCount < 4 && (
-          <span className="filter-count-badge">{activeFilterCount}</span>
-        )}
-      </button>
-
-      <SearchBar
-        events={events}
-        onEventSelect={handleSearchSelect}
-        darkMode={darkMode}
-      />
-
+      {filterToggleButton}
+      {searchField}
       <span className="controls-divider" />
+      {viewModeButton}
+    </>
+  );
 
-      <button
-        type="button"
-        className={`explore-btn view-mode-toggle-btn ${viewMode === 'cards' ? 'active' : ''}`}
-        onClick={toggleViewMode}
-        aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
-      >
-        {viewMode === 'map' ? (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="4 14 4 20 10 20" />
-              <polyline points="20 10 20 4 14 4" />
-              <line x1="14" y1="10" x2="21" y2="3" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-            <span>Focus cards</span>
-          </>
-        ) : (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-              <line x1="8" y1="2" x2="8" y2="18" />
-              <line x1="16" y1="6" x2="16" y2="22" />
-            </svg>
-            <span>Show map</span>
-          </>
-        )}
-      </button>
+  // Mobile: one flat panel behind the sheet's control button. No Filter
+  // toggle — the panel is already the disclosure, so the chips sit in it
+  // directly rather than behind a second one.
+  const sheetPanelContent = (
+    <>
+      <div className="sheet-panel-playback">
+        {playbackButton}
+        {speedButton}
+      </div>
+      {searchField}
+      {filtersPanelContent}
     </>
   );
 
@@ -660,27 +689,12 @@ export default function ExploreView({
         <MobileBottomSheet
           eventId={currentItem?.key}
           darkMode={darkMode}
-          controlsContent={controlsContent}
           locked={viewMode === 'cards'}
           onPrev={handlePrevEvent}
           onNext={handleNextEvent}
           hasPrev={hasPrev}
           hasNext={hasNext}
-          panelContent={
-            <AnimatePresence>
-              {filtersOpen && (
-                <Motion.div
-                  className="sheet-filters-panel"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {filtersPanelContent}
-                </Motion.div>
-              )}
-            </AnimatePresence>
-          }
+          panelContent={sheetPanelContent}
         >
           {cardContent}
         </MobileBottomSheet>
