@@ -3113,6 +3113,13 @@ body.dark-mode {
   display: none;
 }
 
+/* The card pulls its hero up by 4px, which the old control row absorbed in its
+   bottom padding. The header row has none, so the overhang put a sliver of the
+   painting across the header and read as a stray dark line. */
+.bottom-sheet-content .event-card-image {
+  margin-top: 0;
+}
+
 .bottom-sheet-header {
   position: relative;
   display: flex;
