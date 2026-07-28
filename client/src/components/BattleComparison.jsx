@@ -11,7 +11,8 @@ export default function BattleComparison({ battles, darkMode }) {
   const outcomeLabel = {
     american: 'American Victory',
     british: 'British Victory',
-    indecisive: 'Indecisive'
+    indecisive: 'Indecisive',
+    allied: 'Allied Victory'
   };
 
   const outcomeColor = {
@@ -76,7 +77,7 @@ export default function BattleComparison({ battles, darkMode }) {
             >
               {selected.outcomeLabel || outcomeLabel[selected.outcome]}
             </div>
-            <p style={{ fontSize: '0.85rem', color: '#888' }}>
+            <p className="comparison-meta-line">
               {selected.location} • {new Date(selected.date).toLocaleDateString(undefined, {
                 month: 'long',
                 day: 'numeric',
@@ -97,7 +98,7 @@ export default function BattleComparison({ battles, darkMode }) {
                 <span className="comparison-label">Casualties</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px' }}>
                   <AnimatedCounter value={selected.casualties.american} className="comparison-value casualty" duration={0.8} />
-                  <span style={{ fontSize: '0.8rem', color: '#888' }}>({calculateRate(selected.casualties.american, selected.forces.american)})</span>
+                  <span className="comparison-rate">({calculateRate(selected.casualties.american, selected.forces.american)})</span>
                 </div>
               </div>
               <div className="comparison-bar">
@@ -125,7 +126,7 @@ export default function BattleComparison({ battles, darkMode }) {
                 <span className="comparison-label">Casualties</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px' }}>
                   <AnimatedCounter value={selected.casualties.british} className="comparison-value casualty" duration={0.8} />
-                  <span style={{ fontSize: '0.8rem', color: '#888' }}>({calculateRate(selected.casualties.british, selected.forces.british)})</span>
+                  <span className="comparison-rate">({calculateRate(selected.casualties.british, selected.forces.british)})</span>
                 </div>
               </div>
               <div className="comparison-bar">

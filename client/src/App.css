@@ -297,7 +297,8 @@
 }
 
 .event-card-fact span {
-  color: #6c6c6c;
+  /* 5.2:1 on the gold-tinted fact tile at this small size */
+  color: #5c5c5c;
   font-size: 0.66rem;
   line-height: 1.25;
 }
@@ -343,6 +344,22 @@
   display: inline-flex;
   margin-top: 0.5rem;
   font-size: 0.72rem;
+}
+
+/* Was an inline #888 that stayed put in dark mode and failed contrast in light */
+.comparison-meta-line {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.comparison-rate {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.dark .comparison-meta-line,
+.dark .comparison-rate {
+  color: #aeb6c2;
 }
 
 * {
@@ -3027,6 +3044,16 @@ body.dark-mode {
   padding: 12px 0 8px;
   cursor: grab;
   flex-shrink: 0;
+  /* Rendered as a real <button> so it is keyboard reachable */
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+}
+
+.bottom-sheet-handle:disabled {
+  cursor: default;
 }
 
 .bottom-sheet-handle:active {
@@ -3520,7 +3547,8 @@ body.dark-mode {
 
 .event-card-date-inline {
   font-size: 0.78rem;
-  color: #888;
+  /* 5.0:1 on the parchment card; #888 was 3.1:1 */
+  color: #666;
   font-weight: 500;
 }
 

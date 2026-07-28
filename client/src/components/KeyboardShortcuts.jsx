@@ -23,8 +23,7 @@ export default function KeyboardShortcuts({ darkMode }) {
     { key: '\u2190 \u2192', desc: 'Navigate events (Guided mode)' },
     { key: 'C', desc: 'Toggle Focus cards / Show map' },
     { key: 'Esc', desc: 'Exit Focus cards (back to map)' },
-    { key: 'F', desc: 'Toggle Guided / Free mode' },
-    { key: 'Space', desc: 'Begin journey (Welcome)' },
+    { key: 'Space', desc: 'Play / pause (Explore) · Begin journey (Welcome)' },
     { key: 'D', desc: 'Toggle dark mode' },
     { key: '1 / 2', desc: 'Switch to Explore / Data' },
   ];

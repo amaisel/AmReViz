@@ -105,6 +105,10 @@ const EventMarker = memo(({ event, isActive, isFuture, proximity, onClick }) => 
       position={[event.lat, event.lng]}
       icon={icon}
       zIndexOffset={isActive ? 1000 : 0}
+      // The icon's inner <div role="button"> carries focus and the label.
+      // Leaflet's own keyboard handling would put tabindex on the wrapper
+      // too, nesting one interactive element inside another.
+      keyboard={false}
       eventHandlers={{
         click: onClick
       }}
@@ -208,10 +212,18 @@ function ScaleBarControl({ darkMode }) {
   return null;
 }
 
-function MapController({ center, zoom, autoFly, coveredRatio = 0 }) {
+function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, minZoom, fitBounds }) {
   const map = useMap();
   const prevCenterRef = useRef(null);
   const prevZoomRef = useRef(null);
+
+  // MapContainer props are only read at mount, so the frame has to be
+  // resized imperatively when the story crosses the Atlantic. This must
+  // happen before the camera moves, or maxBounds clamps the flight.
+  useEffect(() => {
+    map.setMinZoom(minZoom);
+    map.setMaxBounds(maxBounds);
+  }, [map, maxBounds, minZoom]);
 
   useEffect(() => {
     if (!autoFly || !center) return;
@@ -244,17 +256,31 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0 }) {
 
     map.stop();
 
-    // Short same-zoom pan. Geo is simplified and zoom is fixed, so mid-pan
-    // path updates stay cheap enough to feel smooth without half-drawn coasts.
-    map.panTo(target, {
-      animate: true,
-      duration: prevCenter == null ? 0.35 : Math.min(0.4, 0.2 + dist * 0.035),
-      easeLinearity: 0.4,
-    });
+    if (fitBounds) {
+      // Overseas target: frame the whole crossing rather than the point.
+      map.flyToBounds(fitBounds, {
+        duration: 2.4,
+        easeLinearity: 0.25,
+        paddingBottomRight: [0, Math.round(map.getSize().y * coveredRatio)],
+      });
+    } else if (zoomChanged && prevZoom != null) {
+      // Coming back from overseas. flyTo has to reproject every path per
+      // frame, which is why it is reserved for the handful of steps a
+      // same-zoom pan cannot reach at all.
+      map.flyTo(target, zoom, { duration: 2.4, easeLinearity: 0.25 });
+    } else {
+      // Short same-zoom pan. Geo is simplified and zoom is fixed, so mid-pan
+      // path updates stay cheap enough to feel smooth without half-drawn coasts.
+      map.panTo(target, {
+        animate: true,
+        duration: prevCenter == null ? 0.35 : Math.min(0.4, 0.2 + dist * 0.035),
+        easeLinearity: 0.4,
+      });
+    }
 
     prevCenterRef.current = center;
     prevZoomRef.current = zoom;
-  }, [center, zoom, map, autoFly, coveredRatio]);
+  }, [center, zoom, map, autoFly, coveredRatio, fitBounds]);
 
   return null;
 }
@@ -638,6 +664,30 @@ const easternSeaboardBounds = [
   [48.0, -60.0]
 ];
 
+// A few events in the chronology happen in Europe (the Treaty of Paris).
+// Panning to them is impossible inside the seaboard frame, so the map
+// temporarily widens to an Atlantic view and flies across.
+const atlanticBounds = [
+  [20.0, -90.0],
+  [62.0, 15.0]
+];
+
+// The engraved chart only carries North American geometry, so a European
+// target centred on its own sits on blank parchment. Framing the whole
+// crossing keeps the coast — and the trail line back to it — in view.
+const atlanticCrossingBounds = [
+  [34.0, -80.0],
+  [54.0, 8.0]
+];
+
+const SEABOARD_ZOOM = 6;
+const ATLANTIC_MIN_ZOOM = 3;
+
+function isWithinSeaboard(lat, lng) {
+  const [[south, west], [north, east]] = easternSeaboardBounds;
+  return lat >= south && lat <= north && lng >= west && lng <= east;
+}
+
 export default function Map({
   events,
   colonyBoundaries,
@@ -673,7 +723,12 @@ export default function Map({
   // Fixed integer zoom: any zoom change forces Leaflet to reproject every SVG
   // path `d` attribute (~50+ paths). Keeping zoom constant lets pans CSS-
   // transform the chart instead — that was the remaining lag on northbound hops.
-  const zoom = 6;
+  // The one exception is a target off the seaboard, which needs a wider frame.
+  const isOverseas = activeEvent != null && !isWithinSeaboard(activeEvent.lat, activeEvent.lng);
+  const zoom = isOverseas ? ATLANTIC_MIN_ZOOM : SEABOARD_ZOOM;
+  const maxBounds = isOverseas ? atlanticBounds : easternSeaboardBounds;
+  const minZoom = isOverseas ? ATLANTIC_MIN_ZOOM : 5;
+  const fitBounds = isOverseas ? atlanticCrossingBounds : null;
 
   // The mobile bottom sheet covers part of the map; desktop uses a side rail.
   const coveredRatio = isMobile ? 0.55 : 0;
@@ -751,7 +806,9 @@ export default function Map({
       </p>
       <MapContainer
         center={[40.0, -74.0]}
-        zoom={6}
+        zoom={SEABOARD_ZOOM}
+        // MapController keeps minZoom/maxBounds in sync from here on; these
+        // are only the mount-time values.
         minZoom={5}
         maxZoom={7}
         maxBounds={easternSeaboardBounds}
@@ -769,7 +826,15 @@ export default function Map({
         {/* No tile layer: the map renders as a period parchment chart —
             the CSS paper is the sea, and accurate Natural Earth land/lake/
             river geometry is drawn on it in engraved-chart style */}
-        <MapController center={center} zoom={zoom} autoFly={autoFly} coveredRatio={coveredRatio} />
+        <MapController
+          center={center}
+          zoom={zoom}
+          autoFly={autoFly}
+          coveredRatio={coveredRatio}
+          maxBounds={maxBounds}
+          minZoom={minZoom}
+          fitBounds={fitBounds}
+        />
         <InvalidateOnVisible mapVisible={mapVisible} />
         <ScaleBarControl darkMode={darkMode} />
 

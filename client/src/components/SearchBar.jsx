@@ -39,6 +39,10 @@ export default function SearchBar({ events, onEventSelect, darkMode }) {
       .slice(0, 10);
   }, [query, events]);
 
+  // Mirrors the render condition for the listbox below, so aria-expanded and
+  // aria-activedescendant never advertise a popup that isn't mounted.
+  const listboxOpen = isOpen && Boolean(query.trim());
+
   const handleKeyDown = (e) => {
     if (!isOpen || results.length === 0) return;
 
@@ -103,10 +107,15 @@ export default function SearchBar({ events, onEventSelect, darkMode }) {
           onFocus={() => setIsOpen(true)}
           onBlur={() => setTimeout(() => setIsOpen(false), 200)}
           className={`search-input ${darkMode ? 'dark' : ''}`}
+          role="combobox"
           aria-label="Search historical events"
-          aria-expanded={isOpen && results.length > 0}
-          aria-controls="search-results-list"
-          aria-haspopup="listbox"
+          aria-expanded={listboxOpen}
+          // Only reference the listbox while it is actually in the DOM
+          aria-controls={listboxOpen ? 'search-results-list' : undefined}
+          aria-autocomplete="list"
+          aria-activedescendant={
+            listboxOpen && activeIndex >= 0 ? `search-item-${activeIndex}` : undefined
+          }
         />
         <AnimatePresence>
           {query && (

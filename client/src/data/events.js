@@ -837,7 +837,7 @@ export const events = [
     "id": 117,
     "date": "1780-02-11",
     "endDate": "1780-05-12",
-    "duration": "91 days",
+    "duration": "92 days",
     "year": 1780,
     "title": "Siege of Charleston",
     "location": "Charleston, South Carolina",

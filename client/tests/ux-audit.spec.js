@@ -3,6 +3,14 @@ import AxeBuilder from '@axe-core/playwright';
 
 const baseUrl = globalThis.process?.env.AMREVIZ_TEST_URL || 'http://localhost:5174/';
 
+// Serious/critical axe violations, formatted for a readable assertion message.
+async function seriousA11yViolations(page) {
+  const { violations } = await new AxeBuilder({ page }).analyze();
+  return violations
+    .filter(({ impact }) => impact === 'serious' || impact === 'critical')
+    .map(({ id, impact, nodes }) => `${id} (${impact}) on ${nodes[0].target.join(' ')}`);
+}
+
 test.describe('AmReViz UX & Accessibility Audit', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
@@ -14,15 +22,72 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await expect(page.getByRole('button', { name: 'Begin exploring' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Open the data' })).toBeVisible();
 
-    const { violations } = await new AxeBuilder({ page }).analyze();
-    const seriousViolations = violations.filter(
-      ({ impact }) => impact === 'serious' || impact === 'critical',
-    );
+    expect(await seriousA11yViolations(page)).toEqual([]);
+  });
 
-    expect(
-      seriousViolations,
-      seriousViolations.map(({ id, help }) => `${id}: ${help}`).join('\n'),
-    ).toEqual([]);
+  // The welcome screen was the only view under axe, so violations in explore,
+  // cards focus and the data view all shipped green.
+  test('explore view is accessible in both map and cards focus mode', async ({ page }) => {
+    await page.getByRole('button', { name: 'Begin exploring' }).click();
+    await expect(page.locator('.leaflet-container')).toBeVisible();
+    expect(await seriousA11yViolations(page), 'explore / map mode').toEqual([]);
+
+    await page.keyboard.press('c');
+    await expect(page.locator('.view-mode-cards')).toBeVisible();
+    expect(await seriousA11yViolations(page), 'explore / cards focus mode').toEqual([]);
+  });
+
+  test('data view is accessible', async ({ page }) => {
+    await page.getByRole('button', { name: 'Open the data' }).click();
+    await expect(page.getByRole('heading', { name: 'War in Numbers' })).toBeVisible();
+    expect(await seriousA11yViolations(page)).toEqual([]);
+  });
+
+  test('mobile explore view is accessible and the sheet handle is keyboard reachable', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Begin exploring' }).click();
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+    expect(await seriousA11yViolations(page)).toEqual([]);
+
+    // The handle is a real button, so it can be focused and operated by keyboard.
+    const handle = page.getByRole('button', { name: 'Expand event details' });
+    await handle.focus();
+    await expect(handle).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
+
+    // Only one copy of the card and the search field exists on mobile.
+    await expect(page.locator('.event-card-fixed')).toHaveCount(1);
+    await expect(page.getByRole('combobox', { name: 'Search historical events' })).toHaveCount(1);
+  });
+
+  // The treaty is signed in Paris, outside the seaboard frame the map is
+  // normally locked to; maxBounds used to clamp the pan and strand the marker.
+  test('the story flies to Paris for the treaty', async ({ page }) => {
+    await page.goto(`${baseUrl}#/explore/125`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Treaty of Paris Signed' })).toBeVisible();
+
+    const parisMarker = page.getByRole('button', { name: /^Treaty of Paris Signed, 1783$/ });
+    await expect(parisMarker).toBeVisible();
+
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            const map = document.querySelector('.leaflet-container')?.getBoundingClientRect();
+            const marker = [...document.querySelectorAll('.custom-marker [role="button"]')]
+              .find((el) => el.getAttribute('aria-label') === 'Treaty of Paris Signed, 1783')
+              ?.getBoundingClientRect();
+            if (!map || !marker) return false;
+            return marker.left >= map.left && marker.right <= map.right &&
+                   marker.top >= map.top && marker.bottom <= map.bottom;
+          }),
+        { timeout: 15_000, message: 'Paris marker never came to rest inside the map viewport' },
+      )
+      .toBe(true);
   });
 
   test('desktop explore view keeps the vertical split and keyboard-ready markers', async ({ page }) => {
@@ -61,7 +126,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
   }) => {
     await page.getByRole('button', { name: 'Begin exploring' }).click();
 
-    const searchInput = page.getByRole('textbox', { name: 'Search historical events' });
+    const searchInput = page.getByRole('combobox', { name: 'Search historical events' });
     await searchInput.fill('Ticonderoga');
 
     const options = page.getByRole('option');
