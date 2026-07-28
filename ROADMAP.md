@@ -16,7 +16,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 18 tests; boots its own server on 5174
+npx playwright test    # 25 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
@@ -32,42 +32,45 @@ node scripts/build-geo-data.mjs   # refetches from CDN, rewrites baseMap.js + co
 
 ## Open work
 
-### 1. Mobile shows place and narrative alternately, never together
+### 1. Mobile map and narrative — fixed, route 2 still open
 
-The desktop split is the piece working as intended: map and full entry on
-screen at once. Mobile is structurally modal, and that — not styling — is why
-it reads as thinner. Measured on a 390×844 viewport:
+Resolved 2026-07-28. Mobile was structurally modal: the peek sheet spent 46%
+of its 464px on chrome (a 60px drag handle plus a 154px control row that
+wrapped to three lines at 390px wide), then 153px on a hero image, leaving the
+first prose line 49px below the fold.
 
-| | peek (default) | expanded |
+Three edits reclaimed the budget. The control row became one disclosure button
+in the handle row, taking chrome from 214px to 60px. The hero image now yields
+its space in the peek state and returns on expand. The mobile map dropped to
+seaboard zoom 5 — already the `minZoom`, so no floor change — which widens the
+strip from about two and a half colonies to Quebec–Pennsylvania.
+
+Measured on the binding case: event 9, which carries a hero image and has the
+longest description among the 18 events that can. Distance of the opening
+paragraph from the fold, negative meaning clear:
+
+| | 390×844 | 375×667 |
 |---|---|---|
-| map visible | 332px (39%) | 36px (**4%**) |
-| prose visible | **none** — first line is 145px below the fold | yes |
+| before | +10 | +101 |
+| after | **−153** | **−55** |
 
-The peek sheet gets 464px of screen and spends **46% of it on chrome**: a 60px
-drag handle plus 154px of Play / speed / Filter / Search / Focus-cards, before
-any content. Then a 153px hero image. The title lands at y=803 of 844.
+The map holds 45% of the viewport in both. Worth knowing for anyone revisiting
+this: removing the controls *alone* failed on both sizes — it is the +10 and
++101 row above. Both edits were needed, and the 390×844 case passed by only
+10px, which is why the tests use event 9 rather than event 1.
 
-So the default mobile view is a map crop, a toolbar, a painting and a headline,
-with the argument the visualisation exists to make — this happened *here* —
-split across two states the reader has to toggle between. A second, smaller
-problem: the mobile map uses the desktop seaboard zoom of 6, which in a 390×332
-strip is about two and a half colonies. You cannot see the theatre.
+Cards focus was dropped on mobile in the same change — it locked the sheet to
+full and hid the map — which deleted the `locked` branches from
+`MobileBottomSheet`. It remains on desktop, and narrowing the window now resets
+the view mode rather than stranding the map hidden.
 
-Two routes, and they are not the same size:
-
-**Reclaim the content budget.** Move the controls out of the peek sheet — one
-button, or up into the header — and drop the mobile seaboard zoom to 5. The
-peek state then carries a legible theatre plus title, date and opening
-paragraph. No architectural change. Worth doing first whatever else is
-decided, because it also answers whether the sheet was the problem or the
-content budget was.
-
-**Replace the sheet with a sticky map.** The standard mobile scrollytelling
-shape: a map strip pinned at roughly 30vh, article scrolling under it, the map
-re-aiming as each event comes into view. Map and text always co-present. This
-deletes `MobileBottomSheet` and its snap/gesture logic, including the
-horizontal swipe, since scrolling would drive the story again. A redesign, not
-an afternoon.
+**Still open: replacing the sheet with a sticky map.** The standard mobile
+scrollytelling shape — a map strip pinned at roughly 30vh, article scrolling
+under it, the map re-aiming as each event comes into view. This was the second
+of the two routes, and its main justification was the co-presence defect above,
+which is now fixed; what remains is a preference for scroll-driven reading
+rather than a bug. It would delete `MobileBottomSheet` and its snap/gesture
+logic including the horizontal swipe. A redesign, not an afternoon.
 
 What not to do: fall back to static map images on mobile. The map is the piece.
 
