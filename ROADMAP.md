@@ -16,7 +16,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 13 tests; boots its own server on 5174
+npx playwright test    # 18 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
@@ -32,7 +32,46 @@ node scripts/build-geo-data.mjs   # refetches from CDN, rewrites baseMap.js + co
 
 ## Open work
 
-### 1. Four of the eight type-badge colours fail WCAG contrast
+### 1. Mobile shows place and narrative alternately, never together
+
+The desktop split is the piece working as intended: map and full entry on
+screen at once. Mobile is structurally modal, and that — not styling — is why
+it reads as thinner. Measured on a 390×844 viewport:
+
+| | peek (default) | expanded |
+|---|---|---|
+| map visible | 332px (39%) | 36px (**4%**) |
+| prose visible | **none** — first line is 145px below the fold | yes |
+
+The peek sheet gets 464px of screen and spends **46% of it on chrome**: a 60px
+drag handle plus 154px of Play / speed / Filter / Search / Focus-cards, before
+any content. Then a 153px hero image. The title lands at y=803 of 844.
+
+So the default mobile view is a map crop, a toolbar, a painting and a headline,
+with the argument the visualisation exists to make — this happened *here* —
+split across two states the reader has to toggle between. A second, smaller
+problem: the mobile map uses the desktop seaboard zoom of 6, which in a 390×332
+strip is about two and a half colonies. You cannot see the theatre.
+
+Two routes, and they are not the same size:
+
+**Reclaim the content budget.** Move the controls out of the peek sheet — one
+button, or up into the header — and drop the mobile seaboard zoom to 5. The
+peek state then carries a legible theatre plus title, date and opening
+paragraph. No architectural change. Worth doing first whatever else is
+decided, because it also answers whether the sheet was the problem or the
+content budget was.
+
+**Replace the sheet with a sticky map.** The standard mobile scrollytelling
+shape: a map strip pinned at roughly 30vh, article scrolling under it, the map
+re-aiming as each event comes into view. Map and text always co-present. This
+deletes `MobileBottomSheet` and its snap/gesture logic, including the
+horizontal swipe, since scrolling would drive the story again. A redesign, not
+an afternoon.
+
+What not to do: fall back to static map images on mobile. The map is the piece.
+
+### 2. Four of the eight type-badge colours fail WCAG contrast
 
 `EventCard.jsx` paints the type badge white-on-colour. Measured ratios against
 white, both themes:
@@ -56,7 +95,7 @@ Cheapest real fix is darkening the two colours until they pass; the alternative
 is dark text on the existing gold, which suits the parchment palette better.
 Small change, and worth pairing with a scan that visits one event of each type.
 
-### 2. Holding an arrow key still drops steps
+### 3. Holding an arrow key still drops steps
 
 Roughly 45–115 ms of work per step, and key-repeat outruns it. Below about
 150 ms between presses a meaningful fraction of presses never land.
@@ -75,14 +114,14 @@ real fix is canvas rendering for the markers, or holding icon instances stable
 across steps so only the active/previous pair is touched. This is a genuine
 piece of work, not a tidy-up.
 
-### 3. The `metrics` chunk is 381.92 kB (112.58 kB gzip)
+### 4. The `metrics` chunk is 381.92 kB (112.58 kB gzip)
 
 Recharts, pulled in whole. It is the largest asset in the build by some margin
 and it only serves the data view. Splitting the chart components behind the
 existing lazy-route boundary, or moving to a lighter chart library, would take
 it off the initial path for anyone who never opens that view.
 
-### 4. Unmerged parallel direction on `cursor/fix-review-findings-39f3`
+### 5. Unmerged parallel direction on `cursor/fix-review-findings-39f3`
 
 Seven commits from 2026-07-20 redesigning the visualisation as editorial
 scrollytelling. It forked from `6ab6c3f` on 2026-07-08 and was never merged;
@@ -92,7 +131,7 @@ past it. It is the only surviving copy of that work.
 Either rebase it deliberately or delete it — leaving it to rot at an ever-growing
 distance from `main` is the one outcome with no upside.
 
-### 5. Reversing direction inside ~300ms drops the second step
+### 6. Reversing direction inside ~300ms drops the second step
 
 Press right then left in quick succession and the story ends up one step
 forward instead of back. Measured on the current code: four rapid
@@ -108,7 +147,7 @@ clobbered by the URL-driven update from the first.
 
 Two tests currently work around it with an explicit settle, and say so.
 
-### 6. Nits
+### 7. Nits
 
 - `#/explore/99999` displays the first event but leaves the bogus id in the
   address bar, so the URL misreports what is on screen. `#/explore/abc` handles
@@ -118,6 +157,14 @@ Two tests currently work around it with an explicit settle, and say so.
 ## Decisions already taken
 
 Recorded so they are not relitigated from scratch.
+
+**Each vector layer group gets a renderer bound to its own pane.** Do not
+consolidate them back into one shared `L.svg` for the sake of fewer SVG roots.
+A shared renderer puts every path in one SVG under `overlayPane`, which makes
+the pane z-indexes decorative and reduces paint order to mount order — so any
+layer that remounts jumps on top of the ones that did not. That is how a dark
+mode toggle erased every colony border: the base layers are keyed on
+`darkMode`, remounted, and re-appended the opaque land fill over them.
 
 **The chart carries North America and the far shore of the Atlantic, not the
 world.** Of 47 events, 5 are in Europe and the rest are on the eastern seaboard
