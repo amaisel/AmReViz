@@ -48,7 +48,10 @@ export default function WelcomeScreen({
 
       if (hasTriggered.current || isInteractive) return;
 
-      if (event.key === 'ArrowDown' || event.key === ' ') {
+      // ArrowRight matches how the story itself now advances; ArrowDown stays
+      // because there is no card to scroll on this screen and it reads as
+      // "onward" to anyone who arrived by scrolling.
+      if (event.key === 'ArrowDown' || event.key === 'ArrowRight' || event.key === ' ') {
         event.preventDefault();
         hasTriggered.current = true;
         onBegin();

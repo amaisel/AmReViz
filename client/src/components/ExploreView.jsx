@@ -334,18 +334,29 @@ export default function ExploreView({
         return;
       }
 
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      // Left/right walk the timeline; up/down are reserved for reading the
+      // card. Binding both axes to navigation meant a long entry could not be
+      // scrolled with the keyboard at all.
+      if (e.key === 'ArrowRight') {
         e.preventDefault();
         setIsPlaying(false);
         isScrolling.current = true;
         setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
         setTimeout(() => { isScrolling.current = false; }, 300);
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         setIsPlaying(false);
         isScrolling.current = true;
         setCurrentIndex(prev => Math.max(prev - 1, 0));
         setTimeout(() => { isScrolling.current = false; }, 300);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        // Drive the story panel explicitly rather than relying on focus: the
+        // card is a plain scroll container, and after a map click or a swipe
+        // focus is rarely inside it.
+        const panel = desktopCardRef.current;
+        if (!panel || panel.scrollHeight <= panel.clientHeight + 1) return;
+        e.preventDefault();
+        panel.scrollBy({ top: e.key === 'ArrowDown' ? 120 : -120, behavior: 'smooth' });
       }
     };
 
@@ -634,6 +645,11 @@ export default function ExploreView({
         <div
           className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}
           ref={desktopCardRef}
+          // A scroll container has to be reachable by keyboard on its own,
+          // not only through the global arrow handler.
+          tabIndex={0}
+          role="region"
+          aria-label="Event details"
         >
           {cardContent}
         </div>
@@ -682,8 +698,8 @@ export default function ExploreView({
           >
             <span>
               {isMobile
-                ? 'Swipe up or down to move through events'
-                : 'Use arrow keys, scroll, or Play to move through events'}
+                ? 'Swipe left or right to move through events'
+                : 'Use ← → , scroll, or Play to move through events'}
             </span>
             <button className="hint-dismiss" onClick={dismissHint} aria-label="Dismiss hint">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>

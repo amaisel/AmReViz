@@ -3,11 +3,13 @@
 // Sources:
 //   - us-atlas states-10m (TopoJSON, accurate US state coasts)
 //   - world-atlas countries-50m (Canada and neighbors)
+//   - world-atlas countries-110m (Western Europe, the far shore of the crossing)
 //   - Natural Earth 50m lakes and river centerlines
 //
 // Outputs (ES modules under src/data/geo/):
 //   - colonyShapes.js   accurate colony geometries keyed by colony name
-//   - baseMap.js        land silhouette, lakes, rivers clipped to the chart bounds
+//   - baseMap.js        land silhouette, lakes, rivers clipped to the chart
+//                       bounds, plus a coarse European coast for the Atlantic frame
 //
 // Run: node scripts/build-geo-data.mjs
 
@@ -22,12 +24,36 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, '..', 'src', 'data', 'geo');
 
 // Chart bounds with generous margin beyond the Leaflet maxBounds
-// [28,-85]..[48,-60] so the data edge stays off-screen even on wide
+// [27,-91]..[48,-60] so the data edge stays off-screen even on wide
 // monitors at minZoom.
 const BOUNDS = { west: -95.0, south: 23.0, east: -52.0, north: 52.0 };
+
+// The land silhouette alone runs wider. At minZoom on a wide display the
+// viewport is wider than maxBounds, so Leaflet cannot clamp the pan and the
+// clipper's straight cut showed as a false coastline down the left of the
+// chart — the margin has to beat the viewport, not just the bounds.
+//
+// Only the silhouette: lakes and river centrelines out here are never on
+// screen in the seaboard frame, and carrying them cost ~770 points of
+// geometry that Leaflet reprojects on every pan for nothing.
+const LAND_BOUNDS = { west: -102.0, south: 20.0, east: -52.0, north: 55.0 };
 const PRECISION = 2; // ~1.1km — chart is viewed at zoom 5–7, not street level
 
-const round = (n) => Math.round(n * 10 ** PRECISION) / 10 ** PRECISION;
+// The far shore of the crossing. Four events sit in London and Paris, and a
+// European target centred on blank parchment reads as a bug. This frame is
+// only ever seen at zoom 3–4, so it comes from the coarse 110m world set —
+// ~7KB against the 29KB the seaboard costs at 50m.
+//
+// Deliberately NOT run through simplifyCollection: 110m is already generalised
+// by Natural Earth, and a second Visvalingam pass on top of it shredded the
+// Channel and the Breton and Iberian coasts into loose triangles.
+// No European land reaches 34°N — Tarifa, the southern tip of Spain, is 36 —
+// so the clipper leaves no straight cut anywhere a viewer could mistake for
+// coastline. North Africa is deliberately excluded for the same reason: it
+// runs off the bottom of the frame and would be sliced flat.
+const EUROPE_BOUNDS = { west: -12.0, south: 34.0, east: 14.0, north: 60.0 };
+
+const roundAt = (n, precision) => Math.round(n * 10 ** precision) / 10 ** precision;
 
 // Visvalingam simplification keyed by quantile so we keep ~half the vertices —
 // enough for zoom 5–7, cheap enough that SVG path updates don't hitch.
@@ -40,8 +66,8 @@ function simplifyCollection(featureCollection, keepQuantile = 0.4) {
   return topojson.feature(simplified, simplified.objects.collection);
 }
 
-const roundGeometry = (geom) => {
-  const roundRing = (ring) => ring.map(([x, y]) => [round(x), round(y)]);
+const roundGeometry = (geom, precision = PRECISION) => {
+  const roundRing = (ring) => ring.map(([x, y]) => [roundAt(x, precision), roundAt(y, precision)]);
   switch (geom.type) {
     case 'Polygon':
       return { ...geom, coordinates: geom.coordinates.map(roundRing) };
@@ -132,6 +158,7 @@ const statesTopo = await fetchJson('https://cdn.jsdelivr.net/npm/us-atlas@3/stat
 const countriesTopo = await fetchJson('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
 const lakesGeo = await fetchJson('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/50m/physical/ne_50m_lakes.json');
 const riversGeo = await fetchJson('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/50m/physical/ne_50m_rivers_lake_centerlines.json');
+const worldCoarseTopo = await fetchJson('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
 
 const statesObj = statesTopo.objects.states;
 const stateGeoms = new Map(statesObj.geometries.map((g) => [g.properties.name, g]));
@@ -181,15 +208,19 @@ const landStates = [
   'West Virginia', 'North Carolina', 'South Carolina', 'Georgia', 'Florida',
   'Ohio', 'Kentucky', 'Tennessee', 'Alabama', 'Mississippi', 'Indiana', 'Michigan', 'Illinois',
   'Wisconsin', 'Missouri', 'Arkansas', 'Louisiana', 'Iowa', 'Minnesota',
+  // Never on screen. Present only so the silhouette runs past the west edge of
+  // the viewport — without them the merged shape stops on the Minnesota and
+  // Missouri state lines, which reads as a straight cut in the coast.
+  'North Dakota', 'South Dakota', 'Nebraska', 'Kansas', 'Oklahoma', 'Texas',
 ];
-const usLand = clipPolygonGeometry(mergeStates(landStates), BOUNDS);
+const usLand = clipPolygonGeometry(mergeStates(landStates), LAND_BOUNDS);
 
 const countryGeoms = topojson.feature(countriesTopo, countriesTopo.objects.countries).features;
 const neighborLand = [];
 for (const name of ['Canada', 'Bahamas', 'Bermuda', 'Cuba']) {
   const feat = countryGeoms.find((f) => f.properties.name === name);
   if (!feat) { console.warn(`country not in 50m set: ${name}`); continue; }
-  const clipped = clipPolygonGeometry(feat.geometry, BOUNDS);
+  const clipped = clipPolygonGeometry(feat.geometry, LAND_BOUNDS);
   if (clipped) neighborLand.push({ name, geometry: roundGeometry(clipped) });
 }
 
@@ -197,6 +228,35 @@ const landFeatures = [
   { type: 'Feature', properties: { name: 'United Colonies' }, geometry: roundGeometry(usLand) },
   ...neighborLand.map((n) => ({ type: 'Feature', properties: { name: n.name }, geometry: n.geometry })),
 ];
+
+// The far shore: the courts the war was decided in, plus enough neighbouring
+// coast that the outline reads as Europe rather than a stray blob.
+//
+// Merged into one silhouette before clipping, the same way the seaboard is.
+// Drawn as separate country features they render as a scatter of tiles with
+// parchment showing through every land border — the chart has no political
+// boundaries over here, only coastline.
+const coarseCountries = worldCoarseTopo.objects.countries.geometries;
+const europeCountries = [
+  'France', 'United Kingdom', 'Ireland', 'Spain', 'Portugal',
+  'Netherlands', 'Belgium', 'Germany', 'Denmark', 'Switzerland',
+  'Italy', 'Luxembourg',
+];
+const europeGeoms = europeCountries
+  .map((name) => {
+    const g = coarseCountries.find((c) => c.properties.name === name);
+    if (!g) console.warn(`country not in 110m set: ${name}`);
+    return g;
+  })
+  .filter(Boolean);
+const europeMerged = clipPolygonGeometry(
+  topojson.merge(worldCoarseTopo, europeGeoms),
+  EUROPE_BOUNDS
+);
+const europeFC = {
+  type: 'FeatureCollection',
+  features: [{ type: 'Feature', properties: { name: 'Europe' }, geometry: roundGeometry(europeMerged) }],
+};
 
 const lakeFeatures = [];
 for (const f of lakesGeo.features) {
@@ -261,10 +321,12 @@ writeFileSync(
   join(OUT_DIR, 'baseMap.js'),
   `${header}export const landAreas = ${JSON.stringify(landFC)};\n\n` +
   `export const lakes = ${JSON.stringify(lakesFC)};\n\n` +
-  `export const rivers = ${JSON.stringify(riversFC)};\n`
+  `export const rivers = ${JSON.stringify(riversFC)};\n\n` +
+  `export const europeLand = ${JSON.stringify(europeFC)};\n`
 );
 
 console.log(`colonies: ${Object.keys(simplifiedColonies).length} (${countCoords(simplifiedColonies)} pts)`);
 console.log(`land features: ${landFC.features.length} (${countCoords(landFC)} pts) — ${neighborLand.map((n) => n.name).join(', ')}`);
 console.log(`lakes: ${lakesFC.features.length} (${countCoords(lakesFC)} pts)`);
 console.log(`rivers: ${riversFC.features.length} (${countCoords(riversFC)} pts)`);
+console.log(`europe: ${europeFC.features.length} (${countCoords(europeFC)} pts)`);

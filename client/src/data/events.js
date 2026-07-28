@@ -243,6 +243,33 @@ export const events = [
     }
   },
   {
+    "id": 126,
+    "date": "1775-08-23",
+    "year": 1775,
+    "title": "Proclamation of Rebellion",
+    "location": "Court of St James's\nLondon, Great Britain",
+    "lat": 51.5045,
+    "lng": -0.1396,
+    "type": "political",
+    "side": "british",
+    "facts": [
+      {
+        "label": "Issued by",
+        "value": "George III"
+      },
+      {
+        "label": "Olive Branch Petition",
+        "value": "Refused a reading"
+      }
+    ],
+    "description": "Congress had sent the Olive Branch Petition in July, professing loyalty and asking the King to intervene against Parliament. Richard Penn carried it to London, where George III declined to receive it. Instead the King proclaimed the colonies in open and avowed rebellion and directed his officers to suppress it and to report anyone in traitorous correspondence with the rebels.",
+    "significance": "The last plausible route back to reconciliation closed here, in London, not in America. Paired with the Prohibitory Act that December, it placed the colonies outside the King's protection—an argument Congress would turn around and use to justify independence.",
+    "source": {
+      "label": "National Park Service — Timeline of the Revolution",
+      "url": "https://www.nps.gov/subjects/americanrevolution/timeline.htm"
+    }
+  },
+  {
     "id": 105,
     "date": "1775-11-07",
     "year": 1775,
@@ -421,6 +448,33 @@ export const events = [
     "source": {
       "label": "American Battlefield Trust — Fort Washington",
       "url": "https://www.battlefields.org/learn/revolutionary-war/battles/fort-washington"
+    }
+  },
+  {
+    "id": 127,
+    "date": "1776-12-21",
+    "year": 1776,
+    "title": "Franklin Arrives in France",
+    "location": "Passy, near Paris, France",
+    "lat": 48.857,
+    "lng": 2.279,
+    "type": "diplomatic",
+    "side": "american",
+    "facts": [
+      {
+        "label": "Age on arrival",
+        "value": "70"
+      },
+      {
+        "label": "Commissioners",
+        "value": "Franklin, Deane, Lee"
+      }
+    ],
+    "description": "Benjamin Franklin sailed from Philadelphia in October aboard the Reprisal, landed at Auray in Brittany in early December, and reached Paris on December 21 to join Silas Deane and Arthur Lee. France was already funnelling covert money and munitions through a front company; the commissioners' task was to convert that quiet help into an open alliance. Franklin settled at Passy and made himself the most recognisable American in Europe.",
+    "significance": "The war's other front was diplomatic, and it ran through Paris for seven years. Nothing France later did—the fleet at the Chesapeake, the siege guns at Yorktown, the money that kept Congress solvent—was available until someone won the argument here.",
+    "source": {
+      "label": "Office of the Historian — Benjamin Franklin",
+      "url": "https://history.state.gov/departmenthistory/people/franklin-benjamin"
     }
   },
   {
@@ -680,6 +734,33 @@ export const events = [
     "source": {
       "label": "National Park Service — Valley Forge History",
       "url": "https://www.nps.gov/vafo/learn/historyculture/valley-forge-history-and-significance.htm"
+    }
+  },
+  {
+    "id": 128,
+    "date": "1778-02-06",
+    "year": 1778,
+    "title": "Treaty of Alliance Signed with France",
+    "location": "Paris, France",
+    "lat": 48.8676,
+    "lng": 2.3212,
+    "type": "diplomatic",
+    "side": "american",
+    "facts": [
+      {
+        "label": "Treaties signed",
+        "value": "2"
+      },
+      {
+        "label": "Separate peace",
+        "value": "Forbidden to both"
+      }
+    ],
+    "description": "Saratoga did what fourteen months of persuasion could not: it convinced Vergennes the Americans could win. Franklin, Deane, and Lee signed two treaties with Conrad Alexandre Gérard—one of amity and commerce, one of alliance. France recognised the United States, renounced any claim to territory east of the Mississippi, and both parties bound themselves not to make a separate peace.",
+    "significance": "A colonial rebellion became a European war. Britain now had to defend the Caribbean, Gibraltar, and the Channel, and could no longer concentrate against the Continental Army.",
+    "source": {
+      "label": "National Archives — Treaty of Alliance with France (1778)",
+      "url": "https://www.archives.gov/milestone-documents/treaty-of-alliance-with-france"
     }
   },
   {
@@ -1144,6 +1225,33 @@ export const events = [
     "source": {
       "label": "American Battlefield Trust — Yorktown",
       "url": "https://www.battlefields.org/learn/revolutionary-war/battles/yorktown"
+    }
+  },
+  {
+    "id": 129,
+    "date": "1782-02-27",
+    "year": 1782,
+    "title": "The Commons Votes Against the War",
+    "location": "Palace of Westminster\nLondon, Great Britain",
+    "lat": 51.4995,
+    "lng": -0.1248,
+    "type": "political",
+    "side": "british",
+    "facts": [
+      {
+        "label": "Division",
+        "value": "234 to 215"
+      },
+      {
+        "label": "North's ministry",
+        "value": "Fell within a month"
+      }
+    ],
+    "description": "Four months after Yorktown, Britain still held New York, Charleston, and Savannah and still had the larger fleet. What it no longer had was a majority. General Henry Conway's motion against further prosecution of the American war carried by nineteen votes, and Lord North resigned on March 20 after twelve years in office. The Rockingham ministry that replaced him opened peace talks in Paris that spring.",
+    "significance": "The war did not end on a battlefield. It ended when the House of Commons withdrew its consent to pay for it, which is why the story crosses back to London before it reaches the treaty table.",
+    "source": {
+      "label": "Office of the Historian — Treaty of Paris, 1783",
+      "url": "https://history.state.gov/milestones/1776-1783/treaty"
     }
   },
   {
