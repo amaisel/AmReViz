@@ -34,7 +34,6 @@ export default function MobileBottomSheet({
   onNext,
   hasPrev,
   hasNext,
-  locked = false,
 }) {
   const [snapName, setSnapName] = useState('peek');
   const [panelOpen, setPanelOpen] = useState(false);
@@ -53,9 +52,8 @@ export default function MobileBottomSheet({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Bounce hint on first load (skip when locked into cards focus)
+  // Bounce hint on first load
   useEffect(() => {
-    if (locked) return;
     // Session storage can be unavailable in privacy-restricted contexts.
     let hasSeenBounce = true;
     try {
@@ -76,20 +74,14 @@ export default function MobileBottomSheet({
       };
       bounce();
     }
-  }, [sheetControls, snaps.peek, locked]);
-
-  // Force full while locked into cards focus (adjust during render, like eventId)
-  if (locked && snapName !== 'full') {
-    setSnapName('full');
-  }
+  }, [sheetControls, snaps.peek]);
 
   // Collapse back to peek when the event changes so the map stays in view
-  // (suppressed while locked in cards focus mode)
   const [lastEventId, setLastEventId] = useState(eventId);
   if (eventId !== lastEventId) {
     setLastEventId(eventId);
     setPanelOpen(false);
-    if (!locked) setSnapName('peek');
+    setSnapName('peek');
   }
 
   // Rewind the card whenever the sheet returns to peek
@@ -182,15 +174,11 @@ export default function MobileBottomSheet({
       className={`bottom-sheet ${darkMode ? 'dark' : ''}`}
       initial={{ y: snaps.peek }}
       animate={sheetControls}
-      drag={locked ? false : 'y'}
+      drag="y"
       dragListener={false}
       dragControls={dragControls}
-      dragConstraints={
-        locked
-          ? { top: snaps.full, bottom: snaps.full }
-          : { top: snaps.full, bottom: snaps.peek }
-      }
-      dragElastic={locked ? 0 : { top: 0.2, bottom: 0.2 }}
+      dragConstraints={{ top: snaps.full, bottom: snaps.peek }}
+      dragElastic={{ top: 0.2, bottom: 0.2 }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       style={{
@@ -210,17 +198,10 @@ export default function MobileBottomSheet({
         <button
           type="button"
           className="bottom-sheet-handle"
-          onPointerDown={(e) => {
-            if (locked) return;
-            dragControls.start(e);
-          }}
-          onClick={() => {
-            if (locked) return;
-            snapTo(snapName === 'peek' ? 'full' : 'peek');
-          }}
-          aria-label={locked ? 'Cards focus mode' : (isFullOpen ? 'Collapse event details' : 'Expand event details')}
-          aria-expanded={locked ? undefined : isFullOpen}
-          disabled={locked}
+          onPointerDown={(e) => dragControls.start(e)}
+          onClick={() => snapTo(snapName === 'peek' ? 'full' : 'peek')}
+          aria-label={isFullOpen ? 'Collapse event details' : 'Expand event details'}
+          aria-expanded={isFullOpen}
         >
           <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>
             <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

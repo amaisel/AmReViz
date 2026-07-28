@@ -3055,10 +3055,6 @@ body.dark-mode {
   font: inherit;
 }
 
-.bottom-sheet-handle:disabled {
-  cursor: default;
-}
-
 .bottom-sheet-handle:active {
   cursor: grabbing;
 }

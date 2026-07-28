@@ -520,4 +520,17 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     // Exact, or this also matches the "Major Battles" preset chip beside it.
     await expect(page.getByRole('button', { name: 'Battles', exact: true })).toBeVisible();
   });
+
+  test('cards focus is desktop-only and a resize to mobile restores the map', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Focus cards' }).click();
+    await expect(page.locator('.scrollytelling-view.view-mode-cards')).toBeVisible();
+
+    // Narrowing must not strand the map hidden with no control to bring it back.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('.scrollytelling-view.view-mode-map')).toBeVisible();
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Focus cards' })).toHaveCount(0);
+  });
 });

@@ -208,7 +208,13 @@ export default function ExploreView({
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 768px)');
-    const onChange = (e) => setIsMobile(e.matches);
+    const onChange = (e) => {
+      setIsMobile(e.matches);
+      // Cards focus is desktop-only. Without this, narrowing the window while
+      // it is active leaves the map hidden and removes the only control that
+      // could bring it back.
+      if (e.matches) setViewMode('map');
+    };
     mql.addEventListener('change', onChange);
     return () => mql.removeEventListener('change', onChange);
   }, []);
@@ -315,7 +321,7 @@ export default function ExploreView({
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
-      if (e.key === 'c' || e.key === 'C') {
+      if ((e.key === 'c' || e.key === 'C') && !isMobile) {
         e.preventDefault();
         toggleViewMode();
         return;
@@ -362,7 +368,7 @@ export default function ExploreView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [storyItems.length, togglePlayback, viewMode, toggleViewMode]);
+  }, [storyItems.length, togglePlayback, viewMode, toggleViewMode, isMobile]);
 
   // --- Jump to an event by id (map, timeline, search, interlude charts) ---
   const jumpToEvent = useCallback((id) => {
@@ -689,7 +695,6 @@ export default function ExploreView({
         <MobileBottomSheet
           eventId={currentItem?.key}
           darkMode={darkMode}
-          locked={viewMode === 'cards'}
           onPrev={handlePrevEvent}
           onNext={handleNextEvent}
           hasPrev={hasPrev}
