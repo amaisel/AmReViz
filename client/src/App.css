@@ -3044,6 +3044,9 @@ body.dark-mode {
   padding: 12px 0 8px;
   cursor: grab;
   flex-shrink: 0;
+  /* The sheet allows pan-y so cards can scroll; the handle must not, or a
+     drag on it scrolls the card instead of moving the sheet. */
+  touch-action: none;
   /* Rendered as a real <button> so it is keyboard reachable */
   width: 100%;
   background: none;

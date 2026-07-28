@@ -198,6 +198,119 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     }
   });
 
+  // 88° of longitude cannot fit a 390px viewport: flyToBounds bottomed out on
+  // the zoom floor, centred on open ocean, and left the marker a pixel past
+  // the right edge with no land on screen at all.
+  test('the overseas frame keeps its target on screen on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const [id, label] of [[125, /Treaty of Paris Signed, 1783$/], [129, /Commons Votes Against the War, 1782$/]]) {
+      await page.goto(`${baseUrl}#/explore/${id}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.leaflet-container')).toBeVisible();
+
+      await expect
+        .poll(
+          async () =>
+            page.evaluate((src) => {
+              const re = new RegExp(src);
+              const map = document.querySelector('.leaflet-container')?.getBoundingClientRect();
+              const sheet = document.querySelector('.bottom-sheet')?.getBoundingClientRect();
+              const el = [...document.querySelectorAll('.custom-marker [role="button"]')]
+                .find((n) => re.test(n.getAttribute('aria-label') || ''));
+              const r = el?.getBoundingClientRect();
+              if (!map || !r) return false;
+              const floor = sheet ? Math.min(sheet.top, map.bottom) : map.bottom;
+              // Inside the map *and* above the bottom sheet that covers it.
+              return r.left >= map.left && r.right <= map.right && r.top >= map.top && r.bottom <= floor;
+            }, label.source),
+          { timeout: 15_000, message: `event ${id} marker never rested in the visible strip` },
+        )
+        .toBe(true);
+
+      // And it is standing on the European coast, not open water.
+      await expect(page.locator('.europe-coast')).toHaveCount(1);
+    }
+  });
+
+  test('left and right move the story; up and down do not', async ({ page }) => {
+    await page.getByRole('button', { name: 'Begin exploring' }).click();
+    await expect(page.locator('.leaflet-container')).toBeVisible();
+
+    const counter = page.locator('.status-chip-counter');
+    const index = async () => Number((await counter.textContent()).split('/')[0]);
+    // Let the opening step settle; the first hop also writes the hash.
+    await expect.poll(index).toBe(1);
+    const start = await index();
+
+    // Reversing direction needs the previous step to land first — pressing
+    // right then left inside ~300ms drops the second press. See ROADMAP.md.
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(index).toBe(start + 1);
+    await page.waitForTimeout(400);
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(index).toBe(start);
+    await page.waitForTimeout(400);
+
+    // Vertical is for reading the card, so it must not move the story.
+    for (const key of ['ArrowDown', 'ArrowDown', 'ArrowUp']) await page.keyboard.press(key);
+    await page.waitForTimeout(700);
+    expect(await index(), 'up/down must not navigate').toBe(start);
+  });
+
+  test('arrow keys scroll a long event card', async ({ page }) => {
+    // A deep link to an entry long enough to overflow the panel.
+    await page.goto(`${baseUrl}#/explore/16`, { waitUntil: 'domcontentloaded' });
+    const card = page.locator('.desktop-event-card');
+    await expect(card).toBeVisible();
+
+    const overflows = await card.evaluate((el) => el.scrollHeight > el.clientHeight + 1);
+    test.skip(!overflows, 'card fits the viewport at this size, nothing to scroll');
+
+    expect(await card.evaluate((el) => el.scrollTop)).toBe(0);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => card.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  });
+
+  test('mobile swipes left to advance and right to go back', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Begin exploring' }).click();
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+
+    const counter = page.locator('.status-chip-counter');
+    const index = async () => Number((await counter.textContent()).split('/')[0]);
+    const start = await index();
+
+    // Swipes are read from raw touch events, so they have to be dispatched as
+    // touches — mouse drags never reach the handler.
+    const swipe = (fromX, toX) =>
+      page.evaluate(([x1, x2]) => {
+        const el = document.querySelector('.bottom-sheet');
+        const y = el.getBoundingClientRect().top + 160;
+        const touch = (x) => [new Touch({ identifier: 1, target: el, clientX: x, clientY: y })];
+        el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: touch(x1), changedTouches: touch(x1) }));
+        el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, touches: [], changedTouches: touch(x2) }));
+      }, [fromX, toX]);
+
+    await swipe(300, 80);
+    await expect.poll(index, { message: 'swipe left should advance' }).toBe(start + 1);
+
+    // Same settle as the keyboard test: a reversal inside ~300ms is dropped.
+    await page.waitForTimeout(400);
+    await swipe(80, 300);
+    await expect.poll(index, { message: 'swipe right should go back' }).toBe(start);
+
+    // A vertical drag is a scroll, not a navigation.
+    await page.evaluate(() => {
+      const el = document.querySelector('.bottom-sheet');
+      const r = el.getBoundingClientRect();
+      const t = (y) => [new Touch({ identifier: 1, target: el, clientX: 195, clientY: y })];
+      el.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: t(r.top + 300), changedTouches: t(r.top + 300) }));
+      el.dispatchEvent(new TouchEvent('touchend', { bubbles: true, touches: [], changedTouches: t(r.top + 60) }));
+    });
+    await page.waitForTimeout(600);
+    expect(await index(), 'vertical swipe must not navigate').toBe(start);
+  });
+
   test('desktop explore view keeps the vertical split and keyboard-ready markers', async ({ page }) => {
     await page.getByRole('button', { name: 'Begin exploring' }).click();
     await expect(page.locator('.leaflet-container')).toBeVisible();

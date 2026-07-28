@@ -19,8 +19,8 @@ export default function KeyboardShortcuts({ darkMode }) {
 
   const shortcuts = [
     { key: '?', desc: 'Toggle this help' },
-    { key: '\u2191 \u2193', desc: 'Navigate events (Guided mode)' },
-    { key: '\u2190 \u2192', desc: 'Navigate events (Guided mode)' },
+    { key: '\u2190 \u2192', desc: 'Previous / next event' },
+    { key: '\u2191 \u2193', desc: 'Scroll the event details' },
     { key: 'C', desc: 'Toggle Focus cards / Show map' },
     { key: 'Esc', desc: 'Exit Focus cards (back to map)' },
     { key: 'Space', desc: 'Play / pause (Explore) · Begin journey (Welcome)' },

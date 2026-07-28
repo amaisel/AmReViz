@@ -24,9 +24,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, '..', 'src', 'data', 'geo');
 
 // Chart bounds with generous margin beyond the Leaflet maxBounds
-// [28,-85]..[48,-60] so the data edge stays off-screen even on wide
+// [27,-91]..[48,-60] so the data edge stays off-screen even on wide
 // monitors at minZoom.
 const BOUNDS = { west: -95.0, south: 23.0, east: -52.0, north: 52.0 };
+
+// The land silhouette alone runs wider. At minZoom on a wide display the
+// viewport is wider than maxBounds, so Leaflet cannot clamp the pan and the
+// clipper's straight cut showed as a false coastline down the left of the
+// chart — the margin has to beat the viewport, not just the bounds.
+//
+// Only the silhouette: lakes and river centrelines out here are never on
+// screen in the seaboard frame, and carrying them cost ~770 points of
+// geometry that Leaflet reprojects on every pan for nothing.
+const LAND_BOUNDS = { west: -102.0, south: 20.0, east: -52.0, north: 55.0 };
 const PRECISION = 2; // ~1.1km — chart is viewed at zoom 5–7, not street level
 
 // The far shore of the crossing. Four events sit in London and Paris, and a
@@ -198,15 +208,19 @@ const landStates = [
   'West Virginia', 'North Carolina', 'South Carolina', 'Georgia', 'Florida',
   'Ohio', 'Kentucky', 'Tennessee', 'Alabama', 'Mississippi', 'Indiana', 'Michigan', 'Illinois',
   'Wisconsin', 'Missouri', 'Arkansas', 'Louisiana', 'Iowa', 'Minnesota',
+  // Never on screen. Present only so the silhouette runs past the west edge of
+  // the viewport — without them the merged shape stops on the Minnesota and
+  // Missouri state lines, which reads as a straight cut in the coast.
+  'North Dakota', 'South Dakota', 'Nebraska', 'Kansas', 'Oklahoma', 'Texas',
 ];
-const usLand = clipPolygonGeometry(mergeStates(landStates), BOUNDS);
+const usLand = clipPolygonGeometry(mergeStates(landStates), LAND_BOUNDS);
 
 const countryGeoms = topojson.feature(countriesTopo, countriesTopo.objects.countries).features;
 const neighborLand = [];
 for (const name of ['Canada', 'Bahamas', 'Bermuda', 'Cuba']) {
   const feat = countryGeoms.find((f) => f.properties.name === name);
   if (!feat) { console.warn(`country not in 50m set: ${name}`); continue; }
-  const clipped = clipPolygonGeometry(feat.geometry, BOUNDS);
+  const clipped = clipPolygonGeometry(feat.geometry, LAND_BOUNDS);
   if (clipped) neighborLand.push({ name, geometry: roundGeometry(clipped) });
 }
 

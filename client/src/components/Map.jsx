@@ -219,6 +219,20 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
   const map = useMap();
   const prevCenterRef = useRef(null);
   const prevZoomRef = useRef(null);
+  const [resizeTick, setResizeTick] = useState(0);
+
+  // The container is usually still laying out when the first positioning runs,
+  // so `getSize()` under-reports and the offset that lifts the target clear of
+  // the bottom sheet comes out proportionally short — on a phone that left the
+  // marker straddling the sheet edge. Re-aim once the real size is known.
+  useEffect(() => {
+    const reaim = () => {
+      prevCenterRef.current = null;
+      setResizeTick((t) => t + 1);
+    };
+    map.on('resize', reaim);
+    return () => { map.off('resize', reaim); };
+  }, [map]);
 
   // MapContainer props are only read at mount, so the frame has to be
   // resized imperatively when the story crosses the Atlantic. This must
@@ -259,14 +273,26 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
 
     map.stop();
 
-    if (fitBounds) {
+    const bottomPadding = [0, Math.round(map.getSize().y * coveredRatio)];
+
+    if (prevCenter == null) {
+      // First positioning — a deep link, or the first render. Land on the
+      // target immediately: a 2.4s flight in from the default centre is
+      // wasted motion, and `panTo` cannot change zoom, which a deep link
+      // straight to an overseas event needs it to.
+      if (fitBounds) {
+        map.fitBounds(fitBounds, { paddingBottomRight: bottomPadding, animate: false });
+      } else {
+        map.setView(target, zoom, { animate: false });
+      }
+    } else if (fitBounds) {
       // Overseas target: frame the whole crossing rather than the point.
       map.flyToBounds(fitBounds, {
         duration: 2.4,
         easeLinearity: 0.25,
-        paddingBottomRight: [0, Math.round(map.getSize().y * coveredRatio)],
+        paddingBottomRight: bottomPadding,
       });
-    } else if (zoomChanged && prevZoom != null) {
+    } else if (zoomChanged) {
       // Coming back from overseas. flyTo has to reproject every path per
       // frame, which is why it is reserved for the handful of steps a
       // same-zoom pan cannot reach at all.
@@ -276,14 +302,14 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
       // path updates stay cheap enough to feel smooth without half-drawn coasts.
       map.panTo(target, {
         animate: true,
-        duration: prevCenter == null ? 0.35 : Math.min(0.4, 0.2 + dist * 0.035),
+        duration: Math.min(0.4, 0.2 + dist * 0.035),
         easeLinearity: 0.4,
       });
     }
 
     prevCenterRef.current = center;
     prevZoomRef.current = zoom;
-  }, [center, zoom, map, autoFly, coveredRatio, fitBounds]);
+  }, [center, zoom, map, autoFly, coveredRatio, fitBounds, resizeTick]);
 
   return null;
 }
@@ -406,8 +432,11 @@ const Graticule = memo(({ darkMode, atlantic }) => {
     // The crossing frame needs meridians all the way to the far shore,
     // otherwise the grid stops mid-ocean and the Atlantic reads as a void.
     const [latStep, lngStep] = atlantic ? [6, 10] : [4, 4];
-    const [west, east] = atlantic ? [-90, 10] : [-95, -52];
-    const [south, north] = atlantic ? [22, 60] : [24, 52];
+    // Seaboard extents track the land silhouette, which now runs to -102 so
+    // its clipped edge stays off-viewport; a grid that stopped short of the
+    // coast would just relocate the visible edge.
+    const [west, east] = atlantic ? [-90, 10] : [-102, -52];
+    const [south, north] = atlantic ? [22, 60] : [20, 55];
     for (let lat = Math.ceil(south / latStep) * latStep; lat <= north; lat += latStep) {
       out.push([[lat, west], [lat, east]]);
     }
@@ -727,9 +756,15 @@ const easternSeaboardBounds = [
 // Four events in the chronology happen in Europe — London twice, Paris twice.
 // Panning to them is impossible inside the seaboard frame, so the map
 // temporarily widens to an Atlantic view and flies across.
+//
+// Deliberately loose, and loosest to the south. Lifting the target clear of
+// the phone's bottom sheet moves the map *centre* southward, so it is the
+// south edge that binds: at 15°N the view stuck fast there and the marker
+// came to rest straddling the sheet it was supposed to clear. Nothing is
+// drawn down here, so the slack costs only blank sea if a reader pans into it.
 const atlanticBounds = [
-  [20.0, -95.0],
-  [62.0, 15.0]
+  [-10.0, -100.0],
+  [70.0, 22.0]
 ];
 
 // A European target centred on its own would fill the frame with open water.
@@ -742,6 +777,13 @@ const atlanticCrossingBounds = [
 
 const SEABOARD_ZOOM = 6;
 const ATLANTIC_MIN_ZOOM = 3;
+
+// A phone cannot hold the crossing. Fitting 88° of longitude into ~390px needs
+// zoom 2.6, below the floor, so `flyToBounds` bottoms out at 3 and centres on
+// open ocean with the target a pixel off the right edge. Europe now carries its
+// own coastline — which was the only reason to frame both shores at all — so
+// the narrow layout flies to the target itself and lands on France or Britain.
+const OVERSEAS_MOBILE_ZOOM = 4;
 
 // Anything east of mid-ocean is across the Atlantic. Testing against the
 // seaboard rectangle instead would misclassify Gulf-coast events as overseas
@@ -789,10 +831,12 @@ export default function Map({
   // transform the chart instead — that was the remaining lag on northbound hops.
   // The one exception is a target off the seaboard, which needs a wider frame.
   const isOverseas = activeEvent != null && isAcrossTheAtlantic(activeEvent.lng);
-  const zoom = isOverseas ? ATLANTIC_MIN_ZOOM : SEABOARD_ZOOM;
+  const zoom = isOverseas
+    ? (isMobile ? OVERSEAS_MOBILE_ZOOM : ATLANTIC_MIN_ZOOM)
+    : SEABOARD_ZOOM;
   const maxBounds = isOverseas ? atlanticBounds : easternSeaboardBounds;
   const minZoom = isOverseas ? ATLANTIC_MIN_ZOOM : 5;
-  const fitBounds = isOverseas ? atlanticCrossingBounds : null;
+  const fitBounds = isOverseas && !isMobile ? atlanticCrossingBounds : null;
 
   // The mobile bottom sheet covers part of the map; desktop uses a side rail.
   const coveredRatio = isMobile ? 0.55 : 0;

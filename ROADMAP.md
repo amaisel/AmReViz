@@ -92,7 +92,23 @@ past it. It is the only surviving copy of that work.
 Either rebase it deliberately or delete it — leaving it to rot at an ever-growing
 distance from `main` is the one outcome with no upside.
 
-### 5. Nits
+### 5. Reversing direction inside ~300ms drops the second step
+
+Press right then left in quick succession and the story ends up one step
+forward instead of back. Measured on the current code: four rapid
+right-then-left pairs all landed on +1, while the same pair with a 400ms gap
+is correct every time. Vertical keys, which no longer navigate, are stable at
+1→1 across every run.
+
+It is not specific to the keyboard — the mobile swipe handler goes through the
+same path — and it predates the left/right switch, since up and left were
+already both "previous". The suspect is the round trip between `setCurrentIndex`
+and the hash sync in `useHashRouter`: the second press is applied and then
+clobbered by the URL-driven update from the first.
+
+Two tests currently work around it with an explicit settle, and say so.
+
+### 6. Nits
 
 - `#/explore/99999` displays the first event but leaves the bogus id in the
   address bar, so the URL misreports what is on screen. `#/explore/abc` handles
@@ -130,3 +146,24 @@ season opens. Note this was not a performance change — see item 2.
 event falls outside the seaboard rectangle misclassified Pensacola, which is
 west of the frame rather than across an ocean, and flew the map to a patch of
 open sea that did not contain it.
+
+**Horizontal moves the story; vertical reads the card.** Left/right arrows and
+left/right swipes step through the timeline. Up/down and vertical swipes are
+reserved for scrolling the entry, which previously could not be scrolled by
+keyboard at all because both axes were bound to navigation. The mouse wheel
+keeps its older behaviour — it scrolls the card and only advances once the
+card reaches an edge — because removing it would leave plain-mouse users with
+no scroll-driven path through the story.
+
+**The phone does not get the crossing frame.** Fitting 88° of longitude into
+~390px needs zoom 2.6, below the floor, so `flyToBounds` bottomed out at 3 and
+centred on open ocean with the target off the right edge. Narrow layouts fly to
+the European target itself at zoom 4 instead. `atlanticBounds` is deliberately
+loose to the *south* for this: lifting the target clear of the bottom sheet
+moves the map centre southward, and a tight south edge clamped that lift away.
+
+**The land silhouette is generated on wider bounds than the water.** At minZoom
+the viewport is wider than `maxBounds`, so Leaflet cannot clamp the pan and the
+clipper's straight cut showed as a false coastline. Land runs to -102° to beat
+the viewport; lakes and rivers stay on the tighter box, because carrying them
+that far cost ~770 points of geometry that is never on screen.

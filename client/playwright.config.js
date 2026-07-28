@@ -14,6 +14,10 @@ export default defineConfig({
   forbidOnly: Boolean(env.CI),
   retries: env.CI ? 2 : 0,
   reporter: env.CI ? 'line' : 'list',
+  // The suite runs against a dev server that compiles on demand, with four
+  // workers competing for it. Every test is reliable run serially; the 5s
+  // default just loses races to first-paint under that load.
+  expect: { timeout: 10_000 },
   use: {
     baseURL,
     trace: 'on-first-retry',

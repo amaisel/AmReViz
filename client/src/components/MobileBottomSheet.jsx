@@ -119,12 +119,14 @@ export default function MobileBottomSheet({
 
   const isFullOpen = snapName === 'full';
 
-  // Vertical swipes on the sheet body navigate events: up = next, down = prev.
-  // Sheet expand/collapse is reserved for the drag handle, and at full
-  // expansion the content scrolls natively instead.
+  // Horizontal swipes on the sheet body move along the timeline: left = next,
+  // right = prev, the direction the story already runs. Vertical is left
+  // entirely to the card — reading a long entry should never advance the
+  // story — and sheet expand/collapse stays on the drag handle.
+  //
+  // Because the two axes no longer compete, this stays active at both snap
+  // points rather than switching off once the sheet is fully open.
   useEffect(() => {
-    if (isFullOpen) return;
-
     const el = sheetRef.current;
     if (!el) return;
     let start = null;
@@ -145,22 +147,23 @@ export default function MobileBottomSheet({
       const dt = performance.now() - start.t;
       start = null;
 
-      if (Math.abs(dy) <= Math.abs(dx)) return;
+      // Anything more vertical than horizontal was a scroll, not a swipe.
+      if (Math.abs(dx) <= Math.abs(dy)) return;
 
-      const velocity = Math.abs(dy) / Math.max(dt, 1) * 1000;
-      const triggered = Math.abs(dy) > SWIPE_OFFSET || velocity > SWIPE_VELOCITY;
+      const velocity = Math.abs(dx) / Math.max(dt, 1) * 1000;
+      const triggered = Math.abs(dx) > SWIPE_OFFSET || velocity > SWIPE_VELOCITY;
       if (!triggered) return;
 
-      if (dy < 0 && hasNext) {
+      if (dx < 0 && hasNext) {
         onNext?.();
-      } else if (dy > 0 && hasPrev) {
+      } else if (dx > 0 && hasPrev) {
         onPrev?.();
       } else {
         // Rubber-band nudge at either end of the timeline
         const rest = snaps[snapName];
         sheetControls
-          .start({ y: rest + (dy < 0 ? -14 : 14), transition: { duration: 0.12 } })
-          .then(() => sheetControls.start({ y: rest, transition: snapSpring }));
+          .start({ x: dx < 0 ? -14 : 14, y: rest, transition: { duration: 0.12 } })
+          .then(() => sheetControls.start({ x: 0, y: rest, transition: snapSpring }));
       }
     };
 
@@ -170,7 +173,7 @@ export default function MobileBottomSheet({
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [isFullOpen, hasNext, hasPrev, onNext, onPrev, snaps, snapName, sheetControls]);
+  }, [hasNext, hasPrev, onNext, onPrev, snaps, snapName, sheetControls]);
 
   return (
     <Motion.div
@@ -195,7 +198,10 @@ export default function MobileBottomSheet({
         right: 0,
         height: vh,
         zIndex: 700,
-        touchAction: isFullOpen ? 'pan-y' : 'none',
+        // Vertical belongs to the browser now that it no longer navigates, so
+        // the card scrolls natively once the sheet is open. Horizontal is left
+        // unclaimed for the swipe handler above.
+        touchAction: 'pan-y',
         bottom: 0
       }}
     >
@@ -232,8 +238,11 @@ export default function MobileBottomSheet({
         className="bottom-sheet-content"
         ref={contentRef}
         style={{
+          // Still tied to the snap: at peek the sheet is taller than its
+          // visible strip, so scrolling here would run the card up behind the
+          // fold. Expanding the sheet is what makes a long entry readable.
           overflowY: isFullOpen ? 'auto' : 'hidden',
-          touchAction: isFullOpen ? 'pan-y' : 'none',
+          touchAction: 'pan-y',
           paddingBottom: `${Math.round(snaps.full) + 24}px` // sheet bottom sits below the viewport
         }}
       >
