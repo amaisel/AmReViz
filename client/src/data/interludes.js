@@ -19,7 +19,7 @@ export const interludes = [
     afterEventId: 8, // Declaration of Independence
     title: 'Trade Severed',
     takeaway:
-      'Independence was economic as much as political. Boycotts and war collapsed imports from Britain by 97% between 1771 and 1776, cutting the colonies loose from the empire that supplied them.',
+      'Independence was economic as much as political. Official-value imports from England fell about 98.7% between 1771 and 1776 as boycotts and war severed imperial trade.',
     chart: 'trade',
     yearCutoff: 1776,
   },
@@ -28,7 +28,7 @@ export const interludes = [
     afterEventId: 13, // Valley Forge Winter Encampment
     title: 'Armies in the Field',
     takeaway:
-      'The army that marched out of Valley Forge was the largest and best-trained the Continental cause ever fielded — 35,000 men, finally a match for the British regulars.',
+      'The army that marched out of Valley Forge was better trained, but annual service totals are not simultaneous field strength: short enlistments, militia tours, and reenlistments can count one person more than once.',
     chart: 'army',
     yearCutoff: 1778,
   },

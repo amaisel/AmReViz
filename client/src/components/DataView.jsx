@@ -2,15 +2,18 @@ import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './Char
 import BattleComparison from './BattleComparison';
 import AnimatedCounter from './AnimatedCounter';
 import {
-  events,
   armyData,
   economicData,
   battleData,
   campaignData,
-} from '../data/events';
+  warSummaryData,
+  aggregateSources,
+} from '../data/metrics';
+import { events } from '../data/events';
 
 export default function DataView({ darkMode, onNavigateToEvent }) {
-  const battles = events.filter(event => event.casualties);
+  const battles = events.filter(event => event.casualties && event.forces);
+  const battleCount = events.filter(event => event.type === 'battle').length;
 
   const handleBattleClick = (eventId) => {
     onNavigateToEvent?.(eventId);
@@ -24,47 +27,102 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
   return (
     <div className="data-view">
       <header className="data-section">
-        <h2>Forces & Economy</h2>
+        <h2>War in Numbers</h2>
         <p className="data-subtitle">
-          Visualizing the Revolution through numbers
+          {events.length} source-linked events, including {battleCount} battles and sieges
         </p>
       </header>
 
       <div className="data-insights">
         <div className="insight-card">
-          <h4>Peak Continental Army</h4>
-          <AnimatedCounter value={35000} className="insight-value" />
-          <p>troops in 1778 after Valley Forge training</p>
+          <h4>U.S. Servicemembers</h4>
+          <AnimatedCounter value={warSummaryData.servicemembers} className="insight-value" />
+          <p>
+            median of an estimated {warSummaryData.serviceEstimateRange[0].toLocaleString()}–
+            {warSummaryData.serviceEstimateRange[1].toLocaleString()} who served
+          </p>
         </div>
         <div className="insight-card">
-          <h4>Trade Collapse</h4>
-          <AnimatedCounter value={75} prefix="-" suffix="%" className="insight-value" />
-          <p>drop in British imports 1774-1776</p>
+          <h4>Recorded Battle Deaths</h4>
+          <AnimatedCounter value={warSummaryData.battleDeaths} className="insight-value" />
+          <p>official U.S. series based on incomplete returns</p>
         </div>
         <div className="insight-card">
-          <h4>War Deaths</h4>
-          <AnimatedCounter value={25000} className="insight-value" />
-          <p>American casualties (combat + disease)</p>
+          <h4>Non-mortal Woundings</h4>
+          <AnimatedCounter value={warSummaryData.nonMortalWoundings} className="insight-value" />
+          <p>U.S. servicemembers in the same official series</p>
         </div>
       </div>
+
+      <aside className="data-method-note">
+        <strong>How to read the estimates</strong>
+        <p>
+          {warSummaryData.note} The war-wide figures above are not calculated by adding the
+          selected engagements below.
+        </p>
+        <p>
+          Battle casualties can include killed, wounded, missing, and captured. “American / allied”
+          and “Crown / allied” are comparison columns, not claims that every combatant was American
+          or British; the story cards identify French, Hessian, Loyalist, Indigenous, and Spanish-led
+          forces where the record supports it.
+        </p>
+        <div className="data-method-links">
+          <a href={warSummaryData.source.url} target="_blank" rel="noreferrer">
+            War-wide U.S. figures ↗
+          </a>
+          <a href={aggregateSources.americanManpower.url} target="_blank" rel="noreferrer">
+            Annual manpower ↗
+          </a>
+          <a href={aggregateSources.englandTrade.url} target="_blank" rel="noreferrer">
+            Colonial trade ↗
+          </a>
+          <a
+            href="https://www.battlefields.org/learn/revolutionary-war/battles"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Battle estimates ↗
+          </a>
+          <a
+            href="https://www.nps.gov/subjects/americanrevolution/timeline.htm"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Chronology ↗
+          </a>
+        </div>
+      </aside>
 
       <section className="data-group">
         <h3 className="data-group-title">Military Strength & Theater</h3>
         <div className="data-grid">
-          <ArmyChart data={armyData} darkMode={darkMode} onYearClick={handleYearClick} />
+          <ArmyChart
+            data={armyData}
+            darkMode={darkMode}
+            onYearClick={handleYearClick}
+            source={aggregateSources.americanManpower}
+          />
           <CampaignTimeline data={campaignData} darkMode={darkMode} />
         </div>
       </section>
 
       <section className="data-group">
         <h3 className="data-group-title">Economic Impact</h3>
-        <TradeChart data={economicData} darkMode={darkMode} />
+        <TradeChart
+          data={economicData}
+          darkMode={darkMode}
+          source={aggregateSources.englandTrade}
+        />
       </section>
 
       <section className="data-group">
         <h3 className="data-group-title">Battle Analysis</h3>
         <div className="data-grid">
-          <CasualtiesChart data={battleData} darkMode={darkMode} onBattleClick={handleBattleClick} />
+          <CasualtiesChart
+            data={battleData}
+            darkMode={darkMode}
+            onBattleClick={handleBattleClick}
+          />
           <BattleComparison battles={battles} darkMode={darkMode} />
         </div>
       </section>

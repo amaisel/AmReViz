@@ -10,7 +10,8 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
   const typeColors = {
     battle: darkMode ? '#A33030' : '#7A1212',
     political: darkMode ? '#2C4B7A' : '#0A244A',
-    diplomatic: darkMode ? '#E0C060' : '#C5A02F'
+    diplomatic: darkMode ? '#E0C060' : '#C5A02F',
+    military: darkMode ? '#44A06A' : '#228B22'
   };
 
   useEffect(() => {
@@ -104,9 +105,9 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
       </div>
 
       <div className="timeline-nav">
-        <span className="nav-year">1773</span>
+        <span className="nav-year">{events[0]?.year}</span>
         <div className="nav-arrow">Time</div>
-        <span className="nav-year">1783</span>
+        <span className="nav-year">{events[events.length - 1]?.year}</span>
       </div>
     </div>
   );

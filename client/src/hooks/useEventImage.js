@@ -18,7 +18,16 @@ const resolved = new Map();
  */
 export default function useEventImage(event) {
   const key = event?.id;
-  const [state, setState] = useState(() => resolved.get(key) ?? { src: event?.image ?? null, credit: null, probing: true });
+  const initial = () => resolved.get(key) ?? { src: event?.image ?? null, credit: null, probing: true };
+  const [state, setState] = useState(initial);
+
+  // Re-seed during render when the card switches events, otherwise the
+  // previous event's image paints for a frame before the effect corrects it.
+  const [lastKey, setLastKey] = useState(key);
+  if (key !== lastKey) {
+    setLastKey(key);
+    setState(initial);
+  }
 
   useEffect(() => {
     if (!event?.image) { setState({ src: null, credit: null, probing: false }); return; }
@@ -33,6 +42,8 @@ export default function useEventImage(event) {
     const probe = new Image();
     probe.onload = () => settle({ src: event.image, credit: null, probing: false });
     probe.onerror = async () => {
+      // Without a slug there is no article to fall back to.
+      if (!event.wiki) { settle({ src: null, credit: null, probing: false }); return; }
       try {
         const res = await fetch(
           `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(event.wiki)}`

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './Charts';
-import { armyData, economicData, battleData, campaignData } from '../data/events';
+import { armyData, economicData, battleData, campaignData } from '../data/metrics';
 
 function InterludeChart({ interlude, darkMode, onBattleClick }) {
   const { chart, yearCutoff } = interlude;

@@ -56,13 +56,23 @@ export default function MobileBottomSheet({
   // Bounce hint on first load (skip when locked into cards focus)
   useEffect(() => {
     if (locked) return;
-    const hasSeenBounce = sessionStorage.getItem('amreviz-sheet-bounce');
+    // Session storage can be unavailable in privacy-restricted contexts.
+    let hasSeenBounce = true;
+    try {
+      hasSeenBounce = Boolean(sessionStorage.getItem('amreviz-sheet-bounce'));
+    } catch {
+      hasSeenBounce = false;
+    }
     if (!hasSeenBounce) {
       const bounce = async () => {
         await new Promise(r => setTimeout(r, 1000));
         await sheetControls.start({ y: snaps.peek - 40, transition: { duration: 0.3 } });
         await sheetControls.start({ y: snaps.peek, transition: { type: 'spring', stiffness: 300, damping: 20 } });
-        sessionStorage.setItem('amreviz-sheet-bounce', 'true');
+        try {
+          sessionStorage.setItem('amreviz-sheet-bounce', 'true');
+        } catch {
+          // Ignore: the hint simply replays next session.
+        }
       };
       bounce();
     }
@@ -189,7 +199,8 @@ export default function MobileBottomSheet({
         bottom: 0
       }}
     >
-      <div
+      <button
+        type="button"
         className="bottom-sheet-handle"
         onPointerDown={(e) => {
           if (locked) return;
@@ -200,7 +211,8 @@ export default function MobileBottomSheet({
           snapTo(snapName === 'peek' ? 'full' : 'peek');
         }}
         aria-label={locked ? 'Cards focus mode' : (isFullOpen ? 'Collapse event details' : 'Expand event details')}
-        role="button"
+        aria-expanded={locked ? undefined : isFullOpen}
+        disabled={locked}
       >
         <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>
           <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -208,7 +220,7 @@ export default function MobileBottomSheet({
           </svg>
         </span>
         <div className="bottom-sheet-bar" style={{ width: '40px', height: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: '2px', marginTop: '-4px' }} />
-      </div>
+      </button>
 
       <div className="bottom-sheet-controls">
         {controlsContent}

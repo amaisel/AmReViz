@@ -106,8 +106,15 @@ export default function App() {
   }, [setView, view]);
 
   useEffect(() => {
-    localStorage.setItem('amreviz-dark-mode', darkMode);
-    document.body.className = darkMode ? 'dark-mode' : 'light-mode';
+    try {
+      localStorage.setItem('amreviz-dark-mode', darkMode);
+    } catch {
+      // Local storage can be unavailable in privacy-restricted contexts;
+      // the theme still applies for this session.
+    }
+    // Toggle only our own classes so anything else on <body> survives.
+    document.body.classList.toggle('dark-mode', darkMode);
+    document.body.classList.toggle('light-mode', !darkMode);
   }, [darkMode]);
 
   // Global keyboard shortcuts

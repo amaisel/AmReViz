@@ -161,11 +161,23 @@ export default function ExploreView({
     [events, activeFilters]
   );
 
-  const anchorEventIndex = currentEvent ? events.indexOf(currentEvent) : 0;
-  const mapEvents = filteredEvents.filter((_, i) => {
-    const originalIndex = events.indexOf(filteredEvents[i]);
-    return originalIndex <= anchorEventIndex;
-  });
+  // id -> position in the canonical order, so the "everything up to here"
+  // slice below is a lookup instead of an indexOf scan per candidate.
+  // (Plain object, not a Map — `Map` is the map component in this module.)
+  const eventOrder = useMemo(() => {
+    const order = Object.create(null);
+    events.forEach((event, index) => { order[event.id] = index; });
+    return order;
+  }, [events]);
+
+  const anchorEventIndex = currentEvent ? eventOrder[currentEvent.id] ?? 0 : 0;
+
+  // Memoized so the map isn't handed a new array identity on every render —
+  // it redraws 30+ markers and 140 paths when this changes.
+  const mapEvents = useMemo(
+    () => filteredEvents.filter(event => (eventOrder[event.id] ?? 0) <= anchorEventIndex),
+    [filteredEvents, eventOrder, anchorEventIndex]
+  );
 
   const mapActiveId = currentEvent?.id;
 
@@ -548,10 +560,13 @@ export default function ExploreView({
   return (
     <div className={`scrollytelling-view ${darkMode ? 'dark' : ''} view-mode-${viewMode}`} ref={viewRef}>
       {/* Full-screen Map — CSS-hidden in cards mode; never unmount */}
+      {/* `inert` both hides this from assistive tech and pulls its contents
+          out of the tab order; aria-hidden alone left Leaflet's controls
+          focusable inside a hidden subtree. */}
       <div
         className="scrolly-map-container"
         ref={mapContainerRef}
-        aria-hidden={viewMode === 'cards'}
+        inert={viewMode === 'cards' ? '' : undefined}
       >
         <Map
           events={mapEvents}
@@ -590,10 +605,12 @@ export default function ExploreView({
         </div>
       </div>
 
-      {/* Desktop: absolute-positioned controls */}
-      <div className={`explore-controls desktop-controls ${timelineOpen ? 'timeline-open' : ''}`}>
-        {controlsContent}
-      </div>
+      {/* Desktop: absolute-positioned controls (the sheet carries them on mobile) */}
+      {!isMobile && (
+        <div className={`explore-controls desktop-controls ${timelineOpen ? 'timeline-open' : ''}`}>
+          {controlsContent}
+        </div>
+      )}
 
       {/* Filters panel — floating above controls on desktop, inside the sheet on mobile */}
       <AnimatePresence>
@@ -610,13 +627,17 @@ export default function ExploreView({
         )}
       </AnimatePresence>
 
-      {/* Desktop: event or interlude story panel */}
-      <div
-        className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}
-        ref={desktopCardRef}
-      >
-        {cardContent}
-      </div>
+      {/* Desktop: event or interlude story panel. Mounted only off-mobile —
+          the bottom sheet renders the same card, and keeping both in the DOM
+          duplicated every card, chart and search field behind display:none. */}
+      {!isMobile && (
+        <div
+          className={`desktop-event-card ${timelineOpen ? 'timeline-open' : ''}`}
+          ref={desktopCardRef}
+        >
+          {cardContent}
+        </div>
+      )}
 
       {/* Mobile/Tablet: draggable bottom sheet */}
       {isMobile && (

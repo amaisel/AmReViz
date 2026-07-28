@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 # Playwright MCP test artifacts
 .playwright-mcp/
+client/test-results/
+client/playwright-report/

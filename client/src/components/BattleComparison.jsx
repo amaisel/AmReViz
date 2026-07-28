@@ -11,13 +11,15 @@ export default function BattleComparison({ battles, darkMode }) {
   const outcomeLabel = {
     american: 'American Victory',
     british: 'British Victory',
-    indecisive: 'Indecisive'
+    indecisive: 'Indecisive',
+    allied: 'Allied Victory'
   };
 
   const outcomeColor = {
     american: '#0A244A',
     british: '#7A1212',
-    indecisive: '#C5A02F'
+    indecisive: '#C5A02F',
+    allied: '#1F6F46'
   };
 
   const calculateRate = (casualties, forces) => {
@@ -73,16 +75,21 @@ export default function BattleComparison({ battles, darkMode }) {
                 display: 'inline-block'
               }}
             >
-              {outcomeLabel[selected.outcome]}
+              {selected.outcomeLabel || outcomeLabel[selected.outcome]}
             </div>
-            <p style={{ fontSize: '0.85rem', color: '#888' }}>
-              {selected.location} • {new Date(selected.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+            <p className="comparison-meta-line">
+              {selected.location} • {new Date(selected.date).toLocaleDateString(undefined, {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                timeZone: 'UTC'
+              })}
             </p>
           </div>
 
           <div className="comparison-grid">
             <div className="comparison-side american">
-              <h4>Continental Army</h4>
+              <h4>{selected.combatants?.american || 'American / allied'}</h4>
               <div className="comparison-stat">
                 <span className="comparison-label">Total Forces</span>
                 <AnimatedCounter value={selected.forces.american} className="comparison-value" duration={0.8} />
@@ -91,7 +98,7 @@ export default function BattleComparison({ battles, darkMode }) {
                 <span className="comparison-label">Casualties</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px' }}>
                   <AnimatedCounter value={selected.casualties.american} className="comparison-value casualty" duration={0.8} />
-                  <span style={{ fontSize: '0.8rem', color: '#888' }}>({calculateRate(selected.casualties.american, selected.forces.american)})</span>
+                  <span className="comparison-rate">({calculateRate(selected.casualties.american, selected.forces.american)})</span>
                 </div>
               </div>
               <div className="comparison-bar">
@@ -110,7 +117,7 @@ export default function BattleComparison({ battles, darkMode }) {
             </div>
 
             <div className="comparison-side british">
-              <h4>British Forces</h4>
+              <h4>{selected.combatants?.british || 'Crown / allied'}</h4>
               <div className="comparison-stat">
                 <span className="comparison-label">Total Forces</span>
                 <AnimatedCounter value={selected.forces.british} className="comparison-value" duration={0.8} />
@@ -119,7 +126,7 @@ export default function BattleComparison({ battles, darkMode }) {
                 <span className="comparison-label">Casualties</span>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px' }}>
                   <AnimatedCounter value={selected.casualties.british} className="comparison-value casualty" duration={0.8} />
-                  <span style={{ fontSize: '0.8rem', color: '#888' }}>({calculateRate(selected.casualties.british, selected.forces.british)})</span>
+                  <span className="comparison-rate">({calculateRate(selected.casualties.british, selected.forces.british)})</span>
                 </div>
               </div>
               <div className="comparison-bar">
@@ -147,6 +154,21 @@ export default function BattleComparison({ battles, darkMode }) {
           }}>
             {selected.description}
           </div>
+          {selected.statNote && (
+            <p className="comparison-stat-note">
+              <strong>Reading the numbers:</strong> {selected.statNote}
+            </p>
+          )}
+          {selected.source && (
+            <a
+              className="comparison-source"
+              href={selected.source.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Source: {selected.source.label} ↗
+            </a>
+          )}
         </Motion.div>
       </AnimatePresence>
     </Motion.div>
