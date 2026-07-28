@@ -533,4 +533,59 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await expect(page.locator('.bottom-sheet')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Focus cards' })).toHaveCount(0);
   });
+
+  // The point of the mobile layout work: place and narrative on screen at the
+  // same time, in the default state, without the reader toggling anything.
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 375, height: 667 },
+  ]) {
+    test(`the map and the opening paragraph share a ${viewport.width}x${viewport.height} screen`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      // Event 9 is the binding case in the set: one of the 18 events that can
+      // carry a hero image, and the longest description among them at 333
+      // characters. Event 1 fits comfortably and proves nothing.
+      await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Battle of Long Island' })).toBeVisible();
+      await settleCardAnimation(page, '.bottom-sheet');
+
+      const layout = await page.evaluate(() => {
+        const sheet = document.querySelector('.bottom-sheet');
+        const prose = [...document.querySelectorAll('.bottom-sheet-content p')]
+          .filter((p) => p.textContent.trim().length > 60)[0];
+        return {
+          viewportHeight: window.innerHeight,
+          mapStripHeight: sheet.getBoundingClientRect().top,
+          proseBottom: prose ? prose.getBoundingClientRect().bottom : null,
+        };
+      });
+
+      expect(layout.proseBottom).not.toBeNull();
+      // Fully above the fold, not merely started.
+      expect(layout.proseBottom).toBeLessThanOrEqual(layout.viewportHeight);
+      // And the map is still a map, not a sliver.
+      expect(layout.mapStripHeight / layout.viewportHeight).toBeGreaterThanOrEqual(0.4);
+    });
+  }
+
+  test('a data interlude leads with its argument at peek', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('heading', { name: 'The Cost of Rebellion' })).toBeVisible();
+    await settleCardAnimation(page, '.bottom-sheet');
+
+    // The standfirst, deliberately not the chart. The chart clears a 390x844
+    // by 4px but overflows a 375x667 by 94px, so asserting on it would be
+    // wrong rather than merely flaky.
+    const proseBottom = await page.evaluate(() => {
+      const prose = [...document.querySelectorAll('.bottom-sheet-content p')]
+        .filter((p) => p.textContent.trim().length > 60)[0];
+      return prose ? prose.getBoundingClientRect().bottom : null;
+    });
+
+    expect(proseBottom).not.toBeNull();
+    expect(proseBottom).toBeLessThanOrEqual(667);
+  });
 });
