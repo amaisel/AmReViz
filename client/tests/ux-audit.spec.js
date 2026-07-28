@@ -478,4 +478,17 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
 
     await expect.poll(labelGap, { timeout: 10_000 }).toBeLessThan(200);
   });
+
+  test('the hero image yields its space at peek and returns on expand', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Event 9 carries a hero image; most events do not.
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Battle of Long Island' })).toBeVisible();
+
+    const hero = page.locator('.bottom-sheet-content .event-card-image');
+    await expect(hero).toBeHidden();
+
+    await page.getByRole('button', { name: 'Expand event details' }).click();
+    await expect(hero).toBeVisible();
+  });
 });

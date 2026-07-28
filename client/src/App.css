@@ -3109,6 +3109,14 @@ body.dark-mode {
   -webkit-backdrop-filter: none;
 }
 
+/* At peek the sheet has ~404px of content budget on a 390x844 and ~307px on a
+   375x667. The hero costs 147-153px of that, which is the difference between
+   the opening paragraph clearing the fold and sitting below it. The painting
+   is one drag away, and it leads the expanded view. */
+.bottom-sheet-content.peek .event-card-image {
+  display: none;
+}
+
 .bottom-sheet-controls {
   display: flex;
   align-items: center;

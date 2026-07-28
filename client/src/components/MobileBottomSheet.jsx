@@ -235,7 +235,7 @@ export default function MobileBottomSheet({
       {panelContent}
 
       <div
-        className="bottom-sheet-content"
+        className={`bottom-sheet-content ${isFullOpen ? 'expanded' : 'peek'}`}
         ref={contentRef}
         style={{
           // Still tied to the snap: at peek the sheet is taller than its
