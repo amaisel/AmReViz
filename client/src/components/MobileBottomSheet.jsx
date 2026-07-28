@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { motion as Motion, useAnimation, useDragControls } from 'framer-motion';
+import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
 
-const SNAP_PEEK_RATIO = 0.55;
 const SNAP_FULL_RATIO = 0.9;
 
 const SWIPE_OFFSET = 56;
@@ -11,7 +11,7 @@ const snapSpring = { type: 'spring', stiffness: 300, damping: 30 };
 
 function getSnapPoints(vh) {
   return {
-    peek: vh * (1 - SNAP_PEEK_RATIO),
+    peek: vh * (1 - MOBILE_SHEET_PEEK_RATIO),
     full: vh * (1 - SNAP_FULL_RATIO),
   };
 }

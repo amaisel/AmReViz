@@ -453,4 +453,29 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     expect(layout.documentWidth).toBe(layout.viewportWidth);
     expect(layout.bodyOverflow).toBe('hidden');
   });
+
+  test('the mobile map opens on a theatre, not two colonies', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+
+    // Two fixed geographic points. Their on-screen separation halves for every
+    // zoom level, so it reads the map's scale directly rather than counting
+    // labels, whose placement shifts. Measured: ~276px at zoom 6, ~138px at 5.
+    const labelGap = () =>
+      page.evaluate(() => {
+        const pick = (t) =>
+          [...document.querySelectorAll('.leaflet-marker-icon')].find(
+            (el) => (el.textContent || '').trim() === t,
+          );
+        const a = pick('MA');
+        const b = pick('PA');
+        if (!a || !b) return null;
+        const ra = a.getBoundingClientRect();
+        const rb = b.getBoundingClientRect();
+        return Math.hypot(ra.left - rb.left, ra.top - rb.top);
+      });
+
+    await expect.poll(labelGap, { timeout: 10_000 }).toBeLessThan(200);
+  });
 });

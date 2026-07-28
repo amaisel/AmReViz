@@ -3,6 +3,7 @@ import { MapContainer, Marker, Polyline, useMap, GeoJSON, Pane } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
+import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
 
 // One renderer per pane, not one for the whole chart.
 //
@@ -793,6 +794,12 @@ const atlanticCrossingBounds = [
 ];
 
 const SEABOARD_ZOOM = 6;
+
+// A 390x332 strip at the desktop zoom of 6 is about two and a half colonies.
+// Zoom 5 — already the seaboard minZoom, so no floor change — carries Quebec
+// to Pennsylvania.
+const SEABOARD_MOBILE_ZOOM = 5;
+
 const ATLANTIC_MIN_ZOOM = 3;
 
 // A phone cannot hold the crossing. Fitting 88° of longitude into ~390px needs
@@ -850,13 +857,13 @@ export default function Map({
   const isOverseas = activeEvent != null && isAcrossTheAtlantic(activeEvent.lng);
   const zoom = isOverseas
     ? (isMobile ? OVERSEAS_MOBILE_ZOOM : ATLANTIC_MIN_ZOOM)
-    : SEABOARD_ZOOM;
+    : (isMobile ? SEABOARD_MOBILE_ZOOM : SEABOARD_ZOOM);
   const maxBounds = isOverseas ? atlanticBounds : easternSeaboardBounds;
   const minZoom = isOverseas ? ATLANTIC_MIN_ZOOM : 5;
   const fitBounds = isOverseas && !isMobile ? atlanticCrossingBounds : null;
 
   // The mobile bottom sheet covers part of the map; desktop uses a side rail.
-  const coveredRatio = isMobile ? 0.55 : 0;
+  const coveredRatio = isMobile ? MOBILE_SHEET_PEEK_RATIO : 0;
 
   const visibleEvents = events.filter(event => {
     if (!hideFutureEvents) return true;
@@ -931,7 +938,7 @@ export default function Map({
       </p>
       <MapContainer
         center={[40.0, -74.0]}
-        zoom={SEABOARD_ZOOM}
+        zoom={isMobile ? SEABOARD_MOBILE_ZOOM : SEABOARD_ZOOM}
         // MapController keeps minZoom/maxBounds in sync from here on; these
         // are only the mount-time values.
         minZoom={5}
