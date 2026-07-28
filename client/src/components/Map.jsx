@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
 import { MapContainer, Marker, Polyline, useMap, GeoJSON, Pane } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { landAreas, lakes, rivers } from '../data/geo/baseMap';
+import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
 
 // Default SVG is fine for instant setView hops — we no longer animate pans,
 // so padding tricks don't help. Keep a single shared renderer so panes don't
@@ -180,7 +180,10 @@ function ScaleBarControl({ darkMode }) {
       const meters = latlng1.distanceTo(latlng2);
       const miles = meters / 1609.34;
 
-      const niceSteps = [500, 200, 100, 50, 25, 10, 5];
+      // Steps run up to 2000 so the Atlantic frame has an honest rung to land
+      // on. Capped at 500, the bar bottomed out on the 40px floor below and
+      // then labelled that floor "500 mi", which was roughly half the truth.
+      const niceSteps = [2000, 1000, 500, 200, 100, 50, 25, 10, 5];
       const niceMiles = niceSteps.find((s) => s <= miles * 1.15) || 5;
       const px = Math.max(40, Math.min(140, (niceMiles / miles) * 100));
 
@@ -285,13 +288,37 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
   return null;
 }
 
+// True while the chart is wider than the seaboard frame. Returns a boolean
+// rather than the zoom itself so crossing the threshold is the only thing
+// that re-renders the base chart.
+const INLAND_DETAIL_ZOOM = 5;
+
+function useIsWideFrame() {
+  const map = useMap();
+  const [wide, setWide] = useState(() => map.getZoom() < INLAND_DETAIL_ZOOM);
+
+  useEffect(() => {
+    const update = () => setWide(map.getZoom() < INLAND_DETAIL_ZOOM);
+    map.on('zoomend', update);
+    update();
+    return () => { map.off('zoomend', update); };
+  }, [map]);
+
+  return wide;
+}
+
 // Base chart: one land fill+stroke, lakes, rivers. Extra SVG copies of the
 // coast were the main cost when Leaflet rewrote path `d` on pan.
-const BaseChart = memo(({ darkMode }) => {
+const BaseChart = memo(({ darkMode, showEurope }) => {
   const coastInk = darkMode ? '#9aafd4' : '#4A3828';
   const landFill = darkMode ? '#2a3555' : '#FAF6EA';
   const waterFill = darkMode ? '#12182a' : '#D4C4A0';
   const riverInk = darkMode ? '#7d92be' : '#6B5840';
+
+  // Lakes and river centrelines are surveyed for zoom 5–7. Out over the
+  // Atlantic they collapse into speckle inside the silhouette, so the
+  // crossing frame drops them and reads as a clean ocean chart.
+  const wideFrame = useIsWideFrame();
 
   return (
     <>
@@ -312,8 +339,30 @@ const BaseChart = memo(({ darkMode }) => {
           }}
           smoothFactor={2.5}
         />
+        {/* Mounted only for the crossing — at seaboard zoom it is off-frame
+            geometry that Leaflet would still reproject on every pan. */}
+        {showEurope && (
+          <GeoJSON
+            key={`europe-${darkMode}`}
+            data={europeLand}
+            interactive={false}
+            renderer={CHART_SVG}
+            style={{
+              fillColor: landFill,
+              fillOpacity: 1,
+              color: coastInk,
+              weight: 1.5,
+              opacity: 1,
+              lineJoin: 'round',
+              lineCap: 'round',
+              className: 'europe-coast',
+            }}
+            smoothFactor={2.5}
+          />
+        )}
       </Pane>
 
+      {!wideFrame && (
       <Pane name="base-water" style={{ zIndex: 320 }}>
         <GeoJSON
           key={`lakes-${darkMode}`}
@@ -345,18 +394,28 @@ const BaseChart = memo(({ darkMode }) => {
           smoothFactor={2.5}
         />
       </Pane>
+      )}
     </>
   );
 });
 
 // Faint survey graticule with edge ticks, like an 18th-century chart
-const Graticule = memo(({ darkMode }) => {
+const Graticule = memo(({ darkMode, atlantic }) => {
   const lines = useMemo(() => {
     const out = [];
-    for (let lat = 26; lat <= 50; lat += 4) out.push([[lat, -95], [lat, -52]]);
-    for (let lng = -92; lng <= -56; lng += 4) out.push([[24, lng], [52, lng]]);
+    // The crossing frame needs meridians all the way to the far shore,
+    // otherwise the grid stops mid-ocean and the Atlantic reads as a void.
+    const [latStep, lngStep] = atlantic ? [6, 10] : [4, 4];
+    const [west, east] = atlantic ? [-90, 10] : [-95, -52];
+    const [south, north] = atlantic ? [22, 60] : [24, 52];
+    for (let lat = Math.ceil(south / latStep) * latStep; lat <= north; lat += latStep) {
+      out.push([[lat, west], [lat, east]]);
+    }
+    for (let lng = Math.ceil(west / lngStep) * lngStep; lng <= east; lng += lngStep) {
+      out.push([[south, lng], [north, lng]]);
+    }
     return out;
-  }, []);
+  }, [atlantic]);
 
   const color = darkMode ? '#8fa1c9' : '#7d6a4f';
 
@@ -364,7 +423,7 @@ const Graticule = memo(({ darkMode }) => {
     <Pane name="graticule" style={{ zIndex: 290 }}>
       {lines.map((pts, i) => (
         <Polyline
-          key={i}
+          key={`${atlantic ? 'atl' : 'sea'}-${i}`}
           positions={pts}
           interactive={false}
           renderer={CHART_SVG}
@@ -469,6 +528,12 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
 function ColonyLabels({ boundaries, darkMode }) {
   // Static positions — avoiding per-event label nudging prevents icon
   // recreation on every story hop.
+  //
+  // Dropped in the Atlantic frame: thirteen abbreviations over a coastline
+  // rendered two hundred pixels wide is a smudge, not a label.
+  const wideFrame = useIsWideFrame();
+  if (wideFrame) return null;
+
   return (
     <>
       {boundaries.features.map((feature) => {
@@ -500,9 +565,20 @@ const periodLabels = [
   { text: 'EAST FLORIDA', lat: 29.4, lng: -81.6, kind: 'territory', rotate: -62 },
 ];
 
-const PeriodLabels = memo(({ darkMode }) => (
+// The crossing frame replaces the label set rather than adding to it. At zoom
+// 3 the seaboard labels collapse into an illegible knot over a shape the size
+// of a thumbnail, and the ocean label — angled for a coastal view — ends up
+// lying across New England.
+const atlanticLabels = [
+  { text: 'ATLANTIC OCEAN', lat: 41.5, lng: -42.0, kind: 'sea', rotate: 0 },
+  { text: 'GREAT BRITAIN', lat: 57.6, lng: -4.2, kind: 'territory', rotate: 0 },
+  { text: 'FRANCE', lat: 45.4, lng: 2.5, kind: 'territory', rotate: 0 },
+  { text: 'SPAIN', lat: 40.0, lng: -3.7, kind: 'territory', rotate: 0 },
+];
+
+const PeriodLabels = memo(({ darkMode, atlantic }) => (
   <Pane name="period-labels" style={{ zIndex: 340 }}>
-    {periodLabels.map((label) => (
+    {(atlantic ? atlanticLabels : periodLabels).map((label) => (
       <Marker
         key={label.text}
         position={[label.lat, label.lng]}
@@ -518,7 +594,15 @@ const PeriodLabels = memo(({ darkMode }) => (
   </Pane>
 ));
 
-const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
+// Chronology annotations along the story so far.
+//
+// This used to draw a connecting line between consecutive events. It was
+// removed: nobody travelled Savannah → Charleston → Camden as one march, so a
+// drawn segment asserted a journey that never happened — and across the
+// Atlantic it degenerated into a rubber band from Yorktown to Paris. What is
+// worth keeping is the year each new campaign season opens, pinned to the
+// place it opened at.
+const TrailYearMarkers = memo(({ events, activeEventId, darkMode }) => {
   const activeIndex = useMemo(
     () => events.findIndex(e => e.id === activeEventId),
     [events, activeEventId]
@@ -527,44 +611,19 @@ const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
     () => (activeIndex < 1 ? [] : events.slice(0, activeIndex + 1)),
     [events, activeIndex]
   );
-  const color = darkMode ? '#C5A02F' : '#0A244A';
-  const headColor = darkMode ? '#E0C060' : '#1e3a5f';
 
-  // Build segments with age-based opacity — hooks must run unconditionally
-  const trail = useMemo(() => {
+  return useMemo(() => {
     if (visibleEvents.length < 2) return null;
 
-    const segments = [];
     const yearMarkers = [];
-    let lastYear = null;
+    let lastYear = new Date(visibleEvents[0].date).getUTCFullYear();
 
     for (let i = 1; i < visibleEvents.length; i++) {
-      const age = (visibleEvents.length - 1 - i) / Math.max(visibleEvents.length - 1, 1);
-      const opacity = 0.06 + (1 - age) * 0.54; // fades from 0.6 (newest) to 0.06 (oldest)
-      const weight = i === visibleEvents.length - 1 ? 3.5 : Math.max(1, 2 * (1 - age * 0.6));
-      const segColor = i === visibleEvents.length - 1 ? headColor : color;
-
-      segments.push(
-        <Polyline
-          key={`seg-${visibleEvents[i].id}`}
-          positions={[[visibleEvents[i - 1].lat, visibleEvents[i - 1].lng], [visibleEvents[i].lat, visibleEvents[i].lng]]}
-          renderer={CHART_SVG}
-          pathOptions={{
-            color: segColor,
-            weight,
-            opacity,
-            dashArray: i === visibleEvents.length - 1 ? null : '6, 6',
-            lineCap: 'round',
-          }}
-        />
-      );
-
-      // Year markers at year transitions
       const eventYear = new Date(visibleEvents[i].date).getUTCFullYear();
-      if (lastYear !== null && eventYear !== lastYear) {
+      if (eventYear !== lastYear) {
         yearMarkers.push(
           <Marker
-            key={`year-${eventYear}-${i}`}
+            key={`year-${eventYear}-${visibleEvents[i].id}`}
             position={[visibleEvents[i].lat, visibleEvents[i].lng]}
             icon={L.divIcon({
               className: 'trail-year-marker',
@@ -578,10 +637,8 @@ const TroopMovementLines = memo(({ events, activeEventId, darkMode }) => {
       }
       lastYear = eventYear;
     }
-    return <>{segments}{yearMarkers}</>;
-  }, [visibleEvents, color, headColor, darkMode]);
-
-  return trail;
+    return <>{yearMarkers}</>;
+  }, [visibleEvents, darkMode]);
 });
 
 function MapLegend({ darkMode, timelineOpen }) {
@@ -659,33 +716,40 @@ function MapLegend({ darkMode, timelineOpen }) {
   );
 }
 
+// West edge reaches -91 so the Gulf campaign at Pensacola (-87.2) is inside
+// the frame. The land data runs to -95, so the silhouette still has no
+// visible edge at minZoom.
 const easternSeaboardBounds = [
-  [28.0, -85.0],
+  [27.0, -91.0],
   [48.0, -60.0]
 ];
 
-// A few events in the chronology happen in Europe (the Treaty of Paris).
+// Four events in the chronology happen in Europe — London twice, Paris twice.
 // Panning to them is impossible inside the seaboard frame, so the map
 // temporarily widens to an Atlantic view and flies across.
 const atlanticBounds = [
-  [20.0, -90.0],
+  [20.0, -95.0],
   [62.0, 15.0]
 ];
 
-// The engraved chart only carries North American geometry, so a European
-// target centred on its own sits on blank parchment. Framing the whole
-// crossing keeps the coast — and the trail line back to it — in view.
+// A European target centred on its own would fill the frame with open water.
+// Framing the whole crossing puts both shores on screen, which is the point:
+// these are decisions taken an ocean away from the fighting.
 const atlanticCrossingBounds = [
   [34.0, -80.0],
-  [54.0, 8.0]
+  [55.0, 8.0]
 ];
 
 const SEABOARD_ZOOM = 6;
 const ATLANTIC_MIN_ZOOM = 3;
 
-function isWithinSeaboard(lat, lng) {
-  const [[south, west], [north, east]] = easternSeaboardBounds;
-  return lat >= south && lat <= north && lng >= west && lng <= east;
+// Anything east of mid-ocean is across the Atlantic. Testing against the
+// seaboard rectangle instead would misclassify Gulf-coast events as overseas
+// and fly the map to an empty stretch of sea.
+const ATLANTIC_MERIDIAN = -30.0;
+
+function isAcrossTheAtlantic(lng) {
+  return lng > ATLANTIC_MERIDIAN;
 }
 
 export default function Map({
@@ -724,7 +788,7 @@ export default function Map({
   // path `d` attribute (~50+ paths). Keeping zoom constant lets pans CSS-
   // transform the chart instead — that was the remaining lag on northbound hops.
   // The one exception is a target off the seaboard, which needs a wider frame.
-  const isOverseas = activeEvent != null && !isWithinSeaboard(activeEvent.lat, activeEvent.lng);
+  const isOverseas = activeEvent != null && isAcrossTheAtlantic(activeEvent.lng);
   const zoom = isOverseas ? ATLANTIC_MIN_ZOOM : SEABOARD_ZOOM;
   const maxBounds = isOverseas ? atlanticBounds : easternSeaboardBounds;
   const minZoom = isOverseas ? ATLANTIC_MIN_ZOOM : 5;
@@ -838,9 +902,9 @@ export default function Map({
         <InvalidateOnVisible mapVisible={mapVisible} />
         <ScaleBarControl darkMode={darkMode} />
 
-        <Graticule darkMode={darkMode} />
-        <BaseChart darkMode={darkMode} />
-        <PeriodLabels darkMode={darkMode} />
+        <Graticule darkMode={darkMode} atlantic={isOverseas} />
+        <BaseChart darkMode={darkMode} showEurope={isOverseas} />
+        <PeriodLabels darkMode={darkMode} atlantic={isOverseas} />
 
         {showColonies && colonyBoundaries && (
           <>
@@ -853,7 +917,7 @@ export default function Map({
           </>
         )}
 
-        <TroopMovementLines events={events} activeEventId={activeEventId} darkMode={darkMode} />
+        <TrailYearMarkers events={events} activeEventId={activeEventId} darkMode={darkMode} />
 
         {visibleEvents.map((event) => (
           <EventMarker
