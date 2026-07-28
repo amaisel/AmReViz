@@ -231,6 +231,43 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     }
   });
 
+  // Every layer used to share one SVG under overlayPane, which made the pane
+  // z-indexes decorative and left paint order equal to mount order. Toggling
+  // dark mode remounts the base layers, which re-appended the opaque land fill
+  // over the colony borders and erased every state line.
+  test('colony borders survive a dark mode toggle and a zoom out', async ({ page }) => {
+    await page.getByRole('button', { name: 'Begin exploring' }).click();
+    await expect(page.locator('.leaflet-container')).toBeVisible();
+
+    // Each vector group owns a renderer in its own pane.
+    const panes = async () =>
+      page.$$eval('svg.leaflet-zoom-animated', (nodes) =>
+        nodes.map((n) => n.parentElement.className).sort());
+    expect((await panes()).join(' ')).toContain('base-land');
+    expect(await panes()).toHaveLength(4);
+
+    // The borders must paint after the land fill that would otherwise hide them.
+    const bordersOnTop = () =>
+      page.evaluate(() => {
+        const z = (sel) => {
+          const svg = document.querySelector(sel);
+          return svg ? Number(getComputedStyle(svg.parentElement).zIndex) : null;
+        };
+        const land = z('.leaflet-base-land-pane svg');
+        const colonies = z('.leaflet-colonies-pane svg');
+        const count = document.querySelectorAll('path.colony-boundary').length;
+        return land != null && colonies != null && colonies > land && count > 0;
+      });
+
+    expect(await bordersOnTop(), 'light mode').toBe(true);
+    await page.keyboard.press('d');
+    await expect.poll(bordersOnTop, { message: 'after dark mode toggle' }).toBe(true);
+    await page.locator('.leaflet-control-zoom-out').click();
+    await expect.poll(bordersOnTop, { message: 'after zooming out' }).toBe(true);
+    await page.keyboard.press('d');
+    await expect.poll(bordersOnTop, { message: 'back in light mode' }).toBe(true);
+  });
+
   test('left and right move the story; up and down do not', async ({ page }) => {
     await page.getByRole('button', { name: 'Begin exploring' }).click();
     await expect(page.locator('.leaflet-container')).toBeVisible();

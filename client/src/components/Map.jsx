@@ -4,10 +4,21 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
 
-// Default SVG is fine for instant setView hops — we no longer animate pans,
-// so padding tricks don't help. Keep a single shared renderer so panes don't
-// multiply SVG roots.
-const CHART_SVG = L.svg({ padding: 0.1 });
+// One renderer per pane, not one for the whole chart.
+//
+// A single shared renderer puts every path in one SVG under `overlayPane`,
+// which makes the panes below decorative: paint order becomes DOM order, and
+// DOM order is whatever sequence the layers happened to mount in. Toggling
+// dark mode remounts the base layers (they are keyed on it), which re-appended
+// the opaque land fill above the colony borders and erased every state line.
+//
+// Binding a renderer to a pane restores the z-index as the thing that decides,
+// so a remount cannot reorder one group past another.
+const chartRenderer = (pane) => L.svg({ padding: 0.1, pane });
+const GRATICULE_SVG = chartRenderer('graticule');
+const LAND_SVG = chartRenderer('base-land');
+const COLONY_SVG = chartRenderer('colonies');
+const WATER_SVG = chartRenderer('base-water');
 
 const getSymbolSvg = (type, color) => {
   switch (type) {
@@ -353,7 +364,7 @@ const BaseChart = memo(({ darkMode, showEurope }) => {
           key={`land-${darkMode}`}
           data={landAreas}
           interactive={false}
-          renderer={CHART_SVG}
+          renderer={LAND_SVG}
           style={{
             fillColor: landFill,
             fillOpacity: 1,
@@ -372,7 +383,7 @@ const BaseChart = memo(({ darkMode, showEurope }) => {
             key={`europe-${darkMode}`}
             data={europeLand}
             interactive={false}
-            renderer={CHART_SVG}
+            renderer={LAND_SVG}
             style={{
               fillColor: landFill,
               fillOpacity: 1,
@@ -394,7 +405,7 @@ const BaseChart = memo(({ darkMode, showEurope }) => {
           key={`lakes-${darkMode}`}
           data={lakes}
           interactive={false}
-          renderer={CHART_SVG}
+          renderer={WATER_SVG}
           style={{
             fillColor: waterFill,
             fillOpacity: 1,
@@ -408,7 +419,7 @@ const BaseChart = memo(({ darkMode, showEurope }) => {
           key={`rivers-${darkMode}`}
           data={rivers}
           interactive={false}
-          renderer={CHART_SVG}
+          renderer={WATER_SVG}
           style={{
             fill: false,
             color: riverInk,
@@ -455,7 +466,7 @@ const Graticule = memo(({ darkMode, atlantic }) => {
           key={`${atlantic ? 'atl' : 'sea'}-${i}`}
           positions={pts}
           interactive={false}
-          renderer={CHART_SVG}
+          renderer={GRATICULE_SVG}
           pathOptions={{ color, weight: 0.5, opacity: darkMode ? 0.1 : 0.12, dashArray: '2 6' }}
         />
       ))}
@@ -488,26 +499,32 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
     const colonyName = feature.properties.name;
     const isHovered = hoveredColony === colonyName;
 
-    // Period chart palette: sepia ink on parchment / gold ink on midnight
+    // Period chart palette: sepia ink on parchment / gold ink on midnight.
+    // The dark stroke is lifted well clear of the land fill it sits on —
+    // #C5A02F at low opacity read as nothing against #2a3555.
     const strokeColorLight = '#5B4636';
-    const strokeColorDark = '#C5A02F';
+    const strokeColorDark = '#E8C976';
 
     if (fillColonies) {
       return {
         fillColor: colonyColors[colonyName] || (darkMode ? '#E0C060' : '#B99C6B'),
-        weight: isHovered ? 1.6 : 0.9,
-        opacity: darkMode ? 0.55 : 0.7,
+        weight: isHovered ? 1.8 : 1.2,
+        opacity: darkMode ? 0.85 : 0.8,
         color: darkMode ? strokeColorDark : strokeColorLight,
         fillOpacity: isHovered ? 0.42 : 0.3,
         dashArray: null
       };
     }
 
-    // Outline mode (default): hand-tinted political wash + fine engraved borders
+    // Outline mode (default): hand-tinted political wash + fine engraved
+    // borders. "Fine" used to mean 0.65px at 55–60% opacity, which is below
+    // what a display can actually resolve: the colony lines were invisible in
+    // dark mode and faded out on zooming away in light. An engraved line still
+    // has to be a line.
     return {
       fillColor: colonyColors[colonyName] || (darkMode ? '#E0C060' : '#C8B085'),
-      weight: isHovered ? 1.4 : 0.65,
-      opacity: isHovered ? 0.95 : darkMode ? 0.55 : 0.6,
+      weight: isHovered ? 1.6 : 1.1,
+      opacity: isHovered ? 0.95 : darkMode ? 0.8 : 0.75,
       color: darkMode ? strokeColorDark : strokeColorLight,
       fillOpacity: isHovered ? 0.28 : darkMode ? 0.1 : 0.13,
       dashArray: null,
@@ -548,7 +565,7 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
       data={boundaries}
       style={style}
       onEachFeature={onEachFeature}
-      renderer={CHART_SVG}
+      renderer={COLONY_SVG}
       smoothFactor={2.5}
     />
   );
@@ -929,7 +946,9 @@ export default function Map({
         doubleClickZoom={true}
         touchZoom={true}
         preferCanvas={false}
-        renderer={CHART_SVG}
+        // No map-wide renderer: every vector layer names the renderer bound to
+        // its own pane, so ordering is decided by z-index rather than by which
+        // layer happened to mount last.
       >
         {/* No tile layer: the map renders as a period parchment chart —
             the CSS paper is the sea, and accurate Natural Earth land/lake/
