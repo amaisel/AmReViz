@@ -493,6 +493,37 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
 
     await page.getByRole('button', { name: 'Expand event details' }).click();
     await expect(hero).toBeVisible();
+
+    // The card's -4px top margin used to be absorbed by the control row's
+    // bottom padding. With that row gone the image overhung into the header
+    // instead, and its top sliver read as a stray dark line across the sheet.
+    const overhang = await page.evaluate(() => {
+      const content = document.querySelector('.bottom-sheet-content');
+      const image = document.querySelector('.bottom-sheet-content .event-card-image');
+      return content.getBoundingClientRect().top - image.getBoundingClientRect().top;
+    });
+    expect(overhang).toBeLessThanOrEqual(0);
+  });
+
+  // The sheet bounces once per session to advertise that it drags. That hint
+  // fires on a 1s timer and used to animate back to peek unconditionally, so
+  // expanding inside the first second left the sheet at peek with the chevron
+  // and aria-label still claiming it was open.
+  test('the first-load bounce hint does not undo an expand', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+
+    const expand = page.getByRole('button', { name: 'Expand event details' });
+    await expand.click();
+    await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
+
+    // Past the bounce's 1s timer and both of its animations.
+    await page.waitForTimeout(2000);
+
+    const top = await page
+      .locator('.bottom-sheet')
+      .evaluate((element) => element.getBoundingClientRect().top);
+    expect(top).toBeLessThan(100);
   });
 
   test('story controls sit behind one button, not across the peek sheet', async ({ page }) => {

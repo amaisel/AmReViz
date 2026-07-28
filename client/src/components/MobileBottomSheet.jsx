@@ -52,6 +52,12 @@ export default function MobileBottomSheet({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Set once the reader moves the sheet themselves. The bounce hint below runs
+  // on a timer and animates back to peek; without this it would land on top of
+  // an expand that happened while it was waiting, leaving the sheet at peek
+  // with `snapName` — and so the chevron and aria-label — still saying 'full'.
+  const userMovedSheet = useRef(false);
+
   // Bounce hint on first load
   useEffect(() => {
     // Session storage can be unavailable in privacy-restricted contexts.
@@ -64,7 +70,10 @@ export default function MobileBottomSheet({
     if (!hasSeenBounce) {
       const bounce = async () => {
         await new Promise(r => setTimeout(r, 1000));
+        // The hint has nothing to teach someone who already worked it out.
+        if (userMovedSheet.current) return;
         await sheetControls.start({ y: snaps.peek - 40, transition: { duration: 0.3 } });
+        if (userMovedSheet.current) return;
         await sheetControls.start({ y: snaps.peek, transition: { type: 'spring', stiffness: 300, damping: 20 } });
         try {
           sessionStorage.setItem('amreviz-sheet-bounce', 'true');
@@ -94,11 +103,13 @@ export default function MobileBottomSheet({
   }, [vh, snaps, snapName, sheetControls]);
 
   const snapTo = useCallback((name) => {
+    userMovedSheet.current = true;
     setSnapName(name);
     sheetControls.start({ y: snaps[name], transition: snapSpring });
   }, [snaps, sheetControls]);
 
   const handleDragStart = useCallback(() => {
+    userMovedSheet.current = true;
     dragStartY.current = snaps[snapName];
   }, [snaps, snapName]);
 
