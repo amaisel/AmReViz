@@ -242,10 +242,10 @@ export default function MobileBottomSheet({
         {panelOpen && (
           <Motion.div
             className="sheet-controls-panel"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
           >
             {panelContent}
           </Motion.div>
@@ -253,8 +253,11 @@ export default function MobileBottomSheet({
       </AnimatePresence>
 
       <div
-        className={`bottom-sheet-content ${isFullOpen ? 'expanded' : 'peek'}`}
+        className={`bottom-sheet-content ${isFullOpen ? 'expanded' : 'peek'}${panelOpen ? ' controls-open' : ''}`}
         ref={contentRef}
+        // The overlay sits on top; hide the card from hit-testing and AT while
+        // controls are open so transformed Framer cards cannot paint through.
+        inert={panelOpen ? '' : undefined}
         style={{
           // Still tied to the snap: at peek the sheet is taller than its
           // visible strip, so scrolling here would run the card up behind the
