@@ -16,7 +16,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 25 tests; boots its own server on 5174
+npx playwright test    # 27 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
@@ -39,11 +39,9 @@ of its 464px on chrome (a 60px drag handle plus a 154px control row that
 wrapped to three lines at 390px wide), then 153px on a hero image, leaving the
 first prose line 49px below the fold.
 
-Three edits reclaimed the budget. The control row became one disclosure button
-in the handle row, taking chrome from 214px to 60px. The hero image now yields
-its space in the peek state and returns on expand. The mobile map dropped to
-seaboard zoom 5 — already the `minZoom`, so no floor change — which widens the
-strip from about two and a half colonies to Quebec–Pennsylvania.
+Two edits reclaimed the budget. The control row became one disclosure button in
+the handle row, taking chrome from 214px to 60px. The hero image now yields its
+space in the peek state and returns on expand.
 
 Measured on the binding case: event 9, which carries a hero image and has the
 longest description among the 18 events that can. Distance of the opening
@@ -63,6 +61,31 @@ Cards focus was dropped on mobile in the same change — it locked the sheet to
 full and hid the map — which deleted the `locked` branches from
 `MobileBottomSheet`. It remains on desktop, and narrowing the window now resets
 the view mode rather than stranding the map hidden.
+
+**The mobile map keeps the desktop seaboard zoom of 6.** Dropping it to 5 was
+tried and reverted. It does widen the strip from about two and a half colonies
+to Quebec–Pennsylvania, but `easternSeaboardBounds` spans 27–48°N, which is only
+~610px tall in Mercator at zoom 5 against ~1220px at zoom 6. Any viewport taller
+than that box cannot be panned at all, so the offset that lifts the active event
+clear of the sheet is silently discarded. Measured distance of the active marker
+below the centre of the visible strip:
+
+| | zoom 6 | zoom 5 |
+|---|---|---|
+| 390×844 | 37px | 108px |
+| 754×1254 | 65px | 225px |
+
+Nearly every phone is taller than 610px, so this is not an edge case. Buying the
+wider frame means widening the bounds northward, and that exposes the clipper's
+straight cut as a false coastline — see the note on the land silhouette below.
+A test now pins the marker to within 15% of the strip centre on both shapes.
+
+**The sheet is opaque rather than frosted.** `backdrop-filter: blur(20px)` over
+a translucent background drew a dark seam across the full width where the
+scrolling content container met the chrome above it — a compositing artifact,
+not a border; no element there paints anything. It predates this work but was
+hidden under the control row. At 0.96 alpha the blur was almost invisible, so
+the sheet is now simply opaque.
 
 **Still open: replacing the sheet with a sticky map.** The standard mobile
 scrollytelling shape — a map strip pinned at roughly 30vh, article scrolling
