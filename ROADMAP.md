@@ -16,7 +16,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 28 tests; boots its own server on 5174
+npx playwright test    # 29 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
@@ -80,12 +80,19 @@ wider frame means widening the bounds northward, and that exposes the clipper's
 straight cut as a false coastline — see the note on the land silhouette below.
 A test now pins the marker to within 15% of the strip centre on both shapes.
 
-**The sheet is opaque rather than frosted.** `backdrop-filter: blur(20px)` over
-a translucent background drew a dark seam across the full width where the
-scrolling content container met the chrome above it — a compositing artifact,
-not a border; no element there paints anything. It predates this work but was
-hidden under the control row. At 0.96 alpha the blur was almost invisible, so
-the sheet is now simply opaque.
+**The dark line across the sheet was the drag handle's focus ring.** It showed
+on expand because expanding means clicking the handle. `index.css` paired
+`button:focus` with `button:focus-visible`, so a pointer click painted it;
+`currentColor` on the handle is `#1a1a1a` — rgb(26,26,26), the measured pixel
+colour — and `outline-offset: 4px` put the ring 4px outside a full-width button
+ending at y=122.7, landing the line at y=127, where it was measured. The sheet
+clips its children, so the ring's top and sides were cut and only that bottom
+edge survived. The bare `:focus` is gone, and the handle's ring is inset so a
+keyboard user sees a whole ring rather than a line.
+
+**The sheet is also opaque rather than frosted.** `backdrop-filter: blur(20px)`
+was removed while chasing the line above. At 0.96 alpha the frosted effect was
+almost invisible, so this costs nothing, but note it was not the cause.
 
 **Still open: replacing the sheet with a sticky map.** The standard mobile
 scrollytelling shape — a map strip pinned at roughly 30vh, article scrolling
