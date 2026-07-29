@@ -107,29 +107,11 @@ logic including the horizontal swipe. A redesign, not an afternoon.
 
 What not to do: fall back to static map images on mobile. The map is the piece.
 
-### 2. Four of the eight type-badge colours fail WCAG contrast
+### 2. Four of the eight type-badge colours fail WCAG contrast — fixed
 
-`EventCard.jsx` paints the type badge white-on-colour. Measured ratios against
-white, both themes:
-
-| type | light | dark |
-|---|---|---|
-| battle | 10.92 | 6.95 |
-| political | 15.39 | 8.77 |
-| **diplomatic** | **2.49** | **1.77** |
-| **military** | **4.39** | **4.25** |
-
-The threshold is 4.5:1. Confirmed independently by axe against a live page
-(`ratio=2.48 need=4.5:1` on a diplomatic event).
-
-This is long-standing, but it got more visible in July 2026: adding the London
-and Paris events took the diplomatic count from 2 to 5, so the worst-failing
-badge now appears on roughly one event in nine. The a11y suite does not catch it
-because those scans start on event 101, which is `political`.
-
-Cheapest real fix is darkening the two colours until they pass; the alternative
-is dark text on the existing gold, which suits the parchment palette better.
-Small change, and worth pairing with a scan that visits one event of each type.
+Resolved alongside the mobile UX polish pass. Diplomatic (and inconclusive)
+kept the parchment gold and switched to dark ink; military green was darkened
+so white text clears 4.5:1. A Playwright check visits one event of each type.
 
 ### 3. Holding an arrow key still drops steps
 
@@ -189,6 +171,30 @@ Two tests currently work around it with an explicit settle, and say so.
   address bar, so the URL misreports what is on screen. `#/explore/abc` handles
   the same situation correctly by rewriting the hash, so the fix is to make the
   out-of-range path behave like the unparseable one.
+
+### 8. Mobile UX polish — partial (July 2026)
+
+Measured on `main` after the content-budget work (390×844 and 375×667):
+
+| issue | severity | status |
+|---|---|---|
+| Diplomatic / military badge contrast | high | **fixed** — dark ink on gold; darker military green |
+| Header title truncates to "Revoluti…" | high | **fixed** — short "Revolution" label under 768px |
+| Story controls push peek prose below fold (+151 / +248px) | high | **fixed** — panel overlays the card |
+| Swipe hint overlays expanded card title (z-index 750 > sheet 700) | med | **fixed** — hint sits under the sheet; dismisses on first step |
+| Zoom +/- at 32px on phones | med | **fixed** — 40px under 768px |
+| Welcome "Open the data" under 44px tall | low | **fixed** — 44px min-height under 560px |
+| Safe-area inset on sheet nav | low | **fixed** |
+| Sticky-map scrollytelling (route 2) | redesign | still open — preference, not a bug |
+| Peek Prev/Next sit below the fold | med | open — swipe is primary; expand to reach buttons |
+| Status chip overlaps sheet when fully expanded | low | open — chip is year/progress, still readable |
+| Filter + type chip density in story controls | med | open — usable but crowded on SE |
+| `cursor/form-review-findings-39f3` editorial fork | process | still open — see item 5 |
+
+The form-review branch still uses a bottom sheet on mobile (sticky map is
+desktop-only there) and remains far behind `main`; treat it as a reference for
+editorial chrome / safe-area habits, not a merge candidate without a deliberate
+rebase.
 
 ## Decisions already taken
 

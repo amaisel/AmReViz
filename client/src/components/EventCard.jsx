@@ -16,11 +16,14 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
   const formattedDate = formatDate(event.date);
   const formattedEndDate = event.endDate ? formatDate(event.endDate) : null;
 
+  // White-on-gold fails WCAG AA (diplomatic measured at 2.49:1 light / 1.77:1
+  // dark). Keep the parchment gold and put dark ink on it instead. Military was
+  // a hair under 4.5:1; darken the green so white text clears the bar.
   const typeColors = {
-    battle: darkMode ? '#A33030' : '#7A1212',
-    political: darkMode ? '#2C4B7A' : '#0A244A',
-    diplomatic: darkMode ? '#E0C060' : '#C5A02F',
-    military: darkMode ? '#2E8B57' : '#228B22'
+    battle: { bg: darkMode ? '#A33030' : '#7A1212', fg: '#ffffff' },
+    political: { bg: darkMode ? '#2C4B7A' : '#0A244A', fg: '#ffffff' },
+    diplomatic: { bg: darkMode ? '#E0C060' : '#C5A02F', fg: '#1A1408' },
+    military: { bg: darkMode ? '#1F6F46' : '#1B7A1B', fg: '#ffffff' },
   };
 
   const typeLabels = {
@@ -38,10 +41,10 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
   };
 
   const outcomeColors = {
-    american: darkMode ? '#2C4B7A' : '#0A244A',
-    british: darkMode ? '#A33030' : '#7A1212',
-    indecisive: darkMode ? '#E0C060' : '#9A7618',
-    allied: darkMode ? '#2E8B57' : '#1F6F46'
+    american: { bg: darkMode ? '#2C4B7A' : '#0A244A', fg: '#ffffff' },
+    british: { bg: darkMode ? '#A33030' : '#7A1212', fg: '#ffffff' },
+    indecisive: { bg: darkMode ? '#E0C060' : '#C5A02F', fg: '#1A1408' },
+    allied: { bg: darkMode ? '#1F6F46' : '#1F6F46', fg: '#ffffff' },
   };
 
   const americanLabel = event.combatants?.american || 'American / allied';
@@ -78,7 +81,10 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
         <div className="event-card-topline">
           <div
             className="event-card-type-badge"
-            style={{ backgroundColor: typeColors[event.type] }}
+            style={{
+              backgroundColor: typeColors[event.type].bg,
+              color: typeColors[event.type].fg,
+            }}
           >
             {typeLabels[event.type]}
           </div>
@@ -109,7 +115,10 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
             {event.outcome && (
               <span
                 className="event-card-outcome"
-                style={{ backgroundColor: outcomeColors[event.outcome] }}
+                style={{
+                  backgroundColor: outcomeColors[event.outcome].bg,
+                  color: outcomeColors[event.outcome].fg,
+                }}
               >
                 {event.outcomeLabel || outcomeLabels[event.outcome]}
               </span>

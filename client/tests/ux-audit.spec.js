@@ -708,4 +708,80 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     expect(proseBottom).not.toBeNull();
     expect(proseBottom).toBeLessThanOrEqual(667);
   });
+
+  // Diplomatic white-on-gold was 2.49:1 (light) / 1.77:1 (dark). Dark ink on
+  // the same gold clears AA; military green was darkened to clear white text.
+  test('every event type badge meets WCAG AA contrast', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    async function badgeContrast(eventId, heading) {
+      await page.goto(`${baseUrl}#/explore/${eventId}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+      await settleCardAnimation(page, '.event-card-type-badge');
+      return page.locator('.event-card-type-badge').evaluate((el) => {
+        const cs = getComputedStyle(el);
+        const parse = (c) => c.match(/\d+/g).slice(0, 3).map(Number);
+        const lin = (v) => {
+          v /= 255;
+          return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+        };
+        const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+        const L1 = lum(parse(cs.color));
+        const L2 = lum(parse(cs.backgroundColor));
+        const [a, b] = L1 > L2 ? [L1, L2] : [L2, L1];
+        return {
+          text: el.textContent.trim(),
+          ratio: (a + 0.05) / (b + 0.05),
+        };
+      });
+    }
+
+    // One of each type: political, battle, military, diplomatic.
+    for (const [id, label, heading] of [
+      [1, 'Political', 'Boston Tea Party'],
+      [9, 'Battle', 'Battle of Long Island'],
+      [17, 'Military', 'British Evacuation of New York'],
+      [125, 'Diplomatic', 'Treaty of Paris Signed'],
+    ]) {
+      const { text, ratio } = await badgeContrast(id, heading);
+      expect(text, `event ${id}`).toBe(label);
+      expect(ratio, `${label} on event ${id}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  test('mobile header uses a short title that does not truncate', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.header-title-short')).toBeVisible();
+    await expect(page.locator('.header-title-full')).toBeHidden();
+
+    const truncated = await page.locator('.header-title-short').evaluate((el) => {
+      return el.scrollWidth > el.clientWidth + 1;
+    });
+    expect(truncated).toBe(false);
+    await expect(page.locator('.header-title-short')).toHaveText('Revolution');
+  });
+
+  // Opening Story controls used to push the peek paragraph below the fold.
+  // The panel now overlays the card, so the prose stays where it was.
+  test('opening story controls keeps the peek paragraph above the fold', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await settleCardAnimation(page, '.bottom-sheet');
+
+    const before = await page.locator('.event-card-description').evaluate((el) => {
+      return el.getBoundingClientRect().bottom;
+    });
+    expect(before).toBeLessThanOrEqual(844);
+
+    await page.getByRole('button', { name: 'Story controls' }).click();
+    await expect(page.getByRole('combobox', { name: 'Search historical events' })).toBeVisible();
+
+    const after = await page.locator('.event-card-description').evaluate((el) => {
+      return el.getBoundingClientRect().bottom;
+    });
+    expect(after).toBeLessThanOrEqual(844);
+    // Overlay, not a layout push — the paragraph should not jump down.
+    expect(Math.abs(after - before)).toBeLessThan(8);
+  });
 });

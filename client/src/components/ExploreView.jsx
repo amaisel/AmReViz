@@ -41,7 +41,7 @@ function FilterBar({ activeFilters, onToggle }) {
     { id: 'battle', label: 'Battles', color: '#7A1212' },
     { id: 'political', label: 'Political', color: '#0A244A' },
     { id: 'diplomatic', label: 'Diplomatic', color: '#C5A02F' },
-    { id: 'military', label: 'Military', color: '#228B22' },
+    { id: 'military', label: 'Military', color: '#1B7A1B' },
   ];
 
   return (
@@ -387,42 +387,12 @@ export default function ExploreView({
   const handleMapEventClick = jumpToEvent;
   const handleSearchSelect = jumpToEvent;
 
-  // --- Prev/Next handlers ---
-  const handlePrevEvent = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentIndex(prev => Math.max(prev - 1, 0));
-  }, []);
-
-  const handleNextEvent = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
-  }, [storyItems.length]);
-
-  // --- Replay handler ---
-  const handleReplay = useCallback(() => {
-    setCurrentIndex(0);
-    setIsPlaying(true);
-  }, []);
-
   // --- Onboarding hint (first visit) ---
   const [showHint, setShowHint] = useState(() => {
     try {
       return !sessionStorage.getItem('amreviz-hint-dismissed');
     } catch { return true; }
   });
-
-  useEffect(() => {
-    if (!showHint) return;
-    const timer = setTimeout(() => {
-      setShowHint(false);
-      try {
-        sessionStorage.setItem('amreviz-hint-dismissed', '1');
-      } catch {
-        // Session storage can be unavailable in privacy-restricted contexts.
-      }
-    }, 6000);
-    return () => clearTimeout(timer);
-  }, [showHint]);
 
   const dismissHint = useCallback(() => {
     setShowHint(false);
@@ -431,6 +401,33 @@ export default function ExploreView({
     } catch {
       // Session storage can be unavailable in privacy-restricted contexts.
     }
+  }, []);
+
+  useEffect(() => {
+    if (!showHint) return;
+    const timer = setTimeout(() => {
+      dismissHint();
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [showHint, dismissHint]);
+
+  // --- Prev/Next handlers ---
+  const handlePrevEvent = useCallback(() => {
+    dismissHint();
+    setIsPlaying(false);
+    setCurrentIndex(prev => Math.max(prev - 1, 0));
+  }, [dismissHint]);
+
+  const handleNextEvent = useCallback(() => {
+    dismissHint();
+    setIsPlaying(false);
+    setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
+  }, [dismissHint, storyItems.length]);
+
+  // --- Replay handler ---
+  const handleReplay = useCallback(() => {
+    setCurrentIndex(0);
+    setIsPlaying(true);
   }, []);
 
   const activeFilterCount = activeFilters.size;

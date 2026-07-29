@@ -693,7 +693,7 @@ function MapLegend({ darkMode, timelineOpen }) {
     { type: 'battle', label: 'Battle', border: '#7A1212' },
     { type: 'political', label: 'Political', border: '#0A244A' },
     { type: 'diplomatic', label: 'Diplomatic', border: '#C5A02F' },
-    { type: 'military', label: 'Military', border: '#228B22' },
+    { type: 'military', label: 'Military', border: '#1B7A1B' },
   ];
 
   const sides = [

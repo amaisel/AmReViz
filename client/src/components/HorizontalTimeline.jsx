@@ -10,8 +10,9 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
   const typeColors = {
     battle: darkMode ? '#A33030' : '#7A1212',
     political: darkMode ? '#2C4B7A' : '#0A244A',
+    // Match EventCard: parchment gold stays, ink goes dark for contrast.
     diplomatic: darkMode ? '#E0C060' : '#C5A02F',
-    military: darkMode ? '#44A06A' : '#228B22'
+    military: darkMode ? '#1F6F46' : '#1B7A1B',
   };
 
   useEffect(() => {
