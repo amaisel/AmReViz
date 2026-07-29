@@ -512,6 +512,41 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     expect(overhang).toBeLessThanOrEqual(0);
   });
 
+  // Touch is not the only way to swipe vertically: a trackpad in a narrow
+  // window sends wheel events, and the wheel handler's "let the panel scroll
+  // first" exemption listed only the desktop card, so on mobile a two-finger
+  // scroll walked the timeline instead of reading the entry.
+  test('a vertical wheel reads the card on mobile, it does not navigate', async ({ page }) => {
+    // Narrow enough for the mobile layout, short enough that the entry actually
+    // overflows — on a 754x1254 the whole card fits and there is no scrolling
+    // left to prove.
+    await page.setViewportSize({ width: 754, height: 700 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+    await page.getByRole('button', { name: 'Expand event details' }).click();
+    await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
+
+    const counter = page.locator('.status-chip-counter');
+    const index = async () => Number((await counter.textContent()).split('/')[0]);
+    const start = await index();
+
+    const content = page.locator('.bottom-sheet-content');
+    await expect
+      .poll(() => content.evaluate((el) => el.scrollHeight > el.clientHeight + 1))
+      .toBe(true);
+    await content.hover();
+    for (let i = 0; i < 6; i++) {
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(80);
+    }
+
+    expect(await index(), 'vertical wheel must not walk the timeline').toBe(start);
+    expect(
+      await content.evaluate((el) => el.scrollTop),
+      'vertical wheel should scroll the entry',
+    ).toBeGreaterThan(0);
+  });
+
   // The sheet bounces once per session to advertise that it drags. That hint
   // fires on a 1s timer and used to animate back to peek unconditionally, so
   // expanding inside the first second left the sheet at peek with the chevron

@@ -262,10 +262,17 @@ export default function ExploreView({
     const handleWheel = (e) => {
       if (viewMode === 'cards') return;
 
+      const isVerticalGesture = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+
+      // Horizontal moves the story; vertical reads the card. A trackpad in a
+      // narrow window is the only way to send a wheel to the sheet, and it must
+      // behave like the vertical swipe it stands in for — never navigating,
+      // including at peek where the entry cannot scroll and nothing happens.
+      if (isMobile && isVerticalGesture) return;
+
       // Let vertically scrollable story and filter panels consume the wheel
       // until they reach an edge; only then resume timeline navigation.
-      const scrollPanel = e.target.closest?.('.desktop-event-card, .filters-panel');
-      const isVerticalGesture = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+      const scrollPanel = e.target.closest?.('.desktop-event-card, .filters-panel, .bottom-sheet-content');
       if (scrollPanel && isVerticalGesture && scrollPanel.scrollHeight > scrollPanel.clientHeight + 1) {
         const atTop = scrollPanel.scrollTop <= 1;
         const atBottom =
@@ -314,7 +321,7 @@ export default function ExploreView({
     if (!el) return;
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [storyItems.length, viewMode]);
+  }, [storyItems.length, viewMode, isMobile]);
 
   // --- Keyboard navigation ---
   useEffect(() => {
