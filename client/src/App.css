@@ -3058,12 +3058,18 @@ body.dark-mode {
   font: inherit;
 }
 
-/* The sheet clips its children, so the default outward ring on this full-width
-   button would show only along its bottom edge — a line rather than a ring, and
-   a focus indicator that is mostly invisible. Draw it inside instead. */
+/* The handle spans the sheet, so any ring on the button itself is a full-width
+   rectangle — and since the sheet clips its children, it survived only as a
+   dark line along the bottom edge. Move the indicator onto the chevron, the
+   part that actually looks like the control, and leave the button bare. */
 .bottom-sheet-handle:focus-visible {
-  outline-offset: -3px;
-  border-radius: 20px 20px 0 0;
+  outline: none;
+}
+
+.bottom-sheet-handle:focus-visible .bottom-sheet-chevron {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .bottom-sheet-handle:active {

@@ -530,8 +530,9 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
       .evaluate((el) => getComputedStyle(el).outlineStyle);
     expect(afterClick, 'a pointer click must not draw a focus ring').toBe('none');
 
-    // Keyboard users still get one, and it must sit inside the sheet's clip
-    // rather than outside it, or the indicator itself is half invisible.
+    // A keyboard user still gets an indicator, but on the chevron rather than
+    // the button: the button spans the sheet, so any ring on it is a full-width
+    // rectangle, and the sheet's clip reduces that to a line.
     // Tabbed for real: Chrome only matches :focus-visible on a programmatic
     // focus() when the last input was a keyboard, and we just clicked.
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -544,11 +545,18 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
       // Let style recalc run: read in the same tick as focus() and the computed
       // outline is still the pre-focus one.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const s = getComputedStyle(el);
-      return { style: s.outlineStyle, offset: parseFloat(s.outlineOffset) };
+      const chevron = el.querySelector('.bottom-sheet-chevron');
+      return {
+        button: getComputedStyle(el).outlineStyle,
+        chevron: getComputedStyle(chevron).outlineStyle,
+        chevronWidth: chevron.getBoundingClientRect().width,
+        buttonWidth: el.getBoundingClientRect().width,
+      };
     });
-    expect(afterKeyboard.style, 'keyboard focus must stay visible').not.toBe('none');
-    expect(afterKeyboard.offset, 'the ring must be drawn inside the clip').toBeLessThan(0);
+    expect(afterKeyboard.button, 'the full-width button must never be ringed').toBe('none');
+    expect(afterKeyboard.chevron, 'keyboard focus must stay visible').not.toBe('none');
+    // The indicator is a small glyph, not a band across the sheet.
+    expect(afterKeyboard.chevronWidth).toBeLessThan(afterKeyboard.buttonWidth / 3);
   });
 
   // Touch is not the only way to swipe vertically: a trackpad in a narrow
