@@ -8,8 +8,10 @@ given so it can be re-checked when it goes stale.
 
 ## How to work here
 
-`main` is protected and `CODEOWNERS` assigns every path to `@amaisel`, so all
-changes land through a PR with a review — including single-line docs edits.
+`main` is protected by the "Protect main" ruleset, so all changes land through a
+PR — including single-line docs edits. Approvals are no longer required (the
+count is 0), so a PR can be merged as soon as it is green. `CODEOWNERS` still
+assigns every path to `@amaisel`, but code-owner review is not enforced.
 
 ```bash
 cd client
