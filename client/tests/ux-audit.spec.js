@@ -457,30 +457,37 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     expect(layout.bodyOverflow).toBe('hidden');
   });
 
-  test('the mobile map opens on a theatre, not two colonies', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('.bottom-sheet')).toBeVisible();
+  // The map lifts the active event above the sheet by panning north. That pan
+  // is only possible while the viewport fits inside `easternSeaboardBounds`;
+  // zoom out far enough and Leaflet cannot pan at all, so the lift is silently
+  // dropped and the marker sinks toward the sheet. Both phone shapes, because
+  // the failure scales with viewport height.
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 754, height: 1254 },
+  ]) {
+    test(`the active event sits in the map strip on a ${viewport.width}x${viewport.height} screen`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto(`${baseUrl}#/explore/110`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Battle of Oriskany' })).toBeVisible();
 
-    // Two fixed geographic points. Their on-screen separation halves for every
-    // zoom level, so it reads the map's scale directly rather than counting
-    // labels, whose placement shifts. Measured: ~276px at zoom 6, ~138px at 5.
-    const labelGap = () =>
-      page.evaluate(() => {
-        const pick = (t) =>
-          [...document.querySelectorAll('.leaflet-marker-icon')].find(
-            (el) => (el.textContent || '').trim() === t,
-          );
-        const a = pick('MA');
-        const b = pick('PA');
-        if (!a || !b) return null;
-        const ra = a.getBoundingClientRect();
-        const rb = b.getBoundingClientRect();
-        return Math.hypot(ra.left - rb.left, ra.top - rb.top);
-      });
+      const offset = () =>
+        page.evaluate(() => {
+          const sheetTop = document.querySelector('.bottom-sheet').getBoundingClientRect().top;
+          const pulse = document.querySelector('.marker-pulse-ring');
+          const icon = pulse?.closest('.leaflet-marker-icon');
+          if (!icon) return null;
+          const box = icon.getBoundingClientRect();
+          const markerY = box.top + box.height / 2;
+          // How far off the centre of the visible strip, as a share of it.
+          return Math.abs(markerY - sheetTop / 2) / sheetTop;
+        });
 
-    await expect.poll(labelGap, { timeout: 10_000 }).toBeLessThan(200);
-  });
+      // Measured at zoom 6: 0.10 here and 0.12 on the tall window. At zoom 5 the
+      // same cases were 0.28 and 0.40.
+      await expect.poll(offset, { timeout: 15_000 }).toBeLessThan(0.15);
+    });
+  }
 
   test('the hero image yields its space at peek and returns on expand', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });

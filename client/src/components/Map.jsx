@@ -795,11 +795,14 @@ const atlanticCrossingBounds = [
 
 const SEABOARD_ZOOM = 6;
 
-// A 390x332 strip at the desktop zoom of 6 is about two and a half colonies.
-// Zoom 5 — already the seaboard minZoom, so no floor change — carries Quebec
-// to Pennsylvania.
-const SEABOARD_MOBILE_ZOOM = 5;
-
+// The phone keeps the desktop seaboard zoom. Dropping it to 5 shows more of the
+// theatre, but `easternSeaboardBounds` spans 27–48°N, which is only ~610px tall
+// in Mercator at zoom 5 against ~1220px at zoom 6. Any viewport taller than that
+// box cannot be panned at all, so the offset that lifts the active event clear
+// of the bottom sheet is silently discarded: the marker sank from 37px below the
+// strip centre to 108px on a 390x844, and to 225px on a 754x1254. Widening the
+// bounds northward is the only way to buy the wider frame, and that exposes the
+// clipper's straight cut as a false coastline.
 const ATLANTIC_MIN_ZOOM = 3;
 
 // A phone cannot hold the crossing. Fitting 88° of longitude into ~390px needs
@@ -857,7 +860,7 @@ export default function Map({
   const isOverseas = activeEvent != null && isAcrossTheAtlantic(activeEvent.lng);
   const zoom = isOverseas
     ? (isMobile ? OVERSEAS_MOBILE_ZOOM : ATLANTIC_MIN_ZOOM)
-    : (isMobile ? SEABOARD_MOBILE_ZOOM : SEABOARD_ZOOM);
+    : SEABOARD_ZOOM;
   const maxBounds = isOverseas ? atlanticBounds : easternSeaboardBounds;
   const minZoom = isOverseas ? ATLANTIC_MIN_ZOOM : 5;
   const fitBounds = isOverseas && !isMobile ? atlanticCrossingBounds : null;
@@ -938,7 +941,7 @@ export default function Map({
       </p>
       <MapContainer
         center={[40.0, -74.0]}
-        zoom={isMobile ? SEABOARD_MOBILE_ZOOM : SEABOARD_ZOOM}
+        zoom={SEABOARD_ZOOM}
         // MapController keeps minZoom/maxBounds in sync from here on; these
         // are only the mount-time values.
         minZoom={5}
