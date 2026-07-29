@@ -1723,11 +1723,6 @@ body.dark-mode {
   color: rgba(143, 161, 201, 0.45);
 }
 
-
-.tooltip-stats span {
-  display: block;
-}
-
 .event-card {
   position: absolute;
   bottom: 16px;
