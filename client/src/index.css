@@ -57,7 +57,10 @@ button {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-button:focus,
+/* `:focus-visible` only. Pairing it with a bare `:focus` drew the ring on every
+   pointer click as well, which is what a keyboard-only affordance is meant to
+   avoid — and on the sheet's full-width drag handle it read as a stray dark
+   line across the card, since the sheet clips the ring to its bottom edge. */
 button:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 4px;

@@ -3058,6 +3058,14 @@ body.dark-mode {
   font: inherit;
 }
 
+/* The sheet clips its children, so the default outward ring on this full-width
+   button would show only along its bottom edge — a line rather than a ring, and
+   a focus indicator that is mostly invisible. Draw it inside instead. */
+.bottom-sheet-handle:focus-visible {
+  outline-offset: -3px;
+  border-radius: 20px 20px 0 0;
+}
+
 .bottom-sheet-handle:active {
   cursor: grabbing;
 }

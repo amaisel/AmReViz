@@ -512,6 +512,45 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     expect(overhang).toBeLessThanOrEqual(0);
   });
 
+  // The drag handle is a full-width button inside a sheet that clips its
+  // children, so an outward focus ring showed only as its bottom edge: a dark
+  // full-width line across the card, on every mouse click, because the rule was
+  // `button:focus` rather than `button:focus-visible`.
+  test('clicking the sheet handle does not paint a focus ring across the card', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    const handle = page.getByRole('button', { name: 'Expand event details' });
+    await expect(handle).toBeVisible();
+
+    await handle.click();
+    await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
+
+    const afterClick = await page
+      .locator('.bottom-sheet-handle')
+      .evaluate((el) => getComputedStyle(el).outlineStyle);
+    expect(afterClick, 'a pointer click must not draw a focus ring').toBe('none');
+
+    // Keyboard users still get one, and it must sit inside the sheet's clip
+    // rather than outside it, or the indicator itself is half invisible.
+    // Tabbed for real: Chrome only matches :focus-visible on a programmatic
+    // focus() when the last input was a keyboard, and we just clicked.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.bottom-sheet-handle')).toBeVisible();
+    // One Tab is enough to make the keyboard the last input modality; walking
+    // all the way to the handle would mean tabbing through every map marker.
+    await page.keyboard.press('Tab');
+    const afterKeyboard = await page.locator('.bottom-sheet-handle').evaluate(async (el) => {
+      el.focus();
+      // Let style recalc run: read in the same tick as focus() and the computed
+      // outline is still the pre-focus one.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const s = getComputedStyle(el);
+      return { style: s.outlineStyle, offset: parseFloat(s.outlineOffset) };
+    });
+    expect(afterKeyboard.style, 'keyboard focus must stay visible').not.toBe('none');
+    expect(afterKeyboard.offset, 'the ring must be drawn inside the clip').toBeLessThan(0);
+  });
+
   // Touch is not the only way to swipe vertically: a trackpad in a narrow
   // window sends wheel events, and the wheel handler's "let the panel scroll
   // first" exemption listed only the desktop card, so on mobile a two-finger
