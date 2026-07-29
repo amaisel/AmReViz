@@ -87,8 +87,9 @@ on expand because expanding means clicking the handle. `index.css` paired
 colour — and `outline-offset: 4px` put the ring 4px outside a full-width button
 ending at y=122.7, landing the line at y=127, where it was measured. The sheet
 clips its children, so the ring's top and sides were cut and only that bottom
-edge survived. The bare `:focus` is gone, and the handle's ring is inset so a
-keyboard user sees a whole ring rather than a line.
+edge survived. The bare `:focus` is gone, so pointer users see nothing at all,
+and the indicator moved off the button onto the chevron — a 40px ring
+inside a 377px button, so there is no full-width rectangle left to clip.
 
 **The sheet is also opaque rather than frosted.** `backdrop-filter: blur(20px)`
 was removed while chasing the line above. At 0.96 alpha the frosted effect was
