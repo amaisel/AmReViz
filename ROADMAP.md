@@ -16,7 +16,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 27 tests; boots its own server on 5174
+npx playwright test    # 28 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
