@@ -3021,10 +3021,13 @@ body.dark-mode {
 }
 
 /* ===== MOBILE BOTTOM SHEET ===== */
+/* Opaque, and no backdrop-filter. The blur drew a dark seam across the full
+   width where the scrolling content container meets the header — it is a
+   compositing artifact, not a border, and no element there paints anything.
+   At 0.96 alpha the frosted effect was almost invisible anyway, so going fully
+   opaque costs nothing and the seam goes with it. */
 .bottom-sheet {
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #fff;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
   display: flex;
@@ -3033,7 +3036,7 @@ body.dark-mode {
 }
 
 .bottom-sheet.dark {
-  background: rgba(18, 22, 30, 0.96);
+  background: #12161e;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
 }
 
