@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { motion as Motion, useAnimation, useDragControls } from 'framer-motion';
+import { motion as Motion, AnimatePresence, useAnimation, useDragControls } from 'framer-motion';
+import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
 
-const SNAP_PEEK_RATIO = 0.55;
 const SNAP_FULL_RATIO = 0.9;
 
 const SWIPE_OFFSET = 56;
@@ -11,7 +11,7 @@ const snapSpring = { type: 'spring', stiffness: 300, damping: 30 };
 
 function getSnapPoints(vh) {
   return {
-    peek: vh * (1 - SNAP_PEEK_RATIO),
+    peek: vh * (1 - MOBILE_SHEET_PEEK_RATIO),
     full: vh * (1 - SNAP_FULL_RATIO),
   };
 }
@@ -27,7 +27,6 @@ function closestSnap(y, snaps) {
 
 export default function MobileBottomSheet({
   children,
-  controlsContent,
   panelContent,
   eventId,
   darkMode,
@@ -35,9 +34,9 @@ export default function MobileBottomSheet({
   onNext,
   hasPrev,
   hasNext,
-  locked = false,
 }) {
   const [snapName, setSnapName] = useState('peek');
+  const [panelOpen, setPanelOpen] = useState(false);
   const [vh, setVh] = useState(window.innerHeight);
   const dragStartY = useRef(null);
   const sheetControls = useAnimation();
@@ -53,9 +52,14 @@ export default function MobileBottomSheet({
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Bounce hint on first load (skip when locked into cards focus)
+  // Set once the reader moves the sheet themselves. The bounce hint below runs
+  // on a timer and animates back to peek; without this it would land on top of
+  // an expand that happened while it was waiting, leaving the sheet at peek
+  // with `snapName` — and so the chevron and aria-label — still saying 'full'.
+  const userMovedSheet = useRef(false);
+
+  // Bounce hint on first load
   useEffect(() => {
-    if (locked) return;
     // Session storage can be unavailable in privacy-restricted contexts.
     let hasSeenBounce = true;
     try {
@@ -66,7 +70,10 @@ export default function MobileBottomSheet({
     if (!hasSeenBounce) {
       const bounce = async () => {
         await new Promise(r => setTimeout(r, 1000));
+        // The hint has nothing to teach someone who already worked it out.
+        if (userMovedSheet.current) return;
         await sheetControls.start({ y: snaps.peek - 40, transition: { duration: 0.3 } });
+        if (userMovedSheet.current) return;
         await sheetControls.start({ y: snaps.peek, transition: { type: 'spring', stiffness: 300, damping: 20 } });
         try {
           sessionStorage.setItem('amreviz-sheet-bounce', 'true');
@@ -76,19 +83,14 @@ export default function MobileBottomSheet({
       };
       bounce();
     }
-  }, [sheetControls, snaps.peek, locked]);
-
-  // Force full while locked into cards focus (adjust during render, like eventId)
-  if (locked && snapName !== 'full') {
-    setSnapName('full');
-  }
+  }, [sheetControls, snaps.peek]);
 
   // Collapse back to peek when the event changes so the map stays in view
-  // (suppressed while locked in cards focus mode)
   const [lastEventId, setLastEventId] = useState(eventId);
   if (eventId !== lastEventId) {
     setLastEventId(eventId);
-    if (!locked) setSnapName('peek');
+    setPanelOpen(false);
+    setSnapName('peek');
   }
 
   // Rewind the card whenever the sheet returns to peek
@@ -101,11 +103,13 @@ export default function MobileBottomSheet({
   }, [vh, snaps, snapName, sheetControls]);
 
   const snapTo = useCallback((name) => {
+    userMovedSheet.current = true;
     setSnapName(name);
     sheetControls.start({ y: snaps[name], transition: snapSpring });
   }, [snaps, sheetControls]);
 
   const handleDragStart = useCallback(() => {
+    userMovedSheet.current = true;
     dragStartY.current = snaps[snapName];
   }, [snaps, snapName]);
 
@@ -181,15 +185,11 @@ export default function MobileBottomSheet({
       className={`bottom-sheet ${darkMode ? 'dark' : ''}`}
       initial={{ y: snaps.peek }}
       animate={sheetControls}
-      drag={locked ? false : 'y'}
+      drag="y"
       dragListener={false}
       dragControls={dragControls}
-      dragConstraints={
-        locked
-          ? { top: snaps.full, bottom: snaps.full }
-          : { top: snaps.full, bottom: snaps.peek }
-      }
-      dragElastic={locked ? 0 : { top: 0.2, bottom: 0.2 }}
+      dragConstraints={{ top: snaps.full, bottom: snaps.peek }}
+      dragElastic={{ top: 0.2, bottom: 0.2 }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       style={{
@@ -205,37 +205,55 @@ export default function MobileBottomSheet({
         bottom: 0
       }}
     >
-      <button
-        type="button"
-        className="bottom-sheet-handle"
-        onPointerDown={(e) => {
-          if (locked) return;
-          dragControls.start(e);
-        }}
-        onClick={() => {
-          if (locked) return;
-          snapTo(snapName === 'peek' ? 'full' : 'peek');
-        }}
-        aria-label={locked ? 'Cards focus mode' : (isFullOpen ? 'Collapse event details' : 'Expand event details')}
-        aria-expanded={locked ? undefined : isFullOpen}
-        disabled={locked}
-      >
-        <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>
-          <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="4 10 8 6 12 10"/>
-          </svg>
-        </span>
-        <div className="bottom-sheet-bar" style={{ width: '40px', height: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: '2px', marginTop: '-4px' }} />
-      </button>
+      <div className="bottom-sheet-header">
+        <button
+          type="button"
+          className="bottom-sheet-handle"
+          onPointerDown={(e) => dragControls.start(e)}
+          onClick={() => snapTo(snapName === 'peek' ? 'full' : 'peek')}
+          aria-label={isFullOpen ? 'Collapse event details' : 'Expand event details'}
+          aria-expanded={isFullOpen}
+        >
+          <span className={`bottom-sheet-chevron ${snapName !== 'peek' ? 'flipped' : ''}`}>
+            <svg width="32" height="32" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 10 8 6 12 10"/>
+            </svg>
+          </span>
+          <div className="bottom-sheet-bar" style={{ width: '40px', height: '4px', background: 'rgba(0,0,0,0.1)', borderRadius: '2px', marginTop: '-4px' }} />
+        </button>
 
-      <div className="bottom-sheet-controls">
-        {controlsContent}
+        <button
+          type="button"
+          className={`sheet-panel-toggle ${panelOpen ? 'active' : ''}`}
+          onClick={() => setPanelOpen(prev => !prev)}
+          aria-expanded={panelOpen}
+          aria-label="Story controls"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <line x1="4" y1="9" x2="20" y2="9"/>
+            <line x1="4" y1="16" x2="20" y2="16"/>
+            <circle cx="9" cy="9" r="2.2" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="16" r="2.2" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
       </div>
 
-      {panelContent}
+      <AnimatePresence>
+        {panelOpen && (
+          <Motion.div
+            className="sheet-controls-panel"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {panelContent}
+          </Motion.div>
+        )}
+      </AnimatePresence>
 
       <div
-        className="bottom-sheet-content"
+        className={`bottom-sheet-content ${isFullOpen ? 'expanded' : 'peek'}`}
         ref={contentRef}
         style={{
           // Still tied to the snap: at peek the sheet is taller than its

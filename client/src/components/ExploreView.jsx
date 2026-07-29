@@ -208,7 +208,13 @@ export default function ExploreView({
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 768px)');
-    const onChange = (e) => setIsMobile(e.matches);
+    const onChange = (e) => {
+      setIsMobile(e.matches);
+      // Cards focus is desktop-only. Without this, narrowing the window while
+      // it is active leaves the map hidden and removes the only control that
+      // could bring it back.
+      if (e.matches) setViewMode('map');
+    };
     mql.addEventListener('change', onChange);
     return () => mql.removeEventListener('change', onChange);
   }, []);
@@ -256,10 +262,17 @@ export default function ExploreView({
     const handleWheel = (e) => {
       if (viewMode === 'cards') return;
 
+      const isVerticalGesture = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+
+      // Horizontal moves the story; vertical reads the card. A trackpad in a
+      // narrow window is the only way to send a wheel to the sheet, and it must
+      // behave like the vertical swipe it stands in for — never navigating,
+      // including at peek where the entry cannot scroll and nothing happens.
+      if (isMobile && isVerticalGesture) return;
+
       // Let vertically scrollable story and filter panels consume the wheel
       // until they reach an edge; only then resume timeline navigation.
-      const scrollPanel = e.target.closest?.('.desktop-event-card, .filters-panel');
-      const isVerticalGesture = Math.abs(e.deltaY) >= Math.abs(e.deltaX);
+      const scrollPanel = e.target.closest?.('.desktop-event-card, .filters-panel, .bottom-sheet-content');
       if (scrollPanel && isVerticalGesture && scrollPanel.scrollHeight > scrollPanel.clientHeight + 1) {
         const atTop = scrollPanel.scrollTop <= 1;
         const atBottom =
@@ -308,14 +321,14 @@ export default function ExploreView({
     if (!el) return;
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [storyItems.length, viewMode]);
+  }, [storyItems.length, viewMode, isMobile]);
 
   // --- Keyboard navigation ---
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
-      if (e.key === 'c' || e.key === 'C') {
+      if ((e.key === 'c' || e.key === 'C') && !isMobile) {
         e.preventDefault();
         toggleViewMode();
         return;
@@ -362,7 +375,7 @@ export default function ExploreView({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [storyItems.length, togglePlayback, viewMode, toggleViewMode]);
+  }, [storyItems.length, togglePlayback, viewMode, toggleViewMode, isMobile]);
 
   // --- Jump to an event by id (map, timeline, search, interlude charts) ---
   const jumpToEvent = useCallback((id) => {
@@ -494,77 +507,106 @@ export default function ExploreView({
     </>
   );
 
+  const playbackButton = (
+    <button
+      className={`explore-btn playback-btn ${isPlaying ? 'active' : ''}`}
+      onClick={togglePlayback}
+    >
+      {isPlaying ? (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </>
+      ) : (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Play
+        </>
+      )}
+    </button>
+  );
+
+  const speedButton = (
+    <button className="speed-indicator" onClick={cycleSpeed}>
+      {speedLabel}
+    </button>
+  );
+
+  const searchField = (
+    <SearchBar
+      events={events}
+      onEventSelect={handleSearchSelect}
+      darkMode={darkMode}
+    />
+  );
+
+  const filterToggleButton = (
+    <button
+      className={`explore-btn filter-toggle-btn ${filtersOpen ? 'active' : ''}`}
+      onClick={() => setFiltersOpen(prev => !prev)}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filter
+      {activeFilterCount < 4 && (
+        <span className="filter-count-badge">{activeFilterCount}</span>
+      )}
+    </button>
+  );
+
+  const viewModeButton = (
+    <button
+      type="button"
+      className={`explore-btn view-mode-toggle-btn ${viewMode === 'cards' ? 'active' : ''}`}
+      onClick={toggleViewMode}
+      aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
+    >
+      {viewMode === 'map' ? (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="4 14 4 20 10 20" />
+            <polyline points="20 10 20 4 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+          <span>Focus cards</span>
+        </>
+      ) : (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+            <line x1="8" y1="2" x2="8" y2="18" />
+            <line x1="16" y1="6" x2="16" y2="22" />
+          </svg>
+          <span>Show map</span>
+        </>
+      )}
+    </button>
+  );
+
+  // Desktop rail: unchanged in content from the single row it replaces.
   const controlsContent = (
     <>
-      <button
-        className={`explore-btn playback-btn ${isPlaying ? 'active' : ''}`}
-        onClick={togglePlayback}
-      >
-        {isPlaying ? (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            Pause
-          </>
-        ) : (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Play
-          </>
-        )}
-      </button>
-
-      <button className="speed-indicator" onClick={cycleSpeed}>
-        {speedLabel}
-      </button>
-
+      {playbackButton}
+      {speedButton}
       <span className="controls-divider" />
-
-      <button
-        className={`explore-btn filter-toggle-btn ${filtersOpen ? 'active' : ''}`}
-        onClick={() => setFiltersOpen(prev => !prev)}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        Filter
-        {activeFilterCount < 4 && (
-          <span className="filter-count-badge">{activeFilterCount}</span>
-        )}
-      </button>
-
-      <SearchBar
-        events={events}
-        onEventSelect={handleSearchSelect}
-        darkMode={darkMode}
-      />
-
+      {filterToggleButton}
+      {searchField}
       <span className="controls-divider" />
+      {viewModeButton}
+    </>
+  );
 
-      <button
-        type="button"
-        className={`explore-btn view-mode-toggle-btn ${viewMode === 'cards' ? 'active' : ''}`}
-        onClick={toggleViewMode}
-        aria-label={viewMode === 'map' ? 'Focus cards' : 'Show map'}
-      >
-        {viewMode === 'map' ? (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="4 14 4 20 10 20" />
-              <polyline points="20 10 20 4 14 4" />
-              <line x1="14" y1="10" x2="21" y2="3" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-            <span>Focus cards</span>
-          </>
-        ) : (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-              <line x1="8" y1="2" x2="8" y2="18" />
-              <line x1="16" y1="6" x2="16" y2="22" />
-            </svg>
-            <span>Show map</span>
-          </>
-        )}
-      </button>
+  // Mobile: one flat panel behind the sheet's control button. No Filter
+  // toggle — the panel is already the disclosure, so the chips sit in it
+  // directly rather than behind a second one.
+  const sheetPanelContent = (
+    <>
+      <div className="sheet-panel-playback">
+        {playbackButton}
+        {speedButton}
+      </div>
+      {searchField}
+      {filtersPanelContent}
     </>
   );
 
@@ -660,27 +702,11 @@ export default function ExploreView({
         <MobileBottomSheet
           eventId={currentItem?.key}
           darkMode={darkMode}
-          controlsContent={controlsContent}
-          locked={viewMode === 'cards'}
           onPrev={handlePrevEvent}
           onNext={handleNextEvent}
           hasPrev={hasPrev}
           hasNext={hasNext}
-          panelContent={
-            <AnimatePresence>
-              {filtersOpen && (
-                <Motion.div
-                  className="sheet-filters-panel"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {filtersPanelContent}
-                </Motion.div>
-              )}
-            </AnimatePresence>
-          }
+          panelContent={sheetPanelContent}
         >
           {cardContent}
         </MobileBottomSheet>

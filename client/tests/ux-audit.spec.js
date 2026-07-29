@@ -83,8 +83,11 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
 
-    // Only one copy of the card and the search field exists on mobile.
+    // Only one copy of the card exists on mobile.
     await expect(page.locator('.event-card-fixed')).toHaveCount(1);
+
+    // Search moved into the controls panel; one copy, once it is open.
+    await page.getByRole('button', { name: 'Story controls' }).click();
     await expect(page.getByRole('combobox', { name: 'Search historical events' })).toHaveCount(1);
   });
 
@@ -452,5 +455,257 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
 
     expect(layout.documentWidth).toBe(layout.viewportWidth);
     expect(layout.bodyOverflow).toBe('hidden');
+  });
+
+  // The map lifts the active event above the sheet by panning north. That pan
+  // is only possible while the viewport fits inside `easternSeaboardBounds`;
+  // zoom out far enough and Leaflet cannot pan at all, so the lift is silently
+  // dropped and the marker sinks toward the sheet. Both phone shapes, because
+  // the failure scales with viewport height.
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 754, height: 1254 },
+  ]) {
+    test(`the active event sits in the map strip on a ${viewport.width}x${viewport.height} screen`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto(`${baseUrl}#/explore/110`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Battle of Oriskany' })).toBeVisible();
+
+      const offset = () =>
+        page.evaluate(() => {
+          const sheetTop = document.querySelector('.bottom-sheet').getBoundingClientRect().top;
+          const pulse = document.querySelector('.marker-pulse-ring');
+          const icon = pulse?.closest('.leaflet-marker-icon');
+          if (!icon) return null;
+          const box = icon.getBoundingClientRect();
+          const markerY = box.top + box.height / 2;
+          // How far off the centre of the visible strip, as a share of it.
+          return Math.abs(markerY - sheetTop / 2) / sheetTop;
+        });
+
+      // Measured at zoom 6: 0.10 here and 0.12 on the tall window. At zoom 5 the
+      // same cases were 0.28 and 0.40.
+      await expect.poll(offset, { timeout: 15_000 }).toBeLessThan(0.15);
+    });
+  }
+
+  test('the hero image yields its space at peek and returns on expand', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Event 9 carries a hero image; most events do not.
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Battle of Long Island' })).toBeVisible();
+
+    const hero = page.locator('.bottom-sheet-content .event-card-image');
+    await expect(hero).toBeHidden();
+
+    await page.getByRole('button', { name: 'Expand event details' }).click();
+    await expect(hero).toBeVisible();
+
+    // The card's -4px top margin used to be absorbed by the control row's
+    // bottom padding. With that row gone the image overhung into the header
+    // instead, and its top sliver read as a stray dark line across the sheet.
+    const overhang = await page.evaluate(() => {
+      const content = document.querySelector('.bottom-sheet-content');
+      const image = document.querySelector('.bottom-sheet-content .event-card-image');
+      return content.getBoundingClientRect().top - image.getBoundingClientRect().top;
+    });
+    expect(overhang).toBeLessThanOrEqual(0);
+  });
+
+  // The drag handle is a full-width button inside a sheet that clips its
+  // children, so an outward focus ring showed only as its bottom edge: a dark
+  // full-width line across the card, on every mouse click, because the rule was
+  // `button:focus` rather than `button:focus-visible`.
+  test('clicking the sheet handle does not paint a focus ring across the card', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    const handle = page.getByRole('button', { name: 'Expand event details' });
+    await expect(handle).toBeVisible();
+
+    await handle.click();
+    await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
+
+    const afterClick = await page
+      .locator('.bottom-sheet-handle')
+      .evaluate((el) => getComputedStyle(el).outlineStyle);
+    expect(afterClick, 'a pointer click must not draw a focus ring').toBe('none');
+
+    // A keyboard user still gets an indicator, but on the chevron rather than
+    // the button: the button spans the sheet, so any ring on it is a full-width
+    // rectangle, and the sheet's clip reduces that to a line.
+    // Tabbed for real: Chrome only matches :focus-visible on a programmatic
+    // focus() when the last input was a keyboard, and we just clicked.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.bottom-sheet-handle')).toBeVisible();
+    // One Tab is enough to make the keyboard the last input modality; walking
+    // all the way to the handle would mean tabbing through every map marker.
+    await page.keyboard.press('Tab');
+    const afterKeyboard = await page.locator('.bottom-sheet-handle').evaluate(async (el) => {
+      el.focus();
+      // Let style recalc run: read in the same tick as focus() and the computed
+      // outline is still the pre-focus one.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const chevron = el.querySelector('.bottom-sheet-chevron');
+      return {
+        button: getComputedStyle(el).outlineStyle,
+        chevron: getComputedStyle(chevron).outlineStyle,
+        chevronWidth: chevron.getBoundingClientRect().width,
+        buttonWidth: el.getBoundingClientRect().width,
+      };
+    });
+    expect(afterKeyboard.button, 'the full-width button must never be ringed').toBe('none');
+    expect(afterKeyboard.chevron, 'keyboard focus must stay visible').not.toBe('none');
+    // The indicator is a small glyph, not a band across the sheet.
+    expect(afterKeyboard.chevronWidth).toBeLessThan(afterKeyboard.buttonWidth / 3);
+  });
+
+  // Touch is not the only way to swipe vertically: a trackpad in a narrow
+  // window sends wheel events, and the wheel handler's "let the panel scroll
+  // first" exemption listed only the desktop card, so on mobile a two-finger
+  // scroll walked the timeline instead of reading the entry.
+  test('a vertical wheel reads the card on mobile, it does not navigate', async ({ page }) => {
+    // Narrow enough for the mobile layout, short enough that the entry actually
+    // overflows — on a 754x1254 the whole card fits and there is no scrolling
+    // left to prove.
+    await page.setViewportSize({ width: 754, height: 700 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+    await page.getByRole('button', { name: 'Expand event details' }).click();
+    await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
+
+    const counter = page.locator('.status-chip-counter');
+    const index = async () => Number((await counter.textContent()).split('/')[0]);
+    const start = await index();
+
+    const content = page.locator('.bottom-sheet-content');
+    await expect
+      .poll(() => content.evaluate((el) => el.scrollHeight > el.clientHeight + 1))
+      .toBe(true);
+    await content.hover();
+    for (let i = 0; i < 6; i++) {
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(80);
+    }
+
+    expect(await index(), 'vertical wheel must not walk the timeline').toBe(start);
+    expect(
+      await content.evaluate((el) => el.scrollTop),
+      'vertical wheel should scroll the entry',
+    ).toBeGreaterThan(0);
+  });
+
+  // The sheet bounces once per session to advertise that it drags. That hint
+  // fires on a 1s timer and used to animate back to peek unconditionally, so
+  // expanding inside the first second left the sheet at peek with the chevron
+  // and aria-label still claiming it was open.
+  test('the first-load bounce hint does not undo an expand', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+
+    const expand = page.getByRole('button', { name: 'Expand event details' });
+    await expand.click();
+    await expect(page.getByRole('button', { name: 'Collapse event details' })).toBeVisible();
+
+    // Past the bounce's 1s timer and both of its animations.
+    await page.waitForTimeout(2000);
+
+    const top = await page
+      .locator('.bottom-sheet')
+      .evaluate((element) => element.getBoundingClientRect().top);
+    expect(top).toBeLessThan(100);
+  });
+
+  test('story controls sit behind one button, not across the peek sheet', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+
+    // Chrome above the card. It was 214px of a 464px sheet: a 60px handle plus
+    // a 154px control row that wrapped to three lines.
+    const chrome = await page.evaluate(() => {
+      const sheet = document.querySelector('.bottom-sheet');
+      const content = document.querySelector('.bottom-sheet-content');
+      return content.getBoundingClientRect().top - sheet.getBoundingClientRect().top;
+    });
+    expect(chrome).toBeLessThan(80);
+
+    // Everything that left the row is still reachable, one tap away.
+    const toggle = page.getByRole('button', { name: 'Story controls' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Search historical events' })).toBeVisible();
+    // Exact, or this also matches the "Major Battles" preset chip beside it.
+    await expect(page.getByRole('button', { name: 'Battles', exact: true })).toBeVisible();
+  });
+
+  test('cards focus is desktop-only and a resize to mobile restores the map', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Focus cards' }).click();
+    await expect(page.locator('.scrollytelling-view.view-mode-cards')).toBeVisible();
+
+    // Narrowing must not strand the map hidden with no control to bring it back.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('.scrollytelling-view.view-mode-map')).toBeVisible();
+    await expect(page.locator('.bottom-sheet')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Focus cards' })).toHaveCount(0);
+  });
+
+  // The point of the mobile layout work: place and narrative on screen at the
+  // same time, in the default state, without the reader toggling anything.
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 375, height: 667 },
+  ]) {
+    test(`the map and the opening paragraph share a ${viewport.width}x${viewport.height} screen`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      // Event 9 is the binding case in the set: one of the 18 events that can
+      // carry a hero image, and the longest description among them at 333
+      // characters. Event 1 fits comfortably and proves nothing.
+      await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Battle of Long Island' })).toBeVisible();
+      await settleCardAnimation(page, '.bottom-sheet');
+
+      const layout = await page.evaluate(() => {
+        const sheet = document.querySelector('.bottom-sheet');
+        const prose = [...document.querySelectorAll('.bottom-sheet-content p')]
+          .filter((p) => p.textContent.trim().length > 60)[0];
+        return {
+          viewportHeight: window.innerHeight,
+          mapStripHeight: sheet.getBoundingClientRect().top,
+          proseBottom: prose ? prose.getBoundingClientRect().bottom : null,
+        };
+      });
+
+      expect(layout.proseBottom).not.toBeNull();
+      // Fully above the fold, not merely started.
+      expect(layout.proseBottom).toBeLessThanOrEqual(layout.viewportHeight);
+      // And the map is still a map, not a sliver.
+      expect(layout.mapStripHeight / layout.viewportHeight).toBeGreaterThanOrEqual(0.4);
+    });
+  }
+
+  test('a data interlude leads with its argument at peek', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('heading', { name: 'The Cost of Rebellion' })).toBeVisible();
+    await settleCardAnimation(page, '.bottom-sheet');
+
+    // The standfirst, deliberately not the chart. The chart clears a 390x844
+    // by 4px but overflows a 375x667 by 94px, so asserting on it would be
+    // wrong rather than merely flaky.
+    const proseBottom = await page.evaluate(() => {
+      const prose = [...document.querySelectorAll('.bottom-sheet-content p')]
+        .filter((p) => p.textContent.trim().length > 60)[0];
+      return prose ? prose.getBoundingClientRect().bottom : null;
+    });
+
+    expect(proseBottom).not.toBeNull();
+    expect(proseBottom).toBeLessThanOrEqual(667);
   });
 });

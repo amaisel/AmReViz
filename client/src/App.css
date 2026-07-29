@@ -3021,10 +3021,13 @@ body.dark-mode {
 }
 
 /* ===== MOBILE BOTTOM SHEET ===== */
+/* Opaque, and no backdrop-filter. The blur drew a dark seam across the full
+   width where the scrolling content container meets the header — it is a
+   compositing artifact, not a border, and no element there paints anything.
+   At 0.96 alpha the frosted effect was almost invisible anyway, so going fully
+   opaque costs nothing and the seam goes with it. */
 .bottom-sheet {
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #fff;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
   display: flex;
@@ -3033,7 +3036,7 @@ body.dark-mode {
 }
 
 .bottom-sheet.dark {
-  background: rgba(18, 22, 30, 0.96);
+  background: #12161e;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -3048,15 +3051,25 @@ body.dark-mode {
      drag on it scrolls the card instead of moving the sheet. */
   touch-action: none;
   /* Rendered as a real <button> so it is keyboard reachable */
-  width: 100%;
+  flex: 1;
   background: none;
   border: none;
   color: inherit;
   font: inherit;
 }
 
-.bottom-sheet-handle:disabled {
-  cursor: default;
+/* The handle spans the sheet, so any ring on the button itself is a full-width
+   rectangle — and since the sheet clips its children, it survived only as a
+   dark line along the bottom edge. Move the indicator onto the chevron, the
+   part that actually looks like the control, and leave the button bare. */
+.bottom-sheet-handle:focus-visible {
+  outline: none;
+}
+
+.bottom-sheet-handle:focus-visible .bottom-sheet-chevron {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .bottom-sheet-handle:active {
@@ -3109,18 +3122,76 @@ body.dark-mode {
   -webkit-backdrop-filter: none;
 }
 
-.bottom-sheet-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  padding: 2px 10px 8px;
-  flex-shrink: 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+/* At peek the sheet has ~404px of content budget on a 390x844 and ~307px on a
+   375x667. The hero costs 147-153px of that, which is the difference between
+   the opening paragraph clearing the fold and sitting below it. The painting
+   is one drag away, and it leads the expanded view. */
+.bottom-sheet-content.peek .event-card-image {
+  display: none;
 }
 
-.bottom-sheet.dark .bottom-sheet-controls {
+/* The card pulls its hero up by 4px, which the old control row absorbed in its
+   bottom padding. The header row has none, so the overhang put a sliver of the
+   painting across the header and read as a stray dark line. */
+.bottom-sheet-content .event-card-image {
+  margin-top: 0;
+}
+
+.bottom-sheet-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Absolute, so the handle stays optically centred in the row regardless of
+   this button's width, and so a press here never starts the sheet drag. */
+.sheet-panel-toggle {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+
+.sheet-panel-toggle.active {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.bottom-sheet.dark .sheet-panel-toggle {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.bottom-sheet.dark .sheet-panel-toggle.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.sheet-controls-panel {
+  flex-shrink: 0;
+  padding: 0.25rem 1rem 0.7rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.bottom-sheet.dark .sheet-controls-panel {
   border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.sheet-panel-playback {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
 }
 
 .bottom-sheet-timeline {

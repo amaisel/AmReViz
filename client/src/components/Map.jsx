@@ -3,6 +3,7 @@ import { MapContainer, Marker, Polyline, useMap, GeoJSON, Pane } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
+import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
 
 // One renderer per pane, not one for the whole chart.
 //
@@ -793,6 +794,15 @@ const atlanticCrossingBounds = [
 ];
 
 const SEABOARD_ZOOM = 6;
+
+// The phone keeps the desktop seaboard zoom. Dropping it to 5 shows more of the
+// theatre, but `easternSeaboardBounds` spans 27–48°N, which is only ~610px tall
+// in Mercator at zoom 5 against ~1220px at zoom 6. Any viewport taller than that
+// box cannot be panned at all, so the offset that lifts the active event clear
+// of the bottom sheet is silently discarded: the marker sank from 37px below the
+// strip centre to 108px on a 390x844, and to 225px on a 754x1254. Widening the
+// bounds northward is the only way to buy the wider frame, and that exposes the
+// clipper's straight cut as a false coastline.
 const ATLANTIC_MIN_ZOOM = 3;
 
 // A phone cannot hold the crossing. Fitting 88° of longitude into ~390px needs
@@ -856,7 +866,7 @@ export default function Map({
   const fitBounds = isOverseas && !isMobile ? atlanticCrossingBounds : null;
 
   // The mobile bottom sheet covers part of the map; desktop uses a side rail.
-  const coveredRatio = isMobile ? 0.55 : 0;
+  const coveredRatio = isMobile ? MOBILE_SHEET_PEEK_RATIO : 0;
 
   const visibleEvents = events.filter(event => {
     if (!hideFutureEvents) return true;
