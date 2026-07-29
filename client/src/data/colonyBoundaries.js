@@ -6,11 +6,31 @@ import { colonyShapes } from './geo/colonyShapes';
 // shapes: Virginia includes Kentucky and West Virginia, North Carolina
 // includes Tennessee, New Hampshire administers the Vermont grants, and the
 // District of Maine belongs to Massachusetts.
+//
+// `population` is the 1770 column of Census Series Z 1-19, "Estimated
+// Population of American Colonies: 1610 to 1780" (Historical Statistics of the
+// United States, Colonial Times to 1957, p. 756) — the same volume metrics.js
+// cites for trade. The 14 values below sum with Vermont (10,000), Kentucky
+// (15,700), and Tennessee (1,000) to the published 1770 total of 2,148,076,
+// which is how the transcription was checked. Massachusetts excludes the
+// District of Maine, which the source lists separately and so do we.
+//
+// `exports` is NOT from that series: no published source breaks annual export
+// value out to all fourteen individual colonies (Series Z 21-34 groups New
+// England, and Virginia with Maryland). These are rough order-of-magnitude
+// estimates of annual export value in the early 1770s and the map labels them
+// as estimates. Treat them as relative scale, not as figures of record.
+export const POPULATION_SOURCE = {
+  label: 'U.S. Census Bureau — Historical Statistics, Colonial Times to 1957 (Series Z 1-19)',
+  url: 'https://www2.census.gov/library/publications/1960/compendia/hist_stats_colonial-1957/hist_stats_colonial-1957-chZ.pdf',
+  year: 1770
+};
+
 const colonyInfo = [
   {
     name: "Massachusetts",
     abbrev: "MA",
-    population: 338000,
+    population: 235308,
     exports: 400000,
     mainExport: "Fish & Shipbuilding",
     founded: 1620,
@@ -21,7 +41,7 @@ const colonyInfo = [
   {
     name: "District of Maine",
     abbrev: "ME (MA)",
-    population: 30000,
+    population: 31257,
     exports: 50000,
     mainExport: "Lumber & Fish",
     founded: 1622,
@@ -33,7 +53,7 @@ const colonyInfo = [
   {
     name: "New Hampshire",
     abbrev: "NH",
-    population: 62000,
+    population: 62396,
     exports: 70000,
     mainExport: "Lumber & Masts",
     founded: 1623,
@@ -44,29 +64,29 @@ const colonyInfo = [
   {
     name: "Rhode Island",
     abbrev: "RI",
-    population: 58000,
+    population: 58196,
     exports: 90000,
     mainExport: "Rum & Trade",
     founded: 1636,
-    capital: "Providence",
+    capital: "Newport & Providence",
     labelLat: 41.62,
     labelLng: -71.55
   },
   {
     name: "Connecticut",
     abbrev: "CT",
-    population: 198000,
+    population: 183881,
     exports: 100000,
     mainExport: "Livestock & Grains",
     founded: 1636,
-    capital: "Hartford",
+    capital: "Hartford & New Haven",
     labelLat: 41.68,
     labelLng: -72.75
   },
   {
     name: "New York",
     abbrev: "NY",
-    population: 163000,
+    population: 162920,
     exports: 200000,
     mainExport: "Wheat & Flour",
     founded: 1626,
@@ -77,7 +97,7 @@ const colonyInfo = [
   {
     name: "New Jersey",
     abbrev: "NJ",
-    population: 130000,
+    population: 117431,
     exports: 80000,
     mainExport: "Iron & Grain",
     founded: 1664,
@@ -88,7 +108,7 @@ const colonyInfo = [
   {
     name: "Pennsylvania",
     abbrev: "PA",
-    population: 270000,
+    population: 240057,
     exports: 350000,
     mainExport: "Flour & Iron",
     founded: 1681,
@@ -99,18 +119,18 @@ const colonyInfo = [
   {
     name: "Delaware",
     abbrev: "DE",
-    population: 35000,
+    population: 35496,
     exports: 40000,
     mainExport: "Grain & Flour",
     founded: 1638,
-    capital: "Dover",
+    capital: "New Castle",
     labelLat: 39.1,
     labelLng: -75.5
   },
   {
     name: "Maryland",
     abbrev: "MD",
-    population: 203000,
+    population: 202599,
     exports: 400000,
     mainExport: "Tobacco",
     founded: 1634,
@@ -121,7 +141,7 @@ const colonyInfo = [
   {
     name: "Virginia",
     abbrev: "VA",
-    population: 447000,
+    population: 447016,
     exports: 1000000,
     mainExport: "Tobacco",
     founded: 1607,
@@ -132,7 +152,7 @@ const colonyInfo = [
   {
     name: "North Carolina",
     abbrev: "NC",
-    population: 197000,
+    population: 197200,
     exports: 150000,
     mainExport: "Naval Stores & Tobacco",
     founded: 1653,
@@ -143,7 +163,7 @@ const colonyInfo = [
   {
     name: "South Carolina",
     abbrev: "SC",
-    population: 124000,
+    population: 124244,
     exports: 600000,
     mainExport: "Rice & Indigo",
     founded: 1663,
@@ -154,7 +174,7 @@ const colonyInfo = [
   {
     name: "Georgia",
     abbrev: "GA",
-    population: 23000,
+    population: 23375,
     exports: 100000,
     mainExport: "Indigo & Rice",
     founded: 1733,

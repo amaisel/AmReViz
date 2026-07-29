@@ -3,6 +3,7 @@ import { MapContainer, Marker, Polyline, useMap, GeoJSON, Pane } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
+import { POPULATION_SOURCE } from '../data/colonyBoundaries';
 import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
 
 // One renderer per pane, not one for the whole chart.
@@ -543,9 +544,9 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
         <strong>${props.name}</strong>
         ${partOfText}
         <div class="tooltip-stats">
-          <span>Pop: ${props.population.toLocaleString()}</span>
+          <span>Pop. ${POPULATION_SOURCE.year}: ${props.population.toLocaleString()}</span>
           <span>Export: ${props.mainExport}</span>
-          <span>Value: £${props.exports.toLocaleString()}</span>
+          <span>Est. export value: ≈£${props.exports.toLocaleString()}</span>
         </div>
       </div>`,
       {

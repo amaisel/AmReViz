@@ -206,7 +206,7 @@ export const events = [
     "outcomeLabel": "Patriot capture",
     "campaign": "Canadian",
     "statNote": "No one was killed. The Crown casualty total consists almost entirely of the 48-man garrison captured with the fort.",
-    "description": "Ethan Allen, Benedict Arnold, and 83 Green Mountain Boys surprised the small British garrison at dawn and took the fort without a firefight. Months later Henry Knox hauled its heavy cannon across winter roads to the army outside Boston.",
+    "description": "Ethan Allen and Benedict Arnold, co-commanding 83 men — Green Mountain Boys alongside Massachusetts and Connecticut volunteers — surprised the small British garrison at dawn and took the fort without a firefight. Months later Henry Knox hauled its heavy cannon across winter roads to the army outside Boston.",
     "significance": "The war's first offensive American victory supplied the artillery that made the British evacuation of Boston possible.",
     "source": {
       "label": "American Battlefield Trust — Fort Ticonderoga (1775)",
@@ -359,11 +359,11 @@ export const events = [
     "lng": -71.0535,
     "type": "military",
     "side": "american",
-    "description": "After Washington's forces secretly fortified Dorchester Heights with cannons hauled from Fort Ticonderoga, the British position became untenable. General Howe evacuated some 9,000 troops and 1,000 Loyalists on 120 ships to Halifax, ending the 11-month Siege of Boston.",
+    "description": "After Washington's forces secretly fortified Dorchester Heights with cannons hauled from Fort Ticonderoga, the British position became untenable. General Howe evacuated some 8,900 troops and 1,100 Loyalists aboard a fleet of well over a hundred ships to Halifax, ending the 11-month Siege of Boston.",
     "significance": "First major American victory; liberated Boston and drove the British from New England.",
     "source": {
-      "label": "National Park Service — Siege of Boston",
-      "url": "https://www.nps.gov/articles/000/siege-of-boston-overview.htm"
+      "label": "National Park Service — The Evacuation of Boston, 1776",
+      "url": "https://www.nps.gov/articles/000/evacuation-of-boston-1776.htm"
     }
   },
   {
@@ -729,7 +729,7 @@ export const events = [
     "lng": -75.4444,
     "type": "military",
     "side": "american",
-    "description": "The Continental Army endured a brutal winter at Valley Forge. Despite losing nearly 2,000 men to cold, disease, and starvation, the army emerged stronger. Baron von Steuben drilled the troops into a professional fighting force, transforming them from militia to soldiers.",
+    "description": "The Continental Army endured a brutal winter at Valley Forge. Nearly 2,000 men died — most of disease rather than cold or hunger, and two-thirds of them during the warmer months of spring — yet the army emerged stronger. Baron von Steuben drilled the troops into a professional fighting force, transforming them from militia to soldiers.",
     "significance": "Crucible that forged the Continental Army into an effective fighting force; symbol of American perseverance.",
     "source": {
       "label": "National Park Service — Valley Forge History",
@@ -1067,7 +1067,7 @@ export const events = [
   {
     "id": 121,
     "date": "1781-03-09",
-    "endDate": "1781-05-08",
+    "endDate": "1781-05-10",
     "duration": "Two-month siege",
     "year": 1781,
     "title": "Spanish Gulf Campaign Culminates at Pensacola",
@@ -1086,7 +1086,7 @@ export const events = [
         "value": "Spanish-led"
       }
     ],
-    "description": "Spain entered the war as France's ally, not as a formal ally of the United States. From Louisiana, Bernardo de Gálvez captured British posts along the lower Mississippi and Gulf Coast, culminating in the long siege and surrender of Pensacola in May 1781.",
+    "description": "Spain entered the war as France's ally, not as a formal ally of the United States. From Louisiana, Bernardo de Gálvez captured British posts along the lower Mississippi and Gulf Coast, culminating at Pensacola: a Spanish shell blew up the Queen's Redoubt magazine on May 8, 1781, and General John Campbell surrendered West Florida two days later.",
     "significance": "The diverse Spanish-led coalition opened a second front, denied Britain its West Florida base, and tied down troops and ships before Yorktown.",
     "source": {
       "label": "National Park Service — Bernardo de Gálvez",
@@ -1144,7 +1144,7 @@ export const events = [
     "campaign": "Yorktown",
     "facts": [
       {
-        "label": "Ships of the line",
+        "label": "Ships of the line engaged",
         "value": "24 French / 19 British"
       },
       {
@@ -1152,6 +1152,7 @@ export const events = [
         "value": "209 French / 336 British"
       }
     ],
+    "statNote": "De Grasse had 28 ships of the line in the bay but got only 24 out to fight, many of his officers being ashore. De Barras added eight more after the battle, giving the French 36 by the time Graves returned.",
     "description": "Admiral de Grasse's fleet fought the Royal Navy off the Virginia Capes and retained control of Chesapeake Bay. The British withdrew to New York for repairs while French ships sealed Cornwallis inside Yorktown and delivered troops, money, artillery, and supplies.",
     "significance": "This naval action made the Yorktown siege possible by preventing British reinforcement or evacuation.",
     "source": {
@@ -1293,7 +1294,7 @@ export const events = [
     "lng": -74.017,
     "type": "military",
     "side": "american",
-    "description": "After seven years of occupation, the last British troops departed Manhattan as Washington and the Continental Army marched in from the north. Over 29,000 Loyalists and 3,000 formerly enslaved people left with the British fleet. Celebrated as 'Evacuation Day' for over a century.",
+    "description": "After seven years of occupation, the last British troops departed Manhattan as Washington and the Continental Army marched in from the north. This final sailing closed an evacuation that had run since spring: over 29,000 Loyalists left New York across 1783, and British inspectors recorded some 3,000 formerly enslaved people departing in freedom. Celebrated as 'Evacuation Day' for over a century.",
     "significance": "Final British departure from American soil; marked the true end of the Revolutionary War.",
     "source": {
       "label": "National Park Service — Timeline of the Revolution",
