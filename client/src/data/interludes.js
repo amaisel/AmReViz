@@ -10,7 +10,7 @@ export const interludes = [
     afterEventId: 5, // Battle of Bunker Hill
     title: 'The Cost of Rebellion',
     takeaway:
-      'The first year of fighting proved both sides would bleed. At Bunker Hill the British took over 1,000 casualties — nearly half their attacking force — to win a single hill.',
+      'The first year of fighting proved both sides would bleed. At Bunker Hill the British took over 1,000 casualties — more than a third of their attacking force — to win a single hill.',
     chart: 'casualties',
     yearCutoff: 1775,
   },

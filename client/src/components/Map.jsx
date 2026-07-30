@@ -493,12 +493,13 @@ const colonyColors = {
   'Georgia': '#A09078'
 };
 
+// The colonies are scene-setting, not a data layer: they carry no statistics
+// and are inert to the pointer. Hovering one used to raise a tooltip of
+// population and export figures; with those gone there is nothing to reveal,
+// so there is no hover state and no per-feature handler either.
 const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
-  const [hoveredColony, setHoveredColony] = useState(null);
-
   const style = useCallback((feature) => {
     const colonyName = feature.properties.name;
-    const isHovered = hoveredColony === colonyName;
 
     // Period chart palette: sepia ink on parchment / gold ink on midnight.
     // The dark stroke is lifted well clear of the land fill it sits on —
@@ -509,10 +510,10 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
     if (fillColonies) {
       return {
         fillColor: colonyColors[colonyName] || (darkMode ? '#E0C060' : '#B99C6B'),
-        weight: isHovered ? 1.8 : 1.2,
+        weight: 1.2,
         opacity: darkMode ? 0.85 : 0.8,
         color: darkMode ? strokeColorDark : strokeColorLight,
-        fillOpacity: isHovered ? 0.42 : 0.3,
+        fillOpacity: 0.3,
         dashArray: null
       };
     }
@@ -524,48 +525,20 @@ const ColonyBoundaries = memo(({ boundaries, darkMode, fillColonies }) => {
     // has to be a line.
     return {
       fillColor: colonyColors[colonyName] || (darkMode ? '#E0C060' : '#C8B085'),
-      weight: isHovered ? 1.6 : 1.1,
-      opacity: isHovered ? 0.95 : darkMode ? 0.8 : 0.75,
+      weight: 1.1,
+      opacity: darkMode ? 0.8 : 0.75,
       color: darkMode ? strokeColorDark : strokeColorLight,
-      fillOpacity: isHovered ? 0.28 : darkMode ? 0.1 : 0.13,
+      fillOpacity: darkMode ? 0.1 : 0.13,
       dashArray: null,
       className: 'colony-boundary'
     };
-  }, [darkMode, fillColonies, hoveredColony]);
-
-  const onEachFeature = useCallback((feature, layer) => {
-    const props = feature.properties;
-
-    const partOfText = props.partOf ? `<div style="font-style: italic; color: #888;">(Part of ${props.partOf})</div>` : '';
-
-    layer.bindTooltip(
-      `<div class="colony-tooltip">
-        <strong>${props.name}</strong>
-        ${partOfText}
-        <div class="tooltip-stats">
-          <span>Pop: ${props.population.toLocaleString()}</span>
-          <span>Export: ${props.mainExport}</span>
-          <span>Value: £${props.exports.toLocaleString()}</span>
-        </div>
-      </div>`,
-      {
-        permanent: false,
-        direction: 'top',
-        className: 'colony-tooltip-container'
-      }
-    );
-
-    layer.on({
-      mouseover: () => setHoveredColony(props.name),
-      mouseout: () => setHoveredColony(null)
-    });
-  }, []);
+  }, [darkMode, fillColonies]);
 
   return (
     <GeoJSON
       data={boundaries}
       style={style}
-      onEachFeature={onEachFeature}
+      interactive={false}
       renderer={COLONY_SVG}
       smoothFactor={2.5}
     />

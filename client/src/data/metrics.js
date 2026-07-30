@@ -101,6 +101,6 @@ export const campaignData = [
   { name: "Philadelphia Campaign", start: "1777-09-11", end: "1778-06-28", region: "mid" },
   { name: "Rhode Island Operations", start: "1778-07-29", end: "1778-08-31", region: "north" },
   { name: "Southern Campaign", start: "1778-12-29", end: "1781-09-08", region: "south" },
-  { name: "Spanish Gulf Campaign", start: "1779-08-27", end: "1781-05-08", region: "south" },
+  { name: "Spanish Gulf Campaign", start: "1779-08-27", end: "1781-05-10", region: "south" },
   { name: "Yorktown", start: "1781-08-19", end: "1781-10-19", region: "south" }
 ];
