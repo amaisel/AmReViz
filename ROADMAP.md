@@ -179,17 +179,27 @@ Measured on `main` after the content-budget work (390×844 and 375×667):
 | issue | severity | status |
 |---|---|---|
 | Diplomatic / military badge contrast | high | **fixed** — dark ink on gold; darker military green |
+| Diplomatic filter chip at 2.49:1 when active | high | **fixed** — the chips paint the same type colours behind a label; they needed the same dark ink as the badges |
+| Story controls unreachable below the fold | high | **fixed** — the overlay was bounded by the sheet box, which sits ~300px past the fold, so `overflow-y` never fired. A 320×568 lost the search field and any phone in landscape lost all four type filters |
 | Header title truncates to "Revoluti…" | high | **fixed** — short "Revolution" label under 768px |
 | Story controls push peek prose below fold (+151 / +248px) | high | **fixed** — panel overlays the card |
 | Swipe hint overlays expanded card title (z-index 750 > sheet 700) | med | **fixed** — hint sits under the sheet; dismisses on first step |
-| Zoom +/- at 32px on phones | med | **fixed** — 40px under 768px |
-| Welcome "Open the data" under 44px tall | low | **fixed** — 44px min-height under 560px |
+| Zoom +/- at 32px on phones | med | **fixed** — 40px under 768px. Needed the anchor's own class: Leaflet ships 30px at equal specificity and its stylesheet arrives with the lazy explore chunk, so it won on order |
+| `inert` never reached the DOM | med | **fixed** — `inert={cond ? '' : undefined}` is falsy for React 19's boolean attribute. The sheet had `visibility: hidden` behind it, but the cards-mode map had nothing, so Leaflet's controls stayed focusable |
+| Welcome "Open the data" under 44px tall | low | **fixed** — 44px min-height under 560px. Two `.secondary` blocks in the same media query were fighting; the later one won at 40px |
+| "MAP LEGEND" heading at 3.54:1 | low | **fixed** — `#888` → `#666`, with a light slate for dark mode |
 | Safe-area inset on sheet nav | low | **fixed** |
 | Sticky-map scrollytelling (route 2) | redesign | still open — preference, not a bug |
-| Peek Prev/Next sit below the fold | med | open — swipe is primary; expand to reach buttons |
+| Peek Prev/Next sit below the fold | med | open — swipe is primary; expand to reach buttons. Measured: 211px past the fold at 390×844 |
+| Holding an arrow key drops steps (item 3) | med | open — confirmed still live: 8 repeats at 60ms advance 2 steps |
 | Status chip overlaps sheet when fully expanded | low | open — chip is year/progress, still readable |
-| Filter + type chip density in story controls | med | open — usable but crowded on SE |
+| Filter + type chip density in story controls | med | open — usable but crowded on SE, though the panel scrolls now |
 | `cursor/form-review-findings-39f3` editorial fork | process | still open — see item 5 |
+
+Every row above was measured in a real browser, not read off the diff. The four
+"fixed" rows that needed a second pass — the filter chip, the panel bound, the
+zoom size and the welcome CTA — had landed as CSS that was silently losing a
+specificity or source-order fight, which is why they need the notes they carry.
 
 The form-review branch still uses a bottom sheet on mobile (sticky map is
 desktop-only there) and remains far behind `main`; treat it as a reference for

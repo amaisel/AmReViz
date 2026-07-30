@@ -930,7 +930,13 @@ body.dark-mode {
     opacity: 0.45;
   }
 
-  .map-container .leaflet-control-zoom a {
+  /* Named anchors on purpose. Leaflet ships `.leaflet-touch .leaflet-bar a`
+     at 30px, which ties this file's `.map-container .leaflet-control-zoom a`
+     on specificity — and leaflet.css is injected at runtime with the lazy
+     explore chunk, so it lands *after* App.css and wins the tie. Adding the
+     anchor's own class outranks it instead of racing load order. */
+  .map-container .leaflet-control-zoom a.leaflet-control-zoom-in,
+  .map-container .leaflet-control-zoom a.leaflet-control-zoom-out {
     width: 40px;
     height: 40px;
     line-height: 40px;
@@ -2804,13 +2810,6 @@ body.dark-mode {
     min-height: 4rem;
   }
 
-  .welcome-atlas-action.secondary {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0.55rem 0.15rem;
-  }
-
   .welcome-atlas-footer p {
     max-width: 14rem;
     line-height: 1.35;
@@ -2877,10 +2876,16 @@ body.dark-mode {
     min-width: 0;
   }
 
+  /* One rule for this chip, not two. A second `.secondary` block earlier in
+     this same media query used to raise min-height to 44px, and this one —
+     same selector, same specificity, further down — quietly took it back to
+     40px. Keep the touch target here, where the layout for it is set. */
   .welcome-atlas-action.secondary {
+    display: inline-flex;
+    align-items: center;
     justify-content: flex-start;
     width: fit-content;
-    min-height: 2.5rem;
+    min-height: 44px;
     padding-inline: 0;
   }
 
@@ -3210,7 +3215,16 @@ body.dark-mode {
   left: 0;
   right: 0;
   top: 60px; /* matches the handle row */
-  bottom: 0;
+  /* Bound by the sheet's *visible* strip, not its box. The sheet is `height:
+     vh` translated down to the peek snap, so `bottom: 0` lands ~300–380px
+     below the fold: the panel would look roomy while its lower half sat
+     off-screen, and `overflow-y` could never fire because scrollHeight then
+     equals clientHeight. Everything past the strip was simply unreachable —
+     on a 320x568, and on any phone in landscape, that hid the type filters
+     and the search field outright. 55vh is the peek ratio
+     (MOBILE_SHEET_PEEK_RATIO), as at the `bottom: calc(55vh + 12px)` rules. */
+  bottom: auto;
+  max-height: calc(55vh - 60px);
   z-index: 40;
   padding: 0.55rem 1rem max(0.85rem, env(safe-area-inset-bottom, 0px));
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
@@ -3416,12 +3430,19 @@ body.dark-mode {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 
+/* #888 measured 3.54:1 on the light panel at 10.4px — the same failure the
+   type badges had, on the heading that labels them. #666 clears AA on white
+   but not on the dark sheet, so dark keeps a light slate. */
 .filters-legend-title {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: #666;
   margin-bottom: 0.35rem;
+}
+
+.dark .filters-legend-title {
+  color: #9AA4B2;
 }
 
 .filters-legend-rows {
@@ -4246,7 +4267,9 @@ body.dark-mode {
 
 .filter-btn.active {
   background: var(--filter-color);
-  color: white;
+  /* FilterBar supplies the ink for its own background; white is only right for
+     the dark type colours. Falls back to white if the var is ever missing. */
+  color: var(--filter-ink, white);
 }
 
 .filter-btn:hover:not(.active) {

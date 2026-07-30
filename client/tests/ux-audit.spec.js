@@ -784,4 +784,146 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     // Overlay, not a layout push — the paragraph should not jump down.
     expect(Math.abs(after - before)).toBeLessThan(8);
   });
+
+  // The overlay is absolutely positioned inside a sheet that is `height: vh`
+  // translated down to the peek snap, so `bottom: 0` used to land ~300px below
+  // the fold: the panel looked roomy while its lower half sat off-screen, and
+  // overflow-y could never fire because scrollHeight equalled clientHeight.
+  // A 320x568 lost the search field; any phone in landscape lost all four type
+  // filters as well. Sizes chosen to cover both.
+  for (const [w, h] of [[320, 568], [667, 375], [375, 667], [390, 844]]) {
+    test(`every story control is reachable at ${w}x${h}`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+      await settleCardAnimation(page, '.bottom-sheet');
+      await page.getByRole('button', { name: 'Story controls' }).click();
+      await expect(page.getByRole('combobox', { name: 'Search historical events' })).toBeVisible();
+
+      const panel = page.locator('.sheet-controls-panel');
+      // The panel must end at the fold, not past it.
+      const beyond = await panel.evaluate((el) => el.getBoundingClientRect().bottom - window.innerHeight);
+      expect(beyond, 'panel extends below the viewport').toBeLessThanOrEqual(0);
+
+      // Anything the strip cannot show has to be scrollable into view.
+      const unreachable = await panel.evaluate((el) => {
+        const controls = [...el.querySelectorAll('button, input, [role="combobox"]')];
+        el.scrollTop = el.scrollHeight;
+        const out = controls
+          .filter((c) => {
+            const r = c.getBoundingClientRect();
+            return r.bottom > window.innerHeight || r.top < 0;
+          })
+          .map((c) => (c.getAttribute('aria-label') || c.textContent || c.tagName).trim());
+        el.scrollTop = 0;
+        return out;
+      });
+      expect(unreachable, 'controls that no amount of scrolling reveals').toEqual([]);
+    });
+  }
+
+  // `inert={cond ? '' : undefined}` is a no-op on React 19: `inert` is a
+  // boolean attribute there, so the empty string is falsy and the attribute is
+  // dropped. Both call sites relied on it, and the map one had no CSS fallback.
+  test('inert is really applied to the hidden card and the hidden map', async ({ page }) => {
+    const boolWarnings = [];
+    page.on('console', (m) => {
+      if (/empty string for a boolean attribute/i.test(m.text())) boolWarnings.push(m.text());
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await settleCardAnimation(page, '.bottom-sheet');
+    await page.getByRole('button', { name: 'Story controls' }).click();
+    await expect(page.getByRole('combobox', { name: 'Search historical events' })).toBeVisible();
+    expect(await page.locator('.bottom-sheet-content').evaluate((el) => el.inert)).toBe(true);
+
+    // Cards focus mode is desktop-only and marks the map container inert.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await settleCardAnimation(page, '.desktop-event-card');
+    await page.keyboard.press('c');
+    await expect(page.locator('.view-mode-cards')).toBeVisible();
+
+    const map = await page.locator('.scrolly-map-container').evaluate((el) => {
+      const focusables = [...el.querySelectorAll('a[href], button, [tabindex]')];
+      let reachable = 0;
+      for (const f of focusables) {
+        f.focus();
+        if (document.activeElement === f) reachable++;
+      }
+      return { inert: el.inert, focusables: focusables.length, reachable };
+    });
+    expect(map.inert).toBe(true);
+    expect(map.focusables, 'sanity: leaflet does render focusable controls').toBeGreaterThan(0);
+    expect(map.reachable, 'nothing in the hidden map may take focus').toBe(0);
+
+    expect(boolWarnings, 'React boolean-attribute warnings').toEqual([]);
+  });
+
+  // The type badges were fixed for contrast but the filter chips paint the same
+  // type colours behind a label, and diplomatic measured the same 2.49:1 there.
+  test('every active filter chip meets WCAG AA contrast', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await settleCardAnimation(page, '.bottom-sheet');
+    await page.getByRole('button', { name: 'Story controls' }).click();
+    await expect(page.locator('.filter-btn').first()).toBeVisible();
+
+    const chips = await page.locator('.sheet-controls-panel').evaluate((panel) => {
+      const lin = (v) => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      };
+      const lum = (s) => {
+        const [r, g, b] = s.match(/[\d.]+/g).slice(0, 3).map(Number);
+        return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+      };
+      return [...panel.querySelectorAll('.filter-btn.active')].map((b) => {
+        const cs = getComputedStyle(b);
+        const [hi, lo] = [lum(cs.color), lum(cs.backgroundColor)].sort((x, y) => y - x);
+        return { label: b.textContent.trim(), ratio: (hi + 0.05) / (lo + 0.05) };
+      });
+    });
+
+    expect(chips.length, 'all four types start active').toBe(4);
+    for (const { label, ratio } of chips) {
+      expect(ratio, `${label} chip`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  // Leaflet ships `.leaflet-touch .leaflet-bar a` at 30px, which ties this
+  // app's `.map-container .leaflet-control-zoom a` on specificity — and
+  // leaflet.css arrives with the lazy explore chunk, so it wins on order.
+  test('map zoom controls are 40px on phones', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/explore/9`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.leaflet-control-zoom a').first()).toBeVisible();
+
+    const sizes = await page.locator('.leaflet-control-zoom a').evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { title: el.title, w: Math.round(r.width), h: Math.round(r.height) };
+      }),
+    );
+    expect(sizes.length).toBe(2);
+    for (const s of sizes) {
+      expect(s.w, `${s.title} width`).toBe(40);
+      expect(s.h, `${s.title} height`).toBe(40);
+    }
+  });
+
+  // Two `.welcome-atlas-action.secondary` blocks in the same media query: the
+  // first raised min-height to 44px, the second quietly put it back to 40px.
+  test('welcome secondary action keeps a 44px touch target on narrow screens', async ({ page }) => {
+    for (const [w, h] of [[320, 568], [375, 667], [559, 800]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+      const button = page.getByRole('button', { name: 'Open the data' });
+      await expect(button).toBeVisible();
+      // Rounded: Blink lays this out at 43.99997 on some widths, and the
+      // assertion is about the touch target, not sub-pixel layout.
+      const height = await button.evaluate((el) => Math.round(el.getBoundingClientRect().height));
+      expect(height, `Open the data at ${w}x${h}`).toBeGreaterThanOrEqual(44);
+    }
+  });
 });

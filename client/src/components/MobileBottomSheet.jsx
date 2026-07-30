@@ -257,7 +257,9 @@ export default function MobileBottomSheet({
         ref={contentRef}
         // The overlay sits on top; hide the card from hit-testing and AT while
         // controls are open so transformed Framer cards cannot paint through.
-        inert={panelOpen ? '' : undefined}
+        // Boolean, not '': React 19 treats `inert` as a boolean attribute, so
+        // an empty string is falsy and the attribute is dropped entirely.
+        inert={panelOpen || undefined}
         style={{
           // Still tied to the snap: at peek the sheet is taller than its
           // visible strip, so scrolling here would run the card up behind the

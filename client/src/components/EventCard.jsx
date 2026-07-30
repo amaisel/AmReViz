@@ -44,7 +44,7 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
     american: { bg: darkMode ? '#2C4B7A' : '#0A244A', fg: '#ffffff' },
     british: { bg: darkMode ? '#A33030' : '#7A1212', fg: '#ffffff' },
     indecisive: { bg: darkMode ? '#E0C060' : '#C5A02F', fg: '#1A1408' },
-    allied: { bg: darkMode ? '#1F6F46' : '#1F6F46', fg: '#ffffff' },
+    allied: { bg: '#1F6F46', fg: '#ffffff' },
   };
 
   const americanLabel = event.combatants?.american || 'American / allied';

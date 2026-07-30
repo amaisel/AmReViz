@@ -10,7 +10,9 @@ export default function HorizontalTimeline({ events, activeEventId, onEventClick
   const typeColors = {
     battle: darkMode ? '#A33030' : '#7A1212',
     political: darkMode ? '#2C4B7A' : '#0A244A',
-    // Match EventCard: parchment gold stays, ink goes dark for contrast.
+    // Same palette as EventCard's badges. These are dot fills and borders with
+    // no label on them, so only the hues need to agree — the badge's dark ink
+    // has nothing to apply to here.
     diplomatic: darkMode ? '#E0C060' : '#C5A02F',
     military: darkMode ? '#1F6F46' : '#1B7A1B',
   };
