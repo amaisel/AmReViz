@@ -762,6 +762,35 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await expect(page.locator('.header-title-short')).toHaveText('Revolution');
   });
 
+  // A phone in landscape is 844-932px wide, so it clears the 768px breakpoint
+  // and is treated as desktop despite having 325-430px of height. It was
+  // getting the full masthead — title, subtitle, 64px — inside that window.
+  // 667x375 is the SE, which is under the breakpoint and takes the mobile
+  // header instead; it is here so both sides of the boundary stay covered.
+  for (const [w, h] of [[844, 390], [932, 430], [932, 325], [667, 375]]) {
+    test(`landscape ${w}x${h} keeps the header out of the story's way`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+
+      const header = await page.locator('.app-header').evaluate((el) => ({
+        height: el.getBoundingClientRect().height,
+        subtitleShown: getComputedStyle(el.querySelector('.header-content p')).display !== 'none',
+        title: el.querySelector('.header-title-short, .header-title-full').textContent,
+      }));
+
+      expect(header.height / h, `header share of a ${h}px-tall viewport`).toBeLessThanOrEqual(0.15);
+      expect(header.subtitleShown, 'subtitle is a luxury this viewport cannot afford').toBe(false);
+      // Whichever variant is visible, it must be the short one at these widths.
+      const visibleTitle = await page.evaluate(() => {
+        const el = [...document.querySelectorAll('.header-title-short, .header-title-full')]
+          .find((n) => getComputedStyle(n).display !== 'none');
+        return el?.textContent;
+      });
+      expect(visibleTitle).toBe('Revolution');
+    });
+  }
+
   // Opening Story controls used to push the peek paragraph below the fold.
   // The panel now overlays the card, so the prose stays where it was.
   test('opening story controls keeps the peek paragraph above the fold', async ({ page }) => {

@@ -4684,6 +4684,37 @@ body.dark-mode {
 
 /* ===== LANDSCAPE SHORT VIEWPORT ===== */
 @media (max-height: 500px) and (orientation: landscape) {
+  /* A phone in landscape is 844–932px wide, so it clears the 768px breakpoint
+     and gets the *desktop* header — full title, subtitle and all — inside a
+     viewport 325–430px tall. That masthead costs 64px, a fifth of the shortest
+     of them, before the story gets a pixel. Everything else in this block
+     already compresses for the same reason; the header was the piece left out.
+     Reuses the short-title spans the 768px breakpoint introduced. */
+  :root {
+    --header-height: 44px;
+  }
+
+  .app-header {
+    height: 44px;
+    padding: 0.25rem 1rem;
+  }
+
+  .header-content p {
+    display: none;
+  }
+
+  .header-title-full {
+    display: none;
+  }
+
+  .header-title-short {
+    display: inline;
+  }
+
+  .header-content h1 {
+    font-size: 1.15rem;
+  }
+
   .desktop-event-card {
     max-height: max(48vh, 200px);
     padding: 10px 16px 8px;
