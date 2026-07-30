@@ -210,6 +210,7 @@
 }
 
 .event-card-outcome {
+  /* Default for dark badges; inconclusive uses dark ink via inline style. */
   color: #fff;
 }
 
@@ -443,6 +444,10 @@ body.dark-mode {
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.header-title-short {
+  display: none;
 }
 
 .header-content p {
@@ -923,6 +928,19 @@ body.dark-mode {
     right: 12px;
     top: 56px;
     opacity: 0.45;
+  }
+
+  /* Named anchors on purpose. Leaflet ships `.leaflet-touch .leaflet-bar a`
+     at 30px, which ties this file's `.map-container .leaflet-control-zoom a`
+     on specificity — and leaflet.css is injected at runtime with the lazy
+     explore chunk, so it lands *after* App.css and wins the tie. Adding the
+     anchor's own class outranks it instead of racing load order. */
+  .map-container .leaflet-control-zoom a.leaflet-control-zoom-in,
+  .map-container .leaflet-control-zoom a.leaflet-control-zoom-out {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    font-size: 20px;
   }
 
   .map-container .leaflet-bottom.leaflet-left {
@@ -1475,6 +1493,7 @@ body.dark-mode {
   border-radius: 20px;
   font-size: 0.7rem;
   font-weight: 600;
+  /* Default; EventCard sets an inline color so gold badges can use dark ink. */
   color: white;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2753,6 +2772,11 @@ body.dark-mode {
     min-height: 4rem;
   }
 
+  .welcome-atlas-footer p {
+    max-width: 14rem;
+    line-height: 1.35;
+  }
+
   .welcome-atlas-eyebrow {
     gap: 0.55rem;
     max-width: 15rem;
@@ -2814,10 +2838,16 @@ body.dark-mode {
     min-width: 0;
   }
 
+  /* One rule for this chip, not two. A second `.secondary` block earlier in
+     this same media query used to raise min-height to 44px, and this one —
+     same selector, same specificity, further down — quietly took it back to
+     40px. Keep the touch target here, where the layout for it is set. */
   .welcome-atlas-action.secondary {
+    display: inline-flex;
+    align-items: center;
     justify-content: flex-start;
     width: fit-content;
-    min-height: 2.5rem;
+    min-height: 44px;
     padding-inline: 0;
   }
 
@@ -3139,14 +3169,42 @@ body.dark-mode {
 }
 
 .sheet-controls-panel {
-  flex-shrink: 0;
-  padding: 0.25rem 1rem 0.7rem;
+  /* Overlay the card instead of taking a flex row. Opening Play / Search /
+     Filters used to push the opening paragraph ~150–250px below the fold on
+     phone sizes — undoing the peek content budget. Absolute keeps the panel
+     in the same strip without stealing story space. */
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 60px; /* matches the handle row */
+  /* Bound by the sheet's *visible* strip, not its box. The sheet is `height:
+     vh` translated down to the peek snap, so `bottom: 0` lands ~300–380px
+     below the fold: the panel would look roomy while its lower half sat
+     off-screen, and `overflow-y` could never fire because scrollHeight then
+     equals clientHeight. Everything past the strip was simply unreachable —
+     on a 320x568, and on any phone in landscape, that hid the type filters
+     and the search field outright. 55vh is the peek ratio
+     (MOBILE_SHEET_PEEK_RATIO), as at the `bottom: calc(55vh + 12px)` rules. */
+  bottom: auto;
+  max-height: calc(55vh - 60px);
+  z-index: 40;
+  padding: 0.55rem 1rem max(0.85rem, env(safe-area-inset-bottom, 0px));
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  overflow: hidden;
+  background: #fff;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .bottom-sheet.dark .sheet-controls-panel {
   border-bottom-color: rgba(255, 255, 255, 0.06);
+  background: #12161e;
+}
+
+/* Framer card transforms create stacking contexts that can paint above an
+   absolute sibling; hide the card while the overlay is up. */
+.bottom-sheet-content.controls-open {
+  visibility: hidden;
 }
 
 .sheet-panel-playback {
@@ -3334,12 +3392,19 @@ body.dark-mode {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 
+/* #888 measured 3.54:1 on the light panel at 10.4px — the same failure the
+   type badges had, on the heading that labels them. #666 clears AA on white
+   but not on the dark sheet, so dark keeps a light slate. */
 .filters-legend-title {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: #666;
   margin-bottom: 0.35rem;
+}
+
+.dark .filters-legend-title {
+  color: #9AA4B2;
 }
 
 .filters-legend-rows {
@@ -3668,7 +3733,7 @@ body.dark-mode {
 .bottom-sheet-content .event-card-nav {
   bottom: 0;
   background: rgba(255, 255, 255, 0.96);
-  padding-bottom: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
 }
 
 .bottom-sheet.dark .event-card-nav {
@@ -3822,7 +3887,9 @@ body.dark-mode {
   margin: 0 auto;
   width: fit-content;
   max-width: calc(100% - 32px);
-  z-index: 750;
+  /* Sit in the map strip only. Above the sheet (700) the chip covered the
+     event title whenever the sheet was expanded or bouncing. */
+  z-index: 650;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -3834,6 +3901,7 @@ body.dark-mode {
   font-weight: 500;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   white-space: nowrap;
+  pointer-events: auto;
 }
 
 .scrollytelling-view.dark .explore-onboarding-hint {
@@ -4161,7 +4229,9 @@ body.dark-mode {
 
 .filter-btn.active {
   background: var(--filter-color);
-  color: white;
+  /* FilterBar supplies the ink for its own background; white is only right for
+     the dark type colours. Falls back to white if the var is ever missing. */
+  color: var(--filter-ink, white);
 }
 
 .filter-btn:hover:not(.active) {
@@ -4576,6 +4646,37 @@ body.dark-mode {
 
 /* ===== LANDSCAPE SHORT VIEWPORT ===== */
 @media (max-height: 500px) and (orientation: landscape) {
+  /* A phone in landscape is 844–932px wide, so it clears the 768px breakpoint
+     and gets the *desktop* header — full title, subtitle and all — inside a
+     viewport 325–430px tall. That masthead costs 64px, a fifth of the shortest
+     of them, before the story gets a pixel. Everything else in this block
+     already compresses for the same reason; the header was the piece left out.
+     Reuses the short-title spans the 768px breakpoint introduced. */
+  :root {
+    --header-height: 44px;
+  }
+
+  .app-header {
+    height: 44px;
+    padding: 0.25rem 1rem;
+  }
+
+  .header-content p {
+    display: none;
+  }
+
+  .header-title-full {
+    display: none;
+  }
+
+  .header-title-short {
+    display: inline;
+  }
+
+  .header-content h1 {
+    font-size: 1.15rem;
+  }
+
   .desktop-event-card {
     max-height: max(48vh, 200px);
     padding: 10px 16px 8px;
@@ -4622,6 +4723,16 @@ body.dark-mode {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* Ellipsis on the full title still clipped mid-word ("Revoluti…"). Prefer a
+     short label that fits next to Explore / Data / theme without truncation. */
+  .header-title-full {
+    display: none;
+  }
+
+  .header-title-short {
+    display: inline;
   }
 
   .header-content p {

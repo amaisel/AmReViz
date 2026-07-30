@@ -37,11 +37,15 @@ function FilterIcon({ type }) {
 }
 
 function FilterBar({ activeFilters, onToggle }) {
+  // `ink` is the label colour once the chip is active and the type colour
+  // becomes its background — the same white-on-gold problem the type badges
+  // had (diplomatic measured 2.49:1 here too). Dark ink on the parchment gold
+  // keeps the palette and clears AA; the rest stay white.
   const types = [
-    { id: 'battle', label: 'Battles', color: '#7A1212' },
-    { id: 'political', label: 'Political', color: '#0A244A' },
-    { id: 'diplomatic', label: 'Diplomatic', color: '#C5A02F' },
-    { id: 'military', label: 'Military', color: '#228B22' },
+    { id: 'battle', label: 'Battles', color: '#7A1212', ink: '#ffffff' },
+    { id: 'political', label: 'Political', color: '#0A244A', ink: '#ffffff' },
+    { id: 'diplomatic', label: 'Diplomatic', color: '#C5A02F', ink: '#1A1408' },
+    { id: 'military', label: 'Military', color: '#1B7A1B', ink: '#ffffff' },
   ];
 
   return (
@@ -51,7 +55,7 @@ function FilterBar({ activeFilters, onToggle }) {
           key={t.id}
           className={`filter-btn ${activeFilters.has(t.id) ? 'active' : ''}`}
           onClick={() => onToggle(t.id)}
-          style={{ '--filter-color': t.color }}
+          style={{ '--filter-color': t.color, '--filter-ink': t.ink }}
         >
           <span className="filter-icon"><FilterIcon type={t.id} /></span>
           {t.label}
@@ -387,42 +391,12 @@ export default function ExploreView({
   const handleMapEventClick = jumpToEvent;
   const handleSearchSelect = jumpToEvent;
 
-  // --- Prev/Next handlers ---
-  const handlePrevEvent = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentIndex(prev => Math.max(prev - 1, 0));
-  }, []);
-
-  const handleNextEvent = useCallback(() => {
-    setIsPlaying(false);
-    setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
-  }, [storyItems.length]);
-
-  // --- Replay handler ---
-  const handleReplay = useCallback(() => {
-    setCurrentIndex(0);
-    setIsPlaying(true);
-  }, []);
-
   // --- Onboarding hint (first visit) ---
   const [showHint, setShowHint] = useState(() => {
     try {
       return !sessionStorage.getItem('amreviz-hint-dismissed');
     } catch { return true; }
   });
-
-  useEffect(() => {
-    if (!showHint) return;
-    const timer = setTimeout(() => {
-      setShowHint(false);
-      try {
-        sessionStorage.setItem('amreviz-hint-dismissed', '1');
-      } catch {
-        // Session storage can be unavailable in privacy-restricted contexts.
-      }
-    }, 6000);
-    return () => clearTimeout(timer);
-  }, [showHint]);
 
   const dismissHint = useCallback(() => {
     setShowHint(false);
@@ -431,6 +405,33 @@ export default function ExploreView({
     } catch {
       // Session storage can be unavailable in privacy-restricted contexts.
     }
+  }, []);
+
+  useEffect(() => {
+    if (!showHint) return;
+    const timer = setTimeout(() => {
+      dismissHint();
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [showHint, dismissHint]);
+
+  // --- Prev/Next handlers ---
+  const handlePrevEvent = useCallback(() => {
+    dismissHint();
+    setIsPlaying(false);
+    setCurrentIndex(prev => Math.max(prev - 1, 0));
+  }, [dismissHint]);
+
+  const handleNextEvent = useCallback(() => {
+    dismissHint();
+    setIsPlaying(false);
+    setCurrentIndex(prev => Math.min(prev + 1, storyItems.length - 1));
+  }, [dismissHint, storyItems.length]);
+
+  // --- Replay handler ---
+  const handleReplay = useCallback(() => {
+    setCurrentIndex(0);
+    setIsPlaying(true);
   }, []);
 
   const activeFilterCount = activeFilters.size;
@@ -615,11 +616,13 @@ export default function ExploreView({
       {/* Full-screen Map — CSS-hidden in cards mode; never unmount */}
       {/* `inert` both hides this from assistive tech and pulls its contents
           out of the tab order; aria-hidden alone left Leaflet's controls
-          focusable inside a hidden subtree. */}
+          focusable inside a hidden subtree. Pass a boolean: React 19 treats
+          `inert` as a boolean attribute, so the '' this used to pass was
+          falsy and the attribute never reached the DOM at all. */}
       <div
         className="scrolly-map-container"
         ref={mapContainerRef}
-        inert={viewMode === 'cards' ? '' : undefined}
+        inert={viewMode === 'cards' || undefined}
       >
         <Map
           events={mapEvents}

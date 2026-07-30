@@ -186,7 +186,10 @@ export default function App() {
             transition={{ duration: 0.3 }}
           >
             <div className="header-content">
-              <h1>The American Revolution</h1>
+              <h1>
+                <span className="header-title-full">The American Revolution</span>
+                <span className="header-title-short">Revolution</span>
+              </h1>
               <p>An Interactive Journey Through Independence</p>
             </div>
             <div className="header-controls">
