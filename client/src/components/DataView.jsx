@@ -33,9 +33,11 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
         </p>
       </header>
 
+      {/* h3, not h4: these sit directly under the h2 above, and jumping a
+          level leaves a screen reader's heading outline with a hole in it. */}
       <div className="data-insights">
         <div className="insight-card">
-          <h4>U.S. Servicemembers</h4>
+          <h3>U.S. Servicemembers</h3>
           <AnimatedCounter value={warSummaryData.servicemembers} className="insight-value" />
           <p>
             median of an estimated {warSummaryData.serviceEstimateRange[0].toLocaleString()}–
@@ -43,12 +45,12 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
           </p>
         </div>
         <div className="insight-card">
-          <h4>Recorded Battle Deaths</h4>
+          <h3>Recorded Battle Deaths</h3>
           <AnimatedCounter value={warSummaryData.battleDeaths} className="insight-value" />
           <p>official U.S. series based on incomplete returns</p>
         </div>
         <div className="insight-card">
-          <h4>Non-mortal Woundings</h4>
+          <h3>Non-mortal Woundings</h3>
           <AnimatedCounter value={warSummaryData.nonMortalWoundings} className="insight-value" />
           <p>U.S. servicemembers in the same official series</p>
         </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import AnimatedCounter from './AnimatedCounter';
+import { outcomeTheme, outcomeLabel as outcomeLabelFor, chartSeries } from '../constants/palette';
 
 export default function BattleComparison({ battles, darkMode }) {
   const [selectedId, setSelectedId] = useState(battles[0]?.id);
@@ -8,19 +9,12 @@ export default function BattleComparison({ battles, darkMode }) {
 
   if (!selected) return null;
 
-  const outcomeLabel = {
-    american: 'American Victory',
-    british: 'British Victory',
-    indecisive: 'Indecisive',
-    allied: 'Allied Victory'
-  };
-
-  const outcomeColor = {
-    american: '#0A244A',
-    british: '#7A1212',
-    indecisive: '#C5A02F',
-    allied: '#1F6F46'
-  };
+  // The badge was painted white-on-colour from a local table, which put white
+  // on the gold at 2.49:1 for an indecisive engagement — the same failure the
+  // event cards had. The palette carries a foreground alongside each fill.
+  const outcome = outcomeTheme(selected.outcome, darkMode);
+  const americanBar = chartSeries('american', darkMode).hue;
+  const britishBar = chartSeries('british', darkMode).hue;
 
   const calculateRate = (casualties, forces) => {
     if (!forces) return '0%';
@@ -68,14 +62,14 @@ export default function BattleComparison({ battles, darkMode }) {
           <div className="comparison-battle-meta" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
             <div 
               className="outcome-badge" 
-              style={{ 
-                background: outcomeColor[selected.outcome], 
-                color: 'white',
+              style={{
+                background: outcome?.bg,
+                color: outcome?.fg,
                 marginBottom: '0.5rem',
                 display: 'inline-block'
               }}
             >
-              {selected.outcomeLabel || outcomeLabel[selected.outcome]}
+              {selected.outcomeLabel || outcomeLabelFor(selected.outcome)}
             </div>
             <p className="comparison-meta-line">
               {selected.location} • {new Date(selected.date).toLocaleDateString(undefined, {
@@ -104,7 +98,7 @@ export default function BattleComparison({ battles, darkMode }) {
               <div className="comparison-bar">
                 <Motion.div
                   className="bar-fill"
-                  style={{ background: '#0A244A' }}
+                  style={{ background: americanBar }}
                   initial={{ width: 0 }}
                   animate={{ width: `${(selected.forces.american / Math.max(selected.forces.american, selected.forces.british)) * 100}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -132,7 +126,7 @@ export default function BattleComparison({ battles, darkMode }) {
               <div className="comparison-bar">
                 <Motion.div
                   className="bar-fill"
-                  style={{ background: '#7A1212' }}
+                  style={{ background: britishBar }}
                   initial={{ width: 0 }}
                   animate={{ width: `${(selected.forces.british / Math.max(selected.forces.american, selected.forces.british)) * 100}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}

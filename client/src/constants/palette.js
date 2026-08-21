@@ -80,6 +80,53 @@ export const OUTCOMES = {
   },
 };
 
+// Chart series.
+//
+// A different job again from the badges above, and the reason it needs its own
+// table: `Charts.jsx` painted every series in the light-theme hue whatever the
+// theme, so in dark mode the navy area sat on near-black at 1.15:1 — not a
+// contrast nit but an unreadable chart. WCAG 1.4.11 asks 3:1 for a graphic
+// that carries meaning, and each value below clears it against the card it is
+// drawn on (#FCFBFA light, #14191F dark).
+//
+// Recharts paints legend labels and tooltip rows in the series colour by
+// default. That is what dragged the gold down to 2.41:1 as *text* while it was
+// perfectly legible as a line. The charts now render those labels in body ink
+// and let the swatch carry the colour, so these values only ever have to
+// satisfy the graphic threshold.
+//
+// `dash` is not decoration: red and green collapse under deuteranopia, and the
+// dark trio's gold and red sit 57 apart in RGB after simulation. A stroke
+// pattern and a dot shape say the same thing colour does, without colour.
+export const CHART_SERIES = {
+  american: {
+    light: { hue: '#0A244A', dash: null, shape: 'circle' }, // 14.89:1
+    dark: { hue: '#6FA8E8', dash: null, shape: 'circle' }, //  7.10:1
+  },
+  militia: {
+    // #C5A02F measured 2.41:1 on the light card — under the graphic threshold.
+    light: { hue: '#B08820', dash: '6 4', shape: 'square' }, // 3.18:1
+    dark: { hue: '#E0C060', dash: '6 4', shape: 'square' }, //  9.99:1
+  },
+  british: {
+    light: { hue: '#7A1212', dash: '2 5', shape: 'triangle' }, // 10.57:1
+    dark: { hue: '#E87B96', dash: '2 5', shape: 'triangle' }, //  6.48:1
+  },
+};
+
+export const chartSeries = (name, darkMode) =>
+  (CHART_SERIES[name] ?? CHART_SERIES.american)[darkMode ? 'dark' : 'light'];
+
+// Body and secondary ink for chart furniture — axis ticks, legend labels,
+// tooltip rows. Replaces the `#888` that was pasted into fourteen rules and
+// measured 3.54:1 on white, 3.11:1 on the parchment.
+export const CHART_INK = {
+  light: { body: '#3F4652', muted: '#5C6472' },
+  dark: { body: '#C9D1D9', muted: '#9BA6B4' },
+};
+
+export const chartInk = (darkMode) => CHART_INK[darkMode ? 'dark' : 'light'];
+
 // The two sides, as drawn on the map. Fills behind a white symbol, not text.
 export const SIDES = {
   american: '#1e3a5f',

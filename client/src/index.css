@@ -57,19 +57,57 @@ button {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* The focus ring gets its own colour, not `currentColor`.
+   `currentColor` is the button's text colour, chosen to contrast with the
+   button — which says nothing about the page behind it, where the ring is
+   actually drawn. On an active filter chip in light mode that was white on
+   parchment (1.14:1) and on the dark view toggle navy on the dark header
+   (1.23:1): a keyboard user got no visible focus at all.
+
+   Two tones rather than one, so the indicator survives whatever it lands on:
+   a solid ring plus a contrasting halo just outside it. Whichever of the two
+   is close to the local background, the other one shows. */
+:root {
+  --focus-ring: #0A244A;
+  --focus-ring-halo: #FFFFFF;
+}
+
+.dark,
+.dark-mode {
+  --focus-ring: #F3EAD5;
+  --focus-ring-halo: #0D1117;
+}
+
 /* `:focus-visible` only. Pairing it with a bare `:focus` drew the ring on every
    pointer click as well, which is what a keyboard-only affordance is meant to
    avoid — and on the sheet's full-width drag handle it read as a stray dark
    line across the card, since the sheet clips the ring to its bottom edge. */
-button:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 4px;
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--focus-ring-halo);
+}
+
+/* Inputs and selects carry their own borders; the halo alone would read as a
+   second border, so they take the ring at a tighter offset. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 /* Visible to assistive tech, not to the eye. `clip-path` alongside the legacy
    `clip` because Safari still needs the old property, and a 1px box rather
    than `display: none`, which would take the text out of the accessibility
-   tree along with the layout. */
+   tree along with the layout.
+   `table-layout` and `pointer-events` are for the chart data tables: a
+   `display: table` sizes to its content and ignores `width: 1px`, so those
+   were 382x248 boxes — invisible, but still absolutely positioned over the
+   chart and still able to swallow a click meant for a bar. */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -81,6 +119,8 @@ button:focus-visible {
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+  table-layout: fixed;
+  pointer-events: none;
 }
 
 /* The first tab stop on the page: a keyboard reader should not have to walk

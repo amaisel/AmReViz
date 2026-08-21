@@ -36,9 +36,16 @@
   /* Soft Black */
   --color-ink-light: #4A5568;
   /* Warm Grey */
+  /* Secondary text. `#888` was pasted into fourteen rules and measures 3.54:1
+     on white and 3.11:1 on the parchment — under AA everywhere it appeared,
+     including the story's own progress counter. This clears 4.5:1 on white,
+     on the parchment card and on the sheet. */
+  --color-ink-muted: #5C6472;
   --color-text-dark: #E6EDF5;
   /* Off-white Blue */
   --color-text-muted-dark: #8B949E;
+  /* Its dark-theme counterpart, 7.16:1 on the dark card. */
+  --color-ink-muted-dark: #9BA6B4;
 
   /* Depth & Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -374,8 +381,17 @@
 }
 
 *:focus-visible {
-  outline: 2px solid var(--color-gold);
-  outline-offset: 4px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The masthead is deep navy in both themes, so the light-theme focus ring —
+   navy, chosen against the parchment page — measured 1.44:1 on the view
+   toggle and 1.13:1 on the theme button. The ring follows the surface it is
+   drawn on, not the page's theme. */
+.app-header {
+  --focus-ring: #F3EAD5;
+  --focus-ring-halo: #0A244A;
 }
 
 body {
@@ -888,6 +904,21 @@ body.dark-mode {
   border-bottom: none;
 }
 
+/* A zoom button at the end of its range. Leaflet's own `.leaflet-disabled`
+   fades it to #bbb on #f4f4f4 — 1.75:1, which reads as broken rather than
+   unavailable. Inactive controls are exempt from the contrast rule, but a
+   reader still has to be able to see that the control is there. */
+.map-container .leaflet-control-zoom a.leaflet-disabled {
+  color: #8A7B6B;
+  background: rgba(238, 232, 218, 0.92);
+  cursor: default;
+}
+
+.map-container.dark .leaflet-control-zoom a.leaflet-disabled {
+  color: #7C7259;
+  background: rgba(16, 21, 34, 0.9);
+}
+
 .map-container.dark .leaflet-control-zoom {
   border-color: rgba(197, 160, 47, 0.15);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -1020,7 +1051,7 @@ body.dark-mode {
 .event-date .full-date {
   display: block;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-ink-muted);
 }
 
 .event-line {
@@ -1129,7 +1160,7 @@ body.dark-mode {
 .timeline-footer {
   text-align: center;
   padding: 2rem 0;
-  color: #888;
+  color: var(--color-ink-muted);
   font-size: 0.85rem;
 }
 
@@ -1262,7 +1293,7 @@ body.dark-mode {
 .h-event-month {
   display: block;
   font-size: 0.7rem;
-  color: #888;
+  color: var(--color-ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.35rem;
@@ -1365,7 +1396,7 @@ body.dark-mode {
 }
 
 .nav-arrow {
-  color: #888;
+  color: var(--color-ink-muted);
   font-size: 0.75rem;
   letter-spacing: 0.1em;
 }
@@ -2111,7 +2142,7 @@ body.dark-mode {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.insight-card h4 {
+.insight-card h3 {
   font-size: 0.85rem;
   color: #666;
   margin-bottom: 0.5rem;
@@ -2119,7 +2150,7 @@ body.dark-mode {
   letter-spacing: 0.05em;
 }
 
-.dark .insight-card h4 {
+.dark .insight-card h3 {
   color: #a0a0a0;
 }
 
@@ -3366,12 +3397,12 @@ body.dark-mode {
 
 .status-chip-counter {
   font-size: 0.65rem;
-  color: #888;
+  color: var(--color-ink-muted);
   text-align: right;
 }
 
 .scrollytelling-view.dark .status-chip-counter {
-  color: #a0a0a0;
+  color: var(--color-ink-muted-dark);
 }
 
 /* Legend inside filters panel */
@@ -3389,7 +3420,7 @@ body.dark-mode {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: var(--color-ink-muted);
   margin-bottom: 0.35rem;
 }
 
@@ -4004,6 +4035,32 @@ body.dark-mode {
   justify-content: center;
 }
 
+/* Dark-theme counterparts for the muted ink above.
+   These selectors set `--color-ink-muted` in light mode; without a dark rule
+   the same near-grey ends up on a near-black card. Grouped here rather than
+   beside each rule so the set stays visible as a set — the original `#888`
+   spread to fourteen places precisely because nothing held them together. */
+.dark .filters-legend-title,
+.dark .search-icon,
+.dark .search-clear-btn,
+.dark .search-result-location,
+.dark .search-no-results,
+.dark .comparison-label,
+.dark .comparison-vs span,
+.dark .map-legend h4,
+.dark .event-date .full-date,
+.scrollytelling-view.dark .filters-legend-title,
+.scrollytelling-view.dark .search-icon,
+.scrollytelling-view.dark .search-clear-btn,
+.scrollytelling-view.dark .search-result-location,
+.scrollytelling-view.dark .search-no-results,
+.bottom-sheet.dark .search-icon,
+.bottom-sheet.dark .search-clear-btn,
+.bottom-sheet.dark .search-result-location,
+.bottom-sheet.dark .search-no-results {
+  color: var(--color-ink-muted-dark);
+}
+
 /* ===== MARKER PULSE ANIMATION ===== */
 /* The marker's pulse ring and the animated troop dashes loop for as long as
    the page is open. `animation: none` is not enough for the ring: it is set
@@ -4123,7 +4180,7 @@ body.dark-mode {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 0.5rem;
-  color: #888;
+  color: var(--color-ink-muted);
 }
 
 .legend-item {
@@ -4311,7 +4368,7 @@ body.dark-mode {
 .search-icon {
   position: absolute;
   left: 10px;
-  color: #888;
+  color: var(--color-ink-muted);
   pointer-events: none;
 }
 
@@ -4347,7 +4404,7 @@ body.dark-mode {
   right: 10px;
   background: none;
   border: none;
-  color: #888;
+  color: var(--color-ink-muted);
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -4383,14 +4440,14 @@ body.dark-mode {
 
 .search-result-location {
   font-size: 0.7rem;
-  color: #888;
+  color: var(--color-ink-muted);
 }
 
 .search-no-results {
   padding: 1rem;
   text-align: center;
   font-size: 0.82rem;
-  color: #888;
+  color: var(--color-ink-muted);
 }
 
 .search-highlight {
@@ -4508,10 +4565,12 @@ body.dark-mode {
   margin-bottom: 0.75rem;
 }
 
+/* These four are text on a card, not fills, so they take the on-surface ink
+   rather than the identity hue. #A33030 on the dark card measured 2.55:1. */
 .comparison-side.american h4 { color: #0A244A; }
 .comparison-side.british h4 { color: #7A1212; }
-.dark .comparison-side.american h4 { color: #8ba3c4; }
-.dark .comparison-side.british h4 { color: #A33030; }
+.dark .comparison-side.american h4 { color: #8BA3C4; }
+.dark .comparison-side.british h4 { color: #E8798C; }
 
 .comparison-stat {
   margin-bottom: 0.5rem;
@@ -4522,7 +4581,7 @@ body.dark-mode {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: var(--color-ink-muted);
   margin-bottom: 0.15rem;
 }
 
@@ -4542,7 +4601,7 @@ body.dark-mode {
 }
 
 .dark .comparison-value.casualty {
-  color: #A33030;
+  color: #E8798C;
 }
 
 .comparison-bar {
@@ -4572,7 +4631,7 @@ body.dark-mode {
   font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 700;
-  color: #888;
+  color: var(--color-ink-muted);
   padding: 0.5rem;
 }
 

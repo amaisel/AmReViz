@@ -14,6 +14,40 @@ import {
   ReferenceLine
 } from 'recharts';
 import { motion as Motion } from 'framer-motion';
+import { chartSeries, chartInk } from '../constants/palette';
+
+// Legend labels and tooltip rows in body ink, with the series colour carried by
+// a swatch beside them.
+//
+// Recharts paints both in the series colour by default, which is how the gold
+// line — perfectly legible as a stroke — ended up as 2.41:1 text in light
+// mode, and the navy as 1.15:1 text in dark. Separating the two jobs means the
+// series colours only have to satisfy the 3:1 graphic threshold.
+const legendLabel = (value, entry, darkMode) => (
+  <span style={{ color: chartInk(darkMode).body }}>{value}</span>
+);
+
+// A table of the same numbers, for readers who cannot see the chart at all.
+// An SVG in a labelled region announces that a chart exists and then offers
+// nothing; this is the chart's content.
+const ChartTable = ({ caption, columns, rows }) => (
+  <table className="sr-only">
+    <caption>{caption}</caption>
+    <thead>
+      <tr>{columns.map((c) => <th key={c} scope="col">{c}</th>)}</tr>
+    </thead>
+    <tbody>
+      {rows.map((cells) => (
+        <tr key={String(cells[0])}>
+          <th scope="row">{cells[0]}</th>
+          {cells.slice(1).map((cell, i) => <td key={columns[i + 1]}>{cell}</td>)}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
+
+const REGION_NAMES = { north: 'Northern', mid: 'Mid-Atlantic', south: 'Southern' };
 
 const CustomTooltip = ({ active, payload, label, darkMode }) => {
   if (active && payload && payload.length) {
@@ -37,9 +71,25 @@ const CustomTooltip = ({ active, payload, label, darkMode }) => {
         </p>
         {payload.map((entry, index) => (
           <p key={index} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
             margin: '3px 0',
-            color: entry.color
+            // The row reads in body ink; the swatch carries the series colour.
+            // Painting the text itself in the series colour is what made the
+            // gold row 2.41:1 and the dark-mode navy row 1.15:1.
+            color: darkMode ? '#E6EDF5' : '#1A1A1A'
           }}>
+            <span
+              aria-hidden="true"
+              style={{
+                width: '9px',
+                height: '9px',
+                borderRadius: '2px',
+                background: entry.color,
+                flexShrink: 0
+              }}
+            />
             {entry.name}: {typeof entry.value === 'number'
               ? entry.value.toLocaleString(undefined, entry.value < 100
                 ? { maximumFractionDigits: 3 }
@@ -65,7 +115,10 @@ const ChartSource = ({ source, note }) => (
 );
 
 export function ArmyChart({ data, darkMode, onYearClick, source, compact = false }) {
-  const textColor = darkMode ? '#8B949E' : '#4A5568';
+  const ink = chartInk(darkMode);
+  const textColor = ink.muted;
+  const continental = chartSeries('american', darkMode);
+  const militia = chartSeries('militia', darkMode);
 
   return (
     <Motion.div
@@ -109,12 +162,12 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
         >
           <defs>
             <linearGradient id="colorContinental" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0A244A" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="#0A244A" stopOpacity={0.1} />
+              <stop offset="5%" stopColor={continental.hue} stopOpacity={0.8} />
+              <stop offset="95%" stopColor={continental.hue} stopOpacity={0.1} />
             </linearGradient>
             <linearGradient id="colorMilitia" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#C5A02F" stopOpacity={0.75} />
-              <stop offset="95%" stopColor="#C5A02F" stopOpacity={0.15} />
+              <stop offset="5%" stopColor={militia.hue} stopOpacity={0.75} />
+              <stop offset="95%" stopColor={militia.hue} stopOpacity={0.15} />
             </linearGradient>
           </defs>
           <XAxis
@@ -134,43 +187,58 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
             label={{ value: 'Troops furnished', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
           />
           <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
-          <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }} />
-          <ReferenceLine 
-            x={1778} 
-            stroke={darkMode ? '#C5A02F' : '#0A244A'} 
-            strokeDasharray="3 3" 
-            label={{ 
-              value: 'Valley Forge', 
-              position: 'top', 
-              fontSize: 11, 
-              fill: darkMode ? '#C5A02F' : '#0A244A',
+          <Legend
+            wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }}
+            formatter={(value, entry) => legendLabel(value, entry, darkMode)}
+          />
+          <ReferenceLine
+            x={1778}
+            stroke={ink.body}
+            strokeDasharray="3 3"
+            label={{
+              value: 'Valley Forge',
+              position: 'top',
+              fontSize: 11,
+              fill: ink.body,
               fontWeight: 600
-            }} 
+            }}
           />
           <Area
             type="monotone"
             dataKey="continentalPay"
             name="In Continental pay"
-            stroke="#0A244A"
+            stroke={continental.hue}
             fill="url(#colorContinental)"
             strokeWidth={3}
             stackId="troops"
-            dot={{ fill: '#0A244A', r: 4 }}
+            dot={{ fill: continental.hue, r: 4 }}
             activeDot={{ r: 6, cursor: 'pointer' }}
           />
           <Area
             type="monotone"
             dataKey="militia"
             name="Militia & short-term troops"
-            stroke="#C5A02F"
+            stroke={militia.hue}
+            // Dashed as well as gold. Under deuteranopia the two series sit
+            // close enough that colour alone is a weak signal.
+            strokeDasharray={militia.dash}
             fill="url(#colorMilitia)"
             strokeWidth={3}
             stackId="troops"
-            dot={{ fill: '#C5A02F', r: 4 }}
+            dot={{ fill: militia.hue, r: 4 }}
             activeDot={{ r: 6, cursor: 'pointer' }}
           />
         </AreaChart>
       </ResponsiveContainer>
+      <ChartTable
+        caption="American troops furnished by year"
+        columns={['Year', 'In Continental pay', 'Militia & short-term troops']}
+        rows={data.map((d) => [
+          d.year,
+          d.continentalPay.toLocaleString(),
+          d.militia.toLocaleString(),
+        ])}
+      />
       {!compact && (
         <ChartSource
           source={source}
@@ -182,7 +250,10 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
 }
 
 export function TradeChart({ data, darkMode, source, compact = false }) {
-  const textColor = darkMode ? '#8B949E' : '#4A5568';
+  const ink = chartInk(darkMode);
+  const textColor = ink.muted;
+  const exports_ = chartSeries('american', darkMode);
+  const imports_ = chartSeries('british', darkMode);
   const peakImports = data.find(entry => entry.year === 1771)?.colonialImports ?? 0;
   const finalImports = data.find(entry => entry.year === 1776)?.colonialImports ?? 0;
   const importDrop = peakImports
@@ -229,10 +300,13 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
             label={{ value: 'Value (£m)', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
           />
           <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
-          <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }} />
-          <ReferenceLine 
-            x={1775} 
-            stroke={darkMode ? '#8B949E' : '#666'} 
+          <Legend
+            wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }}
+            formatter={(value, entry) => legendLabel(value, entry, darkMode)}
+          />
+          <ReferenceLine
+            x={1775}
+            stroke={ink.body}
             strokeDasharray="3 3" 
             label={{ 
               value: 'War Begins', 
@@ -246,22 +320,38 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
             type="monotone"
             dataKey="colonialExports"
             name="Exports to England"
-            stroke="#0A244A"
+            stroke={exports_.hue}
             strokeWidth={3}
-            dot={{ fill: '#0A244A', r: 5 }}
+            dot={{ fill: exports_.hue, r: 5 }}
             activeDot={{ r: 7 }}
           />
           <Line
             type="monotone"
             dataKey="colonialImports"
             name="Imports from England"
-            stroke="#7A1212"
+            stroke={imports_.hue}
+            // The two trade lines cross repeatedly, and navy against red is
+            // the pairing protanopia flattens hardest. The dash tells them
+            // apart where the colour cannot.
+            strokeDasharray={imports_.dash}
             strokeWidth={3}
-            dot={{ fill: '#7A1212', r: 5 }}
+            dot={{ fill: imports_.hue, r: 5 }}
             activeDot={{ r: 7 }}
           />
         </LineChart>
       </ResponsiveContainer>
+      <ChartTable
+        caption="Colonial trade with England by year, in millions of pounds"
+        columns={['Year', 'Exports to England (£m)', 'Imports from England (£m)']}
+        // Two decimals: the raw series carries six, which a screen reader
+        // reads out digit by digit as "one point zero one five five three
+        // five" for a chart whose axis is labelled in millions.
+        rows={data.map((d) => [
+          d.year,
+          d.colonialExports.toFixed(2),
+          d.colonialImports.toFixed(2),
+        ])}
+      />
       {!compact && (
         <ChartSource
           source={source}
@@ -273,7 +363,13 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
 }
 
 export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false }) {
-  const textColor = darkMode ? '#8B949E' : '#4A5568';
+  const ink = chartInk(darkMode);
+  const textColor = ink.muted;
+  const american = chartSeries('american', darkMode);
+  const crown = chartSeries('british', darkMode);
+  // Scoped per theme: the pattern paints a solid rect in the series colour,
+  // so light and dark cannot share one definition.
+  const hatchId = `crown-hatch-${darkMode ? 'dark' : 'light'}`;
 
   return (
     <Motion.div
@@ -323,6 +419,25 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
               }}
               style={{ cursor: 'pointer' }}
             >
+              <defs>
+                <pattern
+                  id={hatchId}
+                  patternUnits="userSpaceOnUse"
+                  width="6"
+                  height="6"
+                  patternTransform="rotate(45)"
+                >
+                  <rect width="6" height="6" fill={crown.hue} />
+                  <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="6"
+                    stroke={darkMode ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.55)'}
+                    strokeWidth="2.5"
+                  />
+                </pattern>
+              </defs>
               <XAxis
                 dataKey="title"
                 stroke={textColor}
@@ -338,24 +453,52 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
                 tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
                 label={{ value: 'Estimated casualties', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
               />
-              <Tooltip content={<CustomTooltip darkMode={darkMode} />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
-              <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '13px' }} />
-              <Bar dataKey="americanCasualties" name="American / allied" fill="#0A244A" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="britishCasualties" name="Crown / allied" fill="#7A1212" radius={[4, 4, 0, 0]} />
+              <Tooltip content={<CustomTooltip darkMode={darkMode} />} cursor={{fill: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}} />
+              <Legend
+                wrapperStyle={{ paddingTop: '10px', fontSize: '13px' }}
+                formatter={(value, entry) => legendLabel(value, entry, darkMode)}
+              />
+              <Bar dataKey="americanCasualties" name="American / allied" fill={american.hue} radius={[4, 4, 0, 0]} />
+              {/* The Crown bars carry a diagonal hatch as well as their colour.
+                  Paired bars put the two hues directly against each other, and
+                  red beside navy is the pairing protanopia flattens hardest.
+                  A pattern on the Bar rather than a <Cell>: Cell maps one entry
+                  per datum, so it would have hatched the first bar only. */}
+              <Bar
+                dataKey="britishCasualties"
+                name="Crown / allied"
+                fill={`url(#${hatchId})`}
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
+      <ChartTable
+        caption="Estimated casualties by major battle"
+        columns={['Battle', 'Year', 'American / allied', 'Crown / allied']}
+        rows={data.map((d) => [
+          d.title,
+          d.year,
+          d.americanCasualties.toLocaleString(),
+          d.britishCasualties.toLocaleString(),
+        ])}
+      />
     </Motion.div>
   );
 }
 
 export function CampaignTimeline({ data, darkMode, compact = false }) {
-  const textColor = darkMode ? '#8B949E' : '#4A5568';
+  const ink = chartInk(darkMode);
+  const textColor = ink.muted;
   const baseDate = Date.UTC(1775, 0, 1);
   const dayMs = 86400000;
 
-  const regionColors = { north: '#0A244A', mid: '#C5A02F', south: '#7A1212' };
+  const regionColors = {
+    north: chartSeries('american', darkMode).hue,
+    mid: chartSeries('militia', darkMode).hue,
+    south: chartSeries('british', darkMode).hue,
+  };
 
   const chartData = data.map(c => {
     const startDays = Math.round((new Date(c.start).getTime() - baseDate) / dayMs);
@@ -397,7 +540,7 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
         {Object.entries(regionColors).map(([region, color]) => (
           <span key={region} className="campaign-legend-item" style={{ fontSize: '12px' }}>
             <span className="campaign-legend-dot" style={{ background: color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block', marginRight: '6px' }} />
-            {region === 'north' ? 'Northern' : region === 'mid' ? 'Mid-Atlantic' : 'Southern'}
+            {REGION_NAMES[region] ?? region}
           </span>
         ))}
       </div>
@@ -459,6 +602,11 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      <ChartTable
+        caption="Campaigns by theatre and date range"
+        columns={['Campaign', 'Theatre', 'Began', 'Ended']}
+        rows={chartData.map((d) => [d.name, REGION_NAMES[d.region] ?? d.region, d.startDate, d.endDate])}
+      />
       {!compact && (
         <ChartSource note="Campaign boundaries are interpretive ranges for the selected operations, not a count of continuous fighting." />
       )}

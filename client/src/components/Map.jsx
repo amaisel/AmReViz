@@ -38,6 +38,16 @@ const getSymbolSvg = (type, color) => {
   }
 };
 
+// Which side prevailed is drawn on the map as a fill colour and nothing else.
+// Navy against crimson survives most colour vision, but it sits at 64 in RGB
+// distance under protanopia, and a reader using a screen reader has no access
+// to it at all. Saying it in the marker's accessible name costs nothing and
+// removes the dependence on colour outright.
+const SIDE_LABELS = {
+  american: 'American-held',
+  british: 'British-held',
+};
+
 const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => {
   const { type, side } = event;
 
@@ -79,7 +89,7 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
         <div
           role="button"
           tabindex="0"
-          aria-label="${event.title}${event.date ? `, ${new Date(event.date).getUTCFullYear()}` : ''}"
+          aria-label="${event.title}${event.date ? `, ${new Date(event.date).getUTCFullYear()}` : ''}${SIDE_LABELS[side] ? `, ${SIDE_LABELS[side]}` : ''}"
           style="
           width: ${size}px;
           height: ${size}px;

@@ -18,7 +18,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 59 tests; boots its own server on 5174
+npx playwright test    # 99 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
@@ -26,20 +26,40 @@ its own dev server on port 5174 so a `npm run dev` on 5173 can keep running
 alongside it. Set `AMREVIZ_TEST_URL` to point the suite at a server you are
 already running instead.
 
-It is in two files. `ux-audit.spec.js` is the older set, largely about map
+It is in three files. `ux-audit.spec.js` is the older set, largely about map
 framing and the mobile sheet's geometry. `ux-improvements.spec.js` covers
-keyboard and assistive technology, measured colour contrast, touch-target
-sizes, motion preference, routing, and the data view's click-through. Each
-test there was checked against the code from before its fix and observed to
-fail — a colour or geometry test that passes either way is worse than none,
-and one of them did exactly that until the check was tightened.
+keyboard and assistive technology, touch-target sizes, motion preference,
+routing, and the data view's click-through. `a11y-colour.spec.js` is the
+colour and accessibility floor: axe over every view in both themes at both
+widths, a contrast sweep across every rendered text node, chart series and
+legend legibility, focus-ring visibility, and the checks that no meaning rests
+on colour alone.
 
-Two notes for anyone extending it. `test.use({ reducedMotion })` does not
-reach the page in this runner; `page.emulateMedia({ reducedMotion })` does,
-and the reduced-motion block asserts the media query took effect before
-testing anything else. And several controls transition `all` over 0.2s, so a
-colour read straight after a click belongs to neither state — `settleTransitions`
-waits out every matching element, not just the first.
+Every test in the latter two was checked against the code from before its fix
+and observed to fail — a colour or geometry test that passes either way is
+worse than none, and several did exactly that until the checks were tightened.
+
+Five notes for anyone extending it, each of which cost a false pass or a false
+failure to learn.
+
+- `test.use({ reducedMotion })` does not reach the page in this runner;
+  `page.emulateMedia({ reducedMotion })` does, and the reduced-motion block
+  asserts the media query took effect before testing anything else.
+- Several controls transition `all` over 0.2s, so a colour read straight after
+  a click belongs to neither state. `settleTransitions` waits out every
+  matching element, not just the first.
+- **Read the composited background, never `backgroundColor`.** Almost nothing
+  here sits on a flat opaque surface. An inactive filter chip under the pointer
+  carries a `rgba(0, 0, 0, 0.05)` hover wash, which as a flat colour is nearly
+  black and as a wash over parchment is barely a tint.
+- **Contrast over a gradient or image is not computable from declared
+  colours.** The sweep flags those separately and they are excluded; they were
+  checked instead by sampling rendered pixels, using true min/max luminance
+  rather than percentiles — a thin glyph is under 8% of the pixels in its box,
+  so a percentile clips the ink away and compares background against
+  background.
+- SVG attributes carry bare hex. A `[\d.]+` regex parses `rgb()` strings and
+  quietly mangles `#6FA8E8` into [6, 8, 8], which reads as near-black.
 
 Map geometry under `client/src/data/geo/` is generated, not hand-edited:
 
@@ -146,7 +166,8 @@ at 1.97:1.
 The old note was right that the scans missed it: they all start on event 101,
 which is `political`, the one type that already passed. There is now a
 per-type axe sweep, plus a test that walks the palette table and fails on any
-pairing under 4.5:1 in either theme.
+pairing under 4.5:1 in either theme. Item 10 covers the second pass, which
+found what this one had missed.
 
 ### 3. Holding an arrow key still drops steps
 
@@ -312,17 +333,85 @@ Worth knowing when driving these in a test: scroll the chart, not the mark.
 Recharts re-renders on the resize that scrolling triggers, and a bar resolved
 beforehand detaches mid-action.
 
-### 10. Still open, unchanged
+### 10. Colour and the rest of the accessibility floor — fixed
+
+Resolved 2026-08-21, in a second pass that went looking for what the badge fix
+in item 2 had missed. axe reports **0 violations across 32 page states** (every
+view, both themes, both widths, all impact levels — it was 2 moderate), and a
+sweep of every rendered text node found 13 contrast failures axe does not see.
+
+**The charts were theme-blind.** `Charts.jsx` painted every series in its
+light-theme hue whatever the theme, so in dark mode the navy area sat on
+near-black. This is not a nit: the series was invisible and the chart
+unreadable. The legend labels, which Recharts paints in the series colour,
+measured 1.15:1 for "In Continental pay" and 1.62:1 for "Imports from
+England"; in light mode the gold label was 2.41:1 while the same gold was
+perfectly legible as a line.
+
+Two separate fixes, because they are two separate problems. Series colours got
+a `CHART_SERIES` table in the palette with a dark variant, each value clearing
+3:1 against the card it is drawn on (WCAG 1.4.11). And legend labels and
+tooltip rows now render in body ink with the colour carried by a swatch beside
+them — which is what lets the series colours be chosen for the graphic
+threshold rather than the much stricter text one.
+
+**`#888` was pasted into fourteen rules.** 3.54:1 on white, 3.11:1 on the
+parchment — under AA everywhere it appeared, including the story's own
+progress counter, the map legend title and the battle comparison labels. One
+instance had already been fixed in place, with a comment recording the ratio;
+the other thirteen had not. They are now one token with a dark counterpart.
+
+**Nothing rests on colour alone any more.** Simulating deuteranopia and
+protanopia over the palette put `battle` and `military` 35–40 apart in RGB —
+effectively the same colour — and the dark chart trio's gold and red 57 apart.
+The event types were already safe, because every one carries a distinct SVG
+symbol as well as a hue. The charts were not: the stacked areas and the trade
+lines were told apart by colour and nothing else. They now carry stroke
+patterns, and the Crown bars a diagonal hatch. On the map, which side held a
+place was a fill colour and nothing else, so it is now said in the marker's
+accessible name — `Siege of Yorktown, 1781, American-held`.
+
+**The focus ring was `2px solid currentColor`** — the button's own text
+colour, chosen to contrast with the button, which says nothing about the page
+behind it where the ring is drawn. On an active filter chip in light mode that
+was white on parchment, 1.14:1; on the dark view toggle, navy on the dark
+header, 1.23:1. A keyboard user simply lost the cursor. It is now a two-tone
+ring with its own token, and `.app-header` overrides that token because the
+masthead is deep navy in *both* themes — the ring follows the surface it lands
+on, not the page's theme.
+
+**The charts had no text alternative.** An SVG inside a labelled region tells a
+screen reader that a chart exists and then offers nothing. Each one now
+carries a visually hidden table of the same numbers. Note `pointer-events:
+none` on `.sr-only`: a `display: table` ignores the `width: 1px`, so those
+tables are full-size boxes positioned over the chart, and without it they
+swallow clicks meant for a bar.
+
+Also fixed here: the two axe findings (a heading level skipped in the data
+view, a complementary landmark nested inside another on the welcome screen),
+`BattleComparison`'s dark-mode reds at 2.55:1, and Leaflet's disabled zoom
+button at 1.75:1.
+
+Four contrast readings are deliberately left alone. Leaflet's zoom control at
+the end of its range is an inactive control, exempt under 1.4.3 and raised
+from 1.75:1 to 3.37:1 so it reads as unavailable rather than broken; and the
+welcome screen's decorative `◇` clears the 3:1 graphic threshold. The sweep
+also flags anything sitting over a gradient, where declared colours do not
+describe what is rendered — those were checked by sampling pixels instead and
+measure 10.7:1 to 13.0:1.
+
+### 11. Still open, unchanged
 
 - The mobile sticky-map redesign (route 2 under item 1).
 - Holding an arrow key still drops steps (item 3) — the marker layer, untouched
   here.
-- The `metrics` chunk (item 4).
+- The `metrics` chunk (item 4), now 385.86 kB after the chart work.
 - `cursor/fix-review-findings-39f3` (item 5).
 - `HorizontalTimeline.jsx` and `Map.jsx`'s `MapLegend` are both dead — defined,
   never rendered. `MapLegend` now reads from the palette so it cannot drift
-  again; `HorizontalTimeline` still carries its own copy of the four colours.
-  Deleting both is the honest fix and was left alone as out of scope.
+  again; `HorizontalTimeline` still carries its own copy of the four colours,
+  including the `#44A06A` that no other file uses. Deleting both is the honest
+  fix and was left alone as out of scope.
 
 ## Decisions already taken
 

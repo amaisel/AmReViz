@@ -93,11 +93,16 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
 
   // The treaty is signed in Paris, outside the seaboard frame the map is
   // normally locked to; maxBounds used to clamp the pan and strand the marker.
+  //
+  // The `(,|$)` in these matchers rather than a bare `$`: a marker's accessible
+  // name now ends with which side held the place, because the fill colour was
+  // the only thing carrying that and a screen reader cannot see a fill. The
+  // anchor still pins one marker — it is the year that disambiguates.
   test('the story flies to Paris for the treaty', async ({ page }) => {
     await page.goto(`${baseUrl}#/explore/125`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Treaty of Paris Signed' })).toBeVisible();
 
-    const parisMarker = page.getByRole('button', { name: /^Treaty of Paris Signed, 1783$/ });
+    const parisMarker = page.getByRole('button', { name: /^Treaty of Paris Signed, 1783(,|$)/ });
     await expect(parisMarker).toBeVisible();
 
     await expect
@@ -106,7 +111,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
           page.evaluate(() => {
             const map = document.querySelector('.leaflet-container')?.getBoundingClientRect();
             const marker = [...document.querySelectorAll('.custom-marker [role="button"]')]
-              .find((el) => el.getAttribute('aria-label') === 'Treaty of Paris Signed, 1783')
+              .find((el) => /^Treaty of Paris Signed, 1783(,|$)/.test(el.getAttribute('aria-label') || ''))
               ?.getBoundingClientRect();
             if (!map || !marker) return false;
             return marker.left >= map.left && marker.right <= map.right &&
@@ -140,7 +145,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
       .toBe(true);
 
     // The American seaboard has to stay in frame alongside it.
-    await expect(page.getByRole('button', { name: /^Siege of Yorktown, 1781$/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Siege of Yorktown, 1781(,|$)/ })).toBeVisible();
   });
 
   // Events are not a march: nobody travelled Savannah → Charleston → Camden in
@@ -164,7 +169,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await page.goto(`${baseUrl}#/explore/121`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /Pensacola/ })).toBeVisible();
 
-    const marker = page.getByRole('button', { name: /Pensacola, 1781$/ });
+    const marker = page.getByRole('button', { name: /Pensacola, 1781(,|$)/ });
     await expect(marker).toBeVisible();
 
     await expect
@@ -172,7 +177,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
         page.evaluate(() => {
           const map = document.querySelector('.leaflet-container')?.getBoundingClientRect();
           const el = [...document.querySelectorAll('.custom-marker [role="button"]')]
-            .find((n) => /Pensacola, 1781$/.test(n.getAttribute('aria-label') || ''));
+            .find((n) => /Pensacola, 1781(,|$)/.test(n.getAttribute('aria-label') || ''));
           const r = el?.getBoundingClientRect();
           if (!map || !r) return false;
           return r.left >= map.left && r.right <= map.right &&
@@ -206,7 +211,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
   // the right edge with no land on screen at all.
   test('the overseas frame keeps its target on screen on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    for (const [id, label] of [[125, /Treaty of Paris Signed, 1783$/], [129, /Commons Votes Against the War, 1782$/]]) {
+    for (const [id, label] of [[125, /Treaty of Paris Signed, 1783(,|$)/], [129, /Commons Votes Against the War, 1782(,|$)/]]) {
       await page.goto(`${baseUrl}#/explore/${id}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('.leaflet-container')).toBeVisible();
 
