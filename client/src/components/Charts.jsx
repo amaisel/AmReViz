@@ -82,6 +82,7 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
           <p className="chart-takeaway">
             These annual service totals are higher than the army present at any one time because
             short enlistments, militia tours, and reenlistments could count the same person again.
+            Click a year to open it in the story.
           </p>
         </>
       )}
@@ -91,7 +92,21 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
         minWidth={0}
         initialDimension={{ width: 320, height: compact ? 200 : 280 }}
       >
-        <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+        {/* The click handler belongs on the chart, not on the two <Area>s.
+            Recharts 3 fires an Area's onClick for the filled shape only — not
+            for the dots the `cursor: pointer` was advertising — so a click on
+            a year's marker reached nothing at all. On the chart it also means
+            the whole column is the target, rather than an 11px dot. */}
+        <AreaChart
+          data={data}
+          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+          onClick={(state) => {
+            const index = Number(state?.activeIndex);
+            const datum = Number.isInteger(index) ? data[index] : undefined;
+            if (datum?.year != null) onYearClick?.(datum.year);
+          }}
+          style={onYearClick ? { cursor: 'pointer' } : undefined}
+        >
           <defs>
             <linearGradient id="colorContinental" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#0A244A" stopOpacity={0.8} />
@@ -142,7 +157,6 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
             stackId="troops"
             dot={{ fill: '#0A244A', r: 4 }}
             activeDot={{ r: 6, cursor: 'pointer' }}
-            onClick={(data) => onYearClick?.(data?.year)}
           />
           <Area
             type="monotone"
@@ -154,7 +168,6 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
             stackId="troops"
             dot={{ fill: '#C5A02F', r: 4 }}
             activeDot={{ r: 6, cursor: 'pointer' }}
-            onClick={(data) => onYearClick?.(data?.year)}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -298,10 +311,15 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
             initialDimension={{ width: compact ? 360 : 900, height: compact ? 240 : 340 }}
           >
             <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 70 }}
+              // Recharts 3 dropped `activePayload` from the chart-level click
+              // state — it now reports `activeIndex` and `activeLabel` only.
+              // The old guard read `state.activePayload[0].payload.id`, never
+              // matched, and left the chart's own instruction ("Click a bar to
+              // inspect its definition") pointing at nothing.
               onClick={(state) => {
-                if (state?.activePayload?.[0]?.payload?.id) {
-                  onBattleClick?.(state.activePayload[0].payload.id);
-                }
+                const index = Number(state?.activeIndex);
+                const datum = Number.isInteger(index) ? data[index] : undefined;
+                if (datum?.id != null) onBattleClick?.(datum.id);
               }}
               style={{ cursor: 'pointer' }}
             >

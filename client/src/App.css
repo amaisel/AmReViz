@@ -78,6 +78,9 @@
 .chart-source,
 .comparison-source,
 .event-card-source {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
   color: var(--color-american);
   font-weight: 700;
   text-decoration: none;
@@ -169,13 +172,19 @@
 .data-method-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.85rem;
-  margin-top: 0.65rem;
+  gap: 0.2rem 1.1rem;
+  margin-top: 0.5rem;
 }
 
 .data-method-links a {
+  /* These are the citations the whole view rests on, and on a phone they were
+     19px-tall targets sitting 14px apart. The link keeps its typographic
+     size; only the box a finger has to hit grows. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   color: var(--color-american);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
   text-decoration: none;
 }
@@ -207,10 +216,6 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.event-card-outcome {
-  color: #fff;
 }
 
 .event-card-campaign {
@@ -1475,7 +1480,9 @@ body.dark-mode {
   border-radius: 20px;
   font-size: 0.7rem;
   font-weight: 600;
-  color: white;
+  /* Foreground comes from the palette alongside the background — see
+     src/constants/palette.js. A blanket `color: white` here is what let the
+     gold and green badges ship at 2.49:1 and 4.39:1. */
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
@@ -3099,18 +3106,53 @@ body.dark-mode {
   margin-top: 0;
 }
 
+/* Four controls in one 60px strip: step back, the drag handle, step forward,
+   and the controls disclosure. A grid rather than absolute positioning, so
+   adding the step buttons could not push the toggle on top of them. */
 .bottom-sheet-header {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px 44px;
   align-items: center;
   flex-shrink: 0;
+  padding-right: 4px;
 }
 
-/* Absolute, so the handle stays optically centred in the row regardless of
-   this button's width, and so a press here never starts the sheet drag. */
+/* Prev / next, always reachable at both snap points. */
+.sheet-step-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  /* The sheet's own drag is claimed on the handle; a press here is a tap. */
+  touch-action: manipulation;
+}
+
+.sheet-step-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.sheet-step-btn:not(:disabled):active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.bottom-sheet.dark .sheet-step-btn {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.bottom-sheet.dark .sheet-step-btn:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .sheet-panel-toggle {
-  position: absolute;
-  right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3136,6 +3178,15 @@ body.dark-mode {
 .bottom-sheet.dark .sheet-panel-toggle.active {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
+}
+
+/* The card carries its own Prev/Next for the desktop panel. Inside the sheet
+   the header now owns stepping, so this pair is a second control with the
+   same accessible name — ambiguous to a screen reader, and it never earned
+   its keep here anyway: at peek the card cannot scroll, so it sat below the
+   fold on every event. */
+.bottom-sheet-content .event-card-nav {
+  display: none;
 }
 
 .sheet-controls-panel {
@@ -3494,12 +3545,19 @@ body.dark-mode {
 }
 
 .speed-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* It was 35x26 on desktop and 30x22 on a phone — a two-character label with
+     nothing but its own text box around it. */
+  min-width: 44px;
+  min-height: 40px;
   background: none;
   border: 1px solid rgba(0, 0, 0, 0.15);
   color: var(--color-ink-light);
   padding: 0.3rem 0.6rem;
   font-family: var(--font-body);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   border-radius: 6px;
   cursor: pointer;
@@ -3708,18 +3766,20 @@ body.dark-mode {
   background: rgba(139, 163, 196, 0.1);
 }
 
+/* Opaque, not frosted. This panel opens on top of the story card, and at
+   0.75 alpha the card's own prose read straight through it — a blur softens
+   text but does not hide it, and the panel's own labels then competed with
+   whatever paragraph happened to be behind them. */
 .filters-panel {
   position: absolute;
   bottom: 64px;
   left: 20px;
   z-index: 700;
-  background: var(--color-surface-light);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--color-bg-light);
   border-radius: 10px;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   box-shadow: var(--shadow-lg);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   transition: bottom 0.3s ease;
 }
 
@@ -3728,8 +3788,8 @@ body.dark-mode {
 }
 
 .scrollytelling-view.dark .filters-panel {
-  background: var(--color-surface-dark);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: #161b22;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .explore-timeline-container {
@@ -3848,9 +3908,16 @@ body.dark-mode {
   border: none;
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
-  padding: 2px;
+  /* The glyph stays 14px; the hit box around it becomes something a thumb can
+     actually land on. It was 18x18 in total. */
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: -8px -10px -8px 0;
   display: flex;
   align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }
 
 .hint-dismiss:hover {
@@ -3938,6 +4005,27 @@ body.dark-mode {
 }
 
 /* ===== MARKER PULSE ANIMATION ===== */
+/* The marker's pulse ring and the animated troop dashes loop for as long as
+   the page is open. `animation: none` is not enough for the ring: it is set
+   inline on a div Leaflet builds as an HTML string, so it needs the weight to
+   win. The active marker keeps its size and colour, so nothing that carried
+   meaning is lost — only the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .marker-pulse-ring {
+    animation: none !important;
+    opacity: 0.55;
+  }
+
+  .troop-line-animated {
+    animation: none;
+  }
+
+  .leaflet-fade-anim .leaflet-tile,
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+    transition: none !important;
+  }
+}
+
 @keyframes markerPulse {
   0% { transform: scale(1); opacity: 0.6; }
   50% { transform: scale(1.5); opacity: 0; }
@@ -3945,6 +4033,30 @@ body.dark-mode {
 }
 
 .custom-marker { background: none !important; border: none !important; }
+
+/* Touch hit area for the event markers.
+   The dot is sized by the depth-of-field rule in Map.jsx — an inactive marker
+   comes out around 31px, which reads correctly on a chart but is under the
+   touch minimum, and these dots are the primary way into an event from the
+   map. A centred pseudo-element grows the area a finger has to land in
+   without touching the drawn size, so the chart's sense of depth survives.
+   Pointer-events only; it is not painted and not in the accessibility tree. */
+@media (hover: none) and (pointer: coarse) {
+  .custom-marker [role='button'] {
+    position: relative;
+  }
+
+  .custom-marker [role='button']::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+}
 
 /* ===== TROOP MOVEMENT LINES ===== */
 .troop-line-animated {
@@ -4091,8 +4203,14 @@ body.dark-mode {
 }
 
 .filter-preset-chip {
-  padding: 0.25rem 0.65rem;
-  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  /* 22px tall was half a finger. The pill keeps its shape; only the box the
+     finger has to land in grows. 40px to match every other control the story
+     offers a thumb — a test walks that whole set and asserts the floor. */
+  min-height: 40px;
+  padding: 0.25rem 0.8rem;
+  border-radius: 18px;
   font-size: 0.72rem;
   font-weight: 600;
   font-family: var(--font-body);
@@ -4150,7 +4268,10 @@ body.dark-mode {
   background: var(--color-surface-light);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  color: var(--filter-color);
+  /* The label sits on the surface here, not on the hue, so it takes the
+     on-surface ink. Painting it in `--filter-color` put #C5A02F on near-white
+     at 2.18:1 in light mode and #2C4B7A on the dark surface at 1.97:1. */
+  color: var(--filter-ink, var(--filter-color));
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -4161,7 +4282,7 @@ body.dark-mode {
 
 .filter-btn.active {
   background: var(--filter-color);
-  color: white;
+  color: var(--filter-fg, #fff);
 }
 
 .filter-btn:hover:not(.active) {
@@ -4350,7 +4471,8 @@ body.dark-mode {
 /* ===== BATTLE COMPARISON ===== */
 .battle-select {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: var(--color-bg-light);
@@ -4516,11 +4638,52 @@ body.dark-mode {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.shortcuts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
 .shortcuts-panel h3 {
   font-family: var(--font-display);
   font-size: 1.25rem;
-  margin-bottom: 1.25rem;
   color: var(--color-american);
+}
+
+/* A visible way out. The dialog previously closed on Esc or a backdrop click
+   only — neither of which is discoverable, and neither of which exists on a
+   phone, where `?` cannot be typed at all. */
+.shortcuts-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: -8px -8px -8px 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-ink-light);
+  cursor: pointer;
+}
+
+.shortcuts-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--color-ink);
+}
+
+.dark .shortcuts-close {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted-dark);
+}
+
+.dark .shortcuts-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--color-text-dark);
 }
 
 .dark .shortcuts-panel h3 {
@@ -4591,9 +4754,12 @@ body.dark-mode {
     display: none;
   }
 
+  /* Right-aligned on touch. The zoom buttons own the top-left corner and are
+     now 44px, which overlapped a chip anchored at left: 50px. */
   .explore-status-chip {
     top: 10px;
-    left: 10px;
+    left: auto;
+    right: 10px;
     padding: 0.35rem 0.65rem;
     gap: 0.4rem;
   }
@@ -4637,6 +4803,24 @@ body.dark-mode {
     display: none;
   }
 
+  /* The zoom buttons measured 30x30 on a phone — the one map control a touch
+     reader has, and smaller than the markers beside them. The `.leaflet-touch`
+     prefix is not decoration: Leaflet's own `.leaflet-touch .leaflet-bar a`
+     rule has the same specificity as a bare `.map-container ...` selector and
+     loads after App.css, so it won on source order. */
+  .map-container .leaflet-touch .leaflet-control-zoom a,
+  .map-container .leaflet-control-zoom a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+    font-size: 20px;
+  }
+
+  .map-container .leaflet-control-zoom {
+    margin-top: 16px !important;
+    margin-left: 12px !important;
+  }
+
   /* Keep the hint visible above the bottom sheet */
   .explore-onboarding-hint {
     bottom: calc(55vh + 12px);
@@ -4656,8 +4840,17 @@ body.dark-mode {
     padding: 1rem 1.5rem;
   }
 
+  /* The toggle measured 60x22 and 42x22 on a 390px phone. The row is the
+     primary way between the two views, so it gets a real target: the height
+     comes from min-height rather than padding so the two buttons stay the
+     same size whatever their label length. */
   .view-toggle button {
-    padding: 0.3rem 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    min-width: 56px;
+    padding: 0.3rem 0.7rem;
     font-size: 0.8rem;
   }
 
@@ -4678,8 +4871,9 @@ body.dark-mode {
   }
 
   .filter-btn {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.75rem;
+    min-height: 40px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
   }
 
   .filter-icon {
@@ -4714,8 +4908,10 @@ body.dark-mode {
   }
 
   .speed-indicator {
+    min-width: 44px;
+    min-height: 40px;
     padding: 0.25rem 0.5rem;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
 
   .controls-divider {
@@ -4815,7 +5011,8 @@ body.dark-mode {
 
   .explore-status-chip {
     top: 10px;
-    left: 50px;
+    left: auto;
+    right: 10px;
     padding: 0.35rem 0.75rem;
     gap: 0.5rem;
   }
@@ -4864,13 +5061,15 @@ body.dark-mode {
   }
 
   .view-toggle button {
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.6rem;
     font-size: 0.75rem;
   }
 
+  /* 32px was below every touch-target guideline. 40px is the largest circle
+     that clears the 56px mobile header with breathing room. */
   .mode-toggle {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
   }
 
   .filter-btn .filter-icon {
@@ -5093,7 +5292,10 @@ body.dark-mode {
     bottom: calc(var(--desktop-controls-height) + 0.5rem);
     left: auto;
     width: calc(var(--desktop-story-panel-width) - 2rem);
-    max-height: min(55vh, 520px);
+    /* Fit the content, and only scroll when the window is genuinely too short
+       for it. The old min(55vh, 520px) put a scrollbar on a six-row panel at
+       every ordinary window height. */
+    max-height: calc(100vh - var(--desktop-controls-height) - 2rem);
     overflow-y: auto;
   }
 

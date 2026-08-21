@@ -1,8 +1,9 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
 import useHashRouter from './hooks/useHashRouter';
+import useReducedMotion from './hooks/useReducedMotion';
 import './App.css';
 
 const ExploreRoute = lazy(() => import('./components/ExploreRoute'));
@@ -97,8 +98,9 @@ export default function App() {
     } catch { return false; }
   });
   
-  const [view, setView, subId] = useHashRouter('welcome');
+  const [view, setView, subId, subIdFromStory] = useHashRouter('welcome');
   const [direction, setDirection] = useState(1);
+  const reduceMotion = useReducedMotion();
 
   const navigateToView = useCallback((nextView, nextSubId = null) => {
     setDirection(VIEW_ORDER[nextView] >= VIEW_ORDER[view] ? 1 : -1);
@@ -142,23 +144,33 @@ export default function App() {
   // Seed from the URL so a deep link like #/explore/5 survives the first render
   const [pendingEventId, setPendingEventId] = useState(subId);
 
-  // Sync subId from URL to pendingEventId
+  // Forward the URL's event down to the story only when it came from outside
+  // it — a pasted link, Back/Forward, or a jump from the data view.
+  //
+  // The story writes `subId` itself on every step, and that id used to come
+  // straight back down as an instruction to go there a frame or two later.
+  // A reversal inside that window lost: press right then left within ~150ms
+  // and the echo of the right press landed after the left one and pulled the
+  // story forward again. Measured before the fix: 5 of 5 wrong at a 100ms
+  // gap, and it is the reason two tests in the suite carry an explicit
+  // settle. `fromStory` comes from the router with the id it belongs to, so
+  // two steps in one batch cannot be misread for each other.
   useEffect(() => {
-    if (view !== 'explore' || subId == null) return undefined;
+    if (view !== 'explore' || subId == null || subIdFromStory) return undefined;
 
     const frame = window.requestAnimationFrame(() => {
       setPendingEventId(subId);
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [view, subId]);
+  }, [view, subId, subIdFromStory]);
 
   const handleNavigateToEvent = useCallback((eventId) => {
     navigateToView('explore', eventId);
   }, [navigateToView]);
 
   const handleStoryEventChange = useCallback((eventId) => {
-    setView('explore', eventId);
+    setView('explore', eventId, { fromStory: true });
   }, [setView]);
 
   const handleConsumeInitialEvent = useCallback(() => {
@@ -167,23 +179,46 @@ export default function App() {
 
   const showHeader = view !== 'welcome';
 
-  const pageVariants = {
-    initial: { opacity: 0, y: direction * 30, scale: 0.98 },
-    animate: { opacity: 1, y: 0, scale: 1 },
-    exit: { opacity: 0, y: direction * -30, scale: 0.98 },
-    transition: { duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }
-  };
+  const mainRef = useRef(null);
+  const focusMain = useCallback(() => {
+    mainRef.current?.focus();
+  }, []);
+
+  // A crossfade still signals that the view changed; the slide and the scale
+  // are the parts a reader who asked for reduced motion does not want.
+  const pageVariants = reduceMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.15 }
+      }
+    : {
+        initial: { opacity: 0, y: direction * 30, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: direction * -30, scale: 0.98 },
+        transition: { duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }
+      };
 
   return (
     <div className={`app ${darkMode ? 'dark' : 'light'}`}>
+      {/* A button, not an `<a href="#main-content">`: routing here lives in the
+          hash, and following that link would rewrite it to #main-content,
+          which parses as an unknown view and drops the reader back on the
+          welcome screen. */}
+      {showHeader && (
+        <button type="button" className="skip-link" onClick={focusMain}>
+          Skip to the story
+        </button>
+      )}
       <AnimatePresence>
         {showHeader && (
           <Motion.header
             className="app-header"
-            initial={{ y: -64, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -64, opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            initial={reduceMotion ? { opacity: 0 } : { y: -64, opacity: 0 }}
+            animate={reduceMotion ? { opacity: 1 } : { y: 0, opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { y: -64, opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0.15 : 0.3 }}
           >
             <div className="header-content">
               <h1>The American Revolution</h1>
@@ -198,7 +233,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <main className={`app-main ${view === 'welcome' ? 'no-header' : ''}`}>
+      <main ref={mainRef} id="main-content" tabIndex={-1} className={`app-main ${view === 'welcome' ? 'no-header' : ''}`}>
         <AnimatePresence mode="wait">
           {view === 'welcome' && (
             <WelcomeScreen
@@ -223,6 +258,7 @@ export default function App() {
                   initialEventId={pendingEventId}
                   onConsumeInitialEvent={handleConsumeInitialEvent}
                   onEventChange={handleStoryEventChange}
+                  routeEventId={subId}
                 />
               </Suspense>
             </Motion.div>

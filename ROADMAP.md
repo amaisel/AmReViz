@@ -1,6 +1,6 @@
 # State of play
 
-Last updated: 2026-07-28
+Last updated: 2026-08-21
 
 A living note on where AmReViz stands and what is worth doing next. Every claim
 here was measured rather than estimated; where a number appears, the method is
@@ -18,13 +18,28 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 29 tests; boots its own server on 5174
+npx playwright test    # 59 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
 its own dev server on port 5174 so a `npm run dev` on 5173 can keep running
 alongside it. Set `AMREVIZ_TEST_URL` to point the suite at a server you are
 already running instead.
+
+It is in two files. `ux-audit.spec.js` is the older set, largely about map
+framing and the mobile sheet's geometry. `ux-improvements.spec.js` covers
+keyboard and assistive technology, measured colour contrast, touch-target
+sizes, motion preference, routing, and the data view's click-through. Each
+test there was checked against the code from before its fix and observed to
+fail — a colour or geometry test that passes either way is worse than none,
+and one of them did exactly that until the check was tightened.
+
+Two notes for anyone extending it. `test.use({ reducedMotion })` does not
+reach the page in this runner; `page.emulateMedia({ reducedMotion })` does,
+and the reduced-motion block asserts the media query took effect before
+testing anything else. And several controls transition `all` over 0.2s, so a
+colour read straight after a click belongs to neither state — `settleTransitions`
+waits out every matching element, not just the first.
 
 Map geometry under `client/src/data/geo/` is generated, not hand-edited:
 
@@ -107,29 +122,31 @@ logic including the horizontal swipe. A redesign, not an afternoon.
 
 What not to do: fall back to static map images on mobile. The map is the piece.
 
-### 2. Four of the eight type-badge colours fail WCAG contrast
+### 2. Type-badge contrast — fixed
 
-`EventCard.jsx` paints the type badge white-on-colour. Measured ratios against
-white, both themes:
+Resolved 2026-08-21. White on the gold measured 2.49:1 and white on the green
+4.39:1, against a 4.5:1 threshold. The second option in the old note won: the
+gold keeps its hue and takes dark ink, because it is the colour of the
+parchment palette and darkening it into a mustard would have cost more than it
+bought. The green was darkened instead (#228B22 → #1A701A, #2E8B57 → #256F45).
 
-| type | light | dark |
-|---|---|---|
-| battle | 10.92 | 6.95 |
-| political | 15.39 | 8.77 |
-| **diplomatic** | **2.49** | **1.77** |
-| **military** | **4.39** | **4.25** |
+The colours now live in `src/constants/palette.js`, which was the real problem
+underneath: the same four hues were declared independently in `EventCard`,
+`ExploreView`'s filter bar, `Map`'s legend and `HorizontalTimeline`, and had
+already drifted — `military` was `#228B22` in three files and `#44A06A` in the
+fourth. Fixing one would have missed the rest.
 
-The threshold is 4.5:1. Confirmed independently by axe against a live page
-(`ratio=2.48 need=4.5:1` on a diplomatic event).
+Each entry carries three values, because the colour does three jobs: `hue` for
+a fill on the chart, `bg`/`fg` for text on the colour, and `ink` for the colour
+as text on a page surface. That third one exposed a second failure nobody had
+recorded — an inactive filter chip painted its label in the hue, which put
+#C5A02F on near-white at 2.18:1, and in dark mode #2C4B7A on the dark surface
+at 1.97:1.
 
-This is long-standing, but it got more visible in July 2026: adding the London
-and Paris events took the diplomatic count from 2 to 5, so the worst-failing
-badge now appears on roughly one event in nine. The a11y suite does not catch it
-because those scans start on event 101, which is `political`.
-
-Cheapest real fix is darkening the two colours until they pass; the alternative
-is dark text on the existing gold, which suits the parchment palette better.
-Small change, and worth pairing with a scan that visits one event of each type.
+The old note was right that the scans missed it: they all start on event 101,
+which is `political`, the one type that already passed. There is now a
+per-type axe sweep, plus a test that walks the palette table and fails on any
+pairing under 4.5:1 in either theme.
 
 ### 3. Holding an arrow key still drops steps
 
@@ -167,28 +184,145 @@ past it. It is the only surviving copy of that work.
 Either rebase it deliberately or delete it — leaving it to rot at an ever-growing
 distance from `main` is the one outcome with no upside.
 
-### 6. Reversing direction inside ~300ms drops the second step
+### 6. Reversing direction inside ~300ms drops the second step — fixed
 
-Press right then left in quick succession and the story ends up one step
-forward instead of back. Measured on the current code: four rapid
-right-then-left pairs all landed on +1, while the same pair with a 400ms gap
-is correct every time. Vertical keys, which no longer navigate, are stable at
-1→1 across every run.
+Resolved 2026-08-21. The old note's suspect was right in outline and wrong in
+detail. It is not the `hashchange` round trip: `setView` sets React state
+synchronously as well as writing the hash, and that state came straight back
+down as `initialEventId`. Every step therefore re-issued its own id as an
+instruction to go there a frame or two later, and a reversal inside that
+window lost to the echo of the step before it.
 
-It is not specific to the keyboard — the mobile swipe handler goes through the
-same path — and it predates the left/right switch, since up and left were
-already both "previous". The suspect is the round trip between `setCurrentIndex`
-and the hash sync in `useHashRouter`: the second press is applied and then
-clobbered by the URL-driven update from the first.
+Measured before the fix, right-then-left over five trials at each gap:
+0ms 2/5 wrong, 50ms 3/5, 100ms 5/5, 200ms 0/5, 400ms 0/5. After: 0/5 at every
+gap.
 
-Two tests currently work around it with an explicit settle, and say so.
+The origin now travels with the route rather than beside it — `useHashRouter`
+returns a `fromStory` flag, and the consumer forwards an id only when it came
+from outside the story. A `useRef` was tried first and is not sufficient: two
+steps can land in one batch, the ref holds only the newer of the two, and the
+effect for the older one then reads it and concludes the id was external. That
+attempt made the 0ms case worse, 5/5 wrong.
 
-### 7. Nits
+`hashchange` needed handling too, since every write comes back as an event
+naming the route already held. The handler bails when the parsed route equals
+the current one, which drops echoes without counting them — two writes in one
+batch produce two events that both read the second hash, and nothing in the
+event distinguishes them.
 
-- `#/explore/99999` displays the first event but leaves the bogus id in the
-  address bar, so the URL misreports what is on screen. `#/explore/abc` handles
-  the same situation correctly by rewriting the hash, so the fix is to make the
-  out-of-range path behave like the unparseable one.
+The two tests that worked around this with an explicit settle no longer need
+to, and `ux-improvements.spec.js` pins the behaviour at 0, 60 and 120ms.
+
+### 7. Nits — the deep-link one is fixed
+
+Resolved 2026-08-21, and it was broader than recorded. Both `#/explore/99999`
+and `#/explore/abc` rewrite correctly on a *cold* load — the story's
+mount-time sync writes the real id because nothing has been announced yet.
+Neither did on a *live* navigation, which is the case a reader actually hits:
+paste a bad id into a running page and the address bar kept it while the screen
+carried on showing the previous event.
+
+Split by who can answer the question. Ids are positive integers, so `abc`,
+`-3` and `0` are syntax the router rejects on its own, stripping the sub-part.
+Whether a well-formed id names a real event only the story knows, so
+`ExploreView` re-announces the event on screen when a deep link matches
+nothing. A third path was needed for the result — `#/explore` with no id at
+all — so the story now re-asserts whenever the route names no event, which
+also covers arriving from the data view.
+
+All four bogus routes are tested cold and live.
+
+### 8. Accessibility and touch — fixed, and worth not regressing
+
+Resolved 2026-08-21. Eight things, none of which were on this list before.
+
+**Thirty phantom tab stops.** Leaflet stamps `role="button"` and
+`tabindex="0"` on every marker icon while its `keyboard` option is on, and
+`interactive: false` does not stop it — that option governs mouse handlers.
+So a keyboard reader tabbed through `MA`, `NY`, `1776`, `ATLANTIC OCEAN` and
+26 more decorative labels before reaching a marker that does anything. Total
+focusable elements on event 16 went 90 → 60. Any new decorative `Marker`
+needs `keyboard={false}`; a test counts them.
+
+**No skip link.** Added, as a `<button>` rather than an `<a href="#…">`:
+routing lives in the hash here, and following such a link rewrites it to
+`#main-content`, which parses as an unknown view and drops the reader on the
+welcome screen.
+
+**Steps were silent.** Moving through the story repaints the map and swaps the
+card with nothing announced. There is now a polite live region naming the
+event, its position and its year.
+
+**`prefers-reduced-motion` was honoured on the welcome screen only.**
+Everything else moved: a 2.4s Leaflet flight between events, a 3D card swing,
+the sheet's spring and its one-off bounce, the view crossfade, and the active
+marker's endless pulse. `src/hooks/useReducedMotion.js` is the shared answer —
+Framer ships its own, but the two cases that matter most are imperative
+(Leaflet, the sheet's animation controls) and are not Framer's to answer.
+Measured on a step: 7 distinct map transforms → 1.
+
+**Touch targets.** On a 390px phone the view toggle was 60x22 and 42x22, the
+theme toggle 32x32, the speed control 30x22, the preset chips 22px tall, the
+hint dismiss 18x18, the map's only zoom buttons 30x30, and the data view's
+source citations 19px. All are now at least 40px. Two notes: the zoom rule
+needs a `.leaflet-touch` prefix, because Leaflet's own selector has equal
+specificity and loads after `App.css`; and the enlarged buttons collided with
+the progress chip, which is why the chip is right-aligned on touch. Event
+markers keep their drawn size — the depth-of-field effect is doing real work —
+and get a 44px hit area from a pseudo-element on coarse pointers only.
+
+**Stepping the story on a phone needed a swipe or nothing.** At peek the card
+cannot scroll, so the Prev/Next pair at its foot sat permanently below the
+fold on every event, leaving the swipe — taught by a hint that dismisses
+itself after six seconds — as the only way forward. The sheet header is now a
+four-column grid carrying prev, the drag handle, next, and the controls
+disclosure, all reachable at both snap points. The card's own pair is hidden
+inside the sheet: two controls with the same accessible name is worse than
+one, and that pair never earned its keep there.
+
+**The desktop filters panel was translucent.** It opens on top of the story
+card, and at 0.75 alpha the card's prose read straight through it — a blur
+softens text but does not hide it. Now opaque, and sized to its content
+rather than capped at 55vh, which had put a scrollbar on a six-row panel at
+every ordinary window height.
+
+**The shortcuts overlay was a dialog in appearance only** — no `role`, no
+accessible name, no close button, no focus trap, no focus restore. It closed
+on Escape or a backdrop click, neither discoverable, and neither available on
+a phone, where `?` cannot be typed. It is now a real modal with a visible
+close control that hands focus back to whatever opened it.
+
+### 9. Two dead affordances in the data view — fixed
+
+Resolved 2026-08-21, found while checking that navigation still worked after
+the routing change. Both are Recharts 3 upgrade fallout.
+
+`CasualtiesChart` read `state.activePayload[0].payload.id` in its chart-level
+`onClick`. Recharts 3 no longer passes `activePayload` there — it reports
+`activeIndex` and `activeLabel` — so the guard never matched and the chart's
+own instruction, "Click a bar to inspect its definition", pointed at nothing.
+
+`ArmyChart` put `onClick` on its two `<Area>`s and advertised it with
+`cursor: pointer` on the dots. Recharts 3 fires an Area's `onClick` for the
+filled shape only, so the dots were dead. The handler moved to the chart,
+where the whole column is the target rather than an 11px circle, and the
+takeaway line now says the year is clickable.
+
+Worth knowing when driving these in a test: scroll the chart, not the mark.
+Recharts re-renders on the resize that scrolling triggers, and a bar resolved
+beforehand detaches mid-action.
+
+### 10. Still open, unchanged
+
+- The mobile sticky-map redesign (route 2 under item 1).
+- Holding an arrow key still drops steps (item 3) — the marker layer, untouched
+  here.
+- The `metrics` chunk (item 4).
+- `cursor/fix-review-findings-39f3` (item 5).
+- `HorizontalTimeline.jsx` and `Map.jsx`'s `MapLegend` are both dead — defined,
+  never rendered. `MapLegend` now reads from the palette so it cannot drift
+  again; `HorizontalTimeline` still carries its own copy of the four colours.
+  Deleting both is the honest fix and was left alone as out of scope.
 
 ## Decisions already taken
 

@@ -1,5 +1,7 @@
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import useEventImage from '../hooks/useEventImage';
+import { typeTheme, typeLabel, outcomeTheme, outcomeLabel } from '../constants/palette';
+import useReducedMotion from '../hooks/useReducedMotion';
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -11,38 +13,17 @@ const formatDate = (dateString) => {
 
 export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNext, hasPrev, hasNext }) {
   const { src: imageSrc, credit: imageCredit } = useEventImage(event);
+  const reduceMotion = useReducedMotion();
   if (!event) return null;
 
   const formattedDate = formatDate(event.date);
   const formattedEndDate = event.endDate ? formatDate(event.endDate) : null;
 
-  const typeColors = {
-    battle: darkMode ? '#A33030' : '#7A1212',
-    political: darkMode ? '#2C4B7A' : '#0A244A',
-    diplomatic: darkMode ? '#E0C060' : '#C5A02F',
-    military: darkMode ? '#2E8B57' : '#228B22'
-  };
-
-  const typeLabels = {
-    battle: 'Battle',
-    political: 'Political',
-    diplomatic: 'Diplomatic',
-    military: 'Military'
-  };
-
-  const outcomeLabels = {
-    american: 'American victory',
-    british: 'British victory',
-    indecisive: 'Inconclusive',
-    allied: 'Allied victory'
-  };
-
-  const outcomeColors = {
-    american: darkMode ? '#2C4B7A' : '#0A244A',
-    british: darkMode ? '#A33030' : '#7A1212',
-    indecisive: darkMode ? '#E0C060' : '#9A7618',
-    allied: darkMode ? '#2E8B57' : '#1F6F46'
-  };
+  // Both pairings carry a foreground as well as a background: white on the
+  // gold and on the green failed WCAG AA, and the fix lives in the palette
+  // rather than in a per-component override.
+  const badge = typeTheme(event.type, darkMode);
+  const outcome = outcomeTheme(event.outcome, darkMode);
 
   const americanLabel = event.combatants?.american || 'American / allied';
   const britishLabel = event.combatants?.british || 'Crown / allied';
@@ -51,12 +32,15 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
     <AnimatePresence mode="wait">
       <Motion.div
         className={`event-card-fixed ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}
-        initial={{ opacity: 0, rotateY: -8, x: 30, scale: 0.95 }}
-        animate={{ opacity: 1, rotateY: 0, x: 0, scale: 1 }}
-        exit={{ opacity: 0, rotateY: 8, x: -20, scale: 0.95 }}
-        transition={{ duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }}
+        // Reduced motion keeps the crossfade — it marks that the card changed —
+        // and drops the 3D swing and the slide, which are the parts that
+        // provoke vestibular symptoms.
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, rotateY: -8, x: 30, scale: 0.95 }}
+        animate={reduceMotion ? { opacity: 1 } : { opacity: 1, rotateY: 0, x: 0, scale: 1 }}
+        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, rotateY: 8, x: -20, scale: 0.95 }}
+        transition={{ duration: reduceMotion ? 0.15 : 0.4, ease: [0.43, 0.13, 0.23, 0.96] }}
         key={event.id}
-        style={{ perspective: 1000, transformStyle: 'preserve-3d' }}
+        style={reduceMotion ? undefined : { perspective: 1000, transformStyle: 'preserve-3d' }}
       >
         {imageSrc && (
           <div className="event-card-image">
@@ -78,9 +62,9 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
         <div className="event-card-topline">
           <div
             className="event-card-type-badge"
-            style={{ backgroundColor: typeColors[event.type] }}
+            style={{ backgroundColor: badge.bg, color: badge.fg }}
           >
-            {typeLabels[event.type]}
+            {typeLabel(event.type)}
           </div>
           <span className="event-card-date-inline">
             {formattedDate}
@@ -109,9 +93,9 @@ export default function EventCard({ event, darkMode, timelineOpen, onPrev, onNex
             {event.outcome && (
               <span
                 className="event-card-outcome"
-                style={{ backgroundColor: outcomeColors[event.outcome] }}
+                style={{ backgroundColor: outcome?.bg, color: outcome?.fg }}
               >
-                {event.outcomeLabel || outcomeLabels[event.outcome]}
+                {event.outcomeLabel || outcomeLabel(event.outcome)}
               </span>
             )}
             {event.campaign && (

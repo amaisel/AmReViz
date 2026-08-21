@@ -6,6 +6,7 @@ import DataInterludeCard from './DataInterludeCard';
 import SearchBar from './SearchBar';
 import MobileBottomSheet from './MobileBottomSheet';
 import { interludes } from '../data/interludes';
+import { EVENT_TYPES, typeTheme, SIDES } from '../constants/palette';
 
 // Interleave data interludes into the event sequence after their anchor events
 function buildStoryItems(events) {
@@ -36,27 +37,33 @@ function FilterIcon({ type }) {
   }
 }
 
-function FilterBar({ activeFilters, onToggle }) {
-  const types = [
-    { id: 'battle', label: 'Battles', color: '#7A1212' },
-    { id: 'political', label: 'Political', color: '#0A244A' },
-    { id: 'diplomatic', label: 'Diplomatic', color: '#C5A02F' },
-    { id: 'military', label: 'Military', color: '#228B22' },
-  ];
-
+function FilterBar({ activeFilters, onToggle, darkMode }) {
   return (
-    <div className="filter-bar">
-      {types.map(t => (
-        <button
-          key={t.id}
-          className={`filter-btn ${activeFilters.has(t.id) ? 'active' : ''}`}
-          onClick={() => onToggle(t.id)}
-          style={{ '--filter-color': t.color }}
-        >
-          <span className="filter-icon"><FilterIcon type={t.id} /></span>
-          {t.label}
-        </button>
-      ))}
+    <div className="filter-bar" role="group" aria-label="Filter events by type">
+      {Object.entries(EVENT_TYPES).map(([id, meta]) => {
+        const theme = typeTheme(id, darkMode);
+        const isActive = activeFilters.has(id);
+        return (
+          <button
+            key={id}
+            type="button"
+            className={`filter-btn ${isActive ? 'active' : ''}`}
+            onClick={() => onToggle(id)}
+            // Three custom properties, not one: the border and the active fill
+            // want the hue, the active label wants the foreground that passes
+            // against it, and the inactive label wants the on-surface ink.
+            style={{
+              '--filter-color': theme.bg,
+              '--filter-fg': theme.fg,
+              '--filter-ink': theme.ink,
+            }}
+            aria-pressed={isActive}
+          >
+            <span className="filter-icon"><FilterIcon type={id} /></span>
+            {meta.plural}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -75,6 +82,7 @@ export default function ExploreView({
   initialEventId,
   onConsumeInitialEvent,
   onEventChange, // New prop to sync URL
+  routeEventId, // the event the address bar currently names, or null
 }) {
   const storyItems = useMemo(() => buildStoryItems(events), [events]);
 
@@ -119,6 +127,18 @@ export default function ExploreView({
     onEventChange?.(currentEvent.id);
   }, [currentEvent, onEventChange]);
 
+  // The explore route should always name the event on screen. It can end up
+  // naming nothing — the router strips a malformed sub-part like
+  // `#/explore/abc`, and arriving from the Data view sets no id at all —
+  // while the effect above stays quiet, because the event itself did not
+  // change. Safe to re-announce here: a URL that names no event has no jump
+  // in flight to clobber, which is why this is gated on `initialEventId` too.
+  useEffect(() => {
+    if (routeEventId != null || initialEventId != null || !currentEvent) return;
+    lastSyncedEventId.current = currentEvent.id;
+    onEventChange?.(currentEvent.id);
+  }, [routeEventId, initialEventId, currentEvent, onEventChange]);
+
   useEffect(() => {
     if (initialEventId == null) return undefined;
 
@@ -131,13 +151,22 @@ export default function ExploreView({
         if (idx !== -1) {
           setCurrentIndex(idx);
           setIsPlaying(false);
+        } else if (currentEvent) {
+          // A well-formed id that names no event — #/explore/99999. The story
+          // stays where it is, so the address bar has to come back to it:
+          // otherwise the URL claims one event while the screen shows another,
+          // and copying the link hands someone else the wrong thing. Clearing
+          // the sync marker is what lets the effect below re-announce an id it
+          // has already reported once.
+          lastSyncedEventId.current = null;
+          onEventChange?.(currentEvent.id);
         }
       }
       onConsumeInitialEvent?.();
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [currentEvent?.id, initialEventId, onConsumeInitialEvent, storyItems]);
+  }, [currentEvent, initialEventId, onConsumeInitialEvent, onEventChange, storyItems]);
 
   const viewRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -433,6 +462,18 @@ export default function ExploreView({
     }
   }, []);
 
+  // Rebuilt only when the step changes, so an unrelated re-render cannot make
+  // the region re-announce the same event.
+  const stepAnnouncement = useMemo(() => {
+    if (!currentItem) return '';
+    const position = `Step ${currentIndex + 1} of ${storyItems.length}`;
+    if (currentItem.kind === 'interlude') {
+      return `${position}. ${currentItem.interlude.title}, a data interlude.`;
+    }
+    const event = currentItem.event;
+    return `${position}. ${event.title}, ${event.year}. ${event.location.split('\n').join(', ')}.`;
+  }, [currentItem, currentIndex, storyItems.length]);
+
   const activeFilterCount = activeFilters.size;
   const isAtEnd = currentIndex === storyItems.length - 1;
   const hasPrev = currentIndex > 0;
@@ -478,7 +519,7 @@ export default function ExploreView({
           );
         })}
       </div>
-      <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+      <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} darkMode={darkMode} />
       {viewMode === 'map' && (
         <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
           <input
@@ -494,11 +535,11 @@ export default function ExploreView({
           <h4 className="filters-legend-title">Map Legend</h4>
           <div className="filters-legend-rows">
             <span className="filters-legend-item">
-              <span className="legend-dot" style={{ background: '#1e3a5f' }} />
+              <span className="legend-dot" style={{ background: SIDES.american }} />
               American
             </span>
             <span className="filters-legend-item">
-              <span className="legend-dot" style={{ background: '#8b2323' }} />
+              <span className="legend-dot" style={{ background: SIDES.british }} />
               British
             </span>
           </div>
@@ -633,6 +674,13 @@ export default function ExploreView({
           scrollWheelZoom={false}
           mapVisible={viewMode === 'map'}
         />
+      </div>
+
+      {/* Moving through the story repaints the map and swaps the card with
+          nothing said out loud. Announce the step politely, so it lands after
+          whatever the reader was already listening to. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {stepAnnouncement}
       </div>
 
       {/* Compact status chip — year + progress merged */}

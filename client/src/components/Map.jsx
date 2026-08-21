@@ -4,6 +4,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
 import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
+import { EVENT_TYPES, typeTheme, SIDES } from '../constants/palette';
+import useReducedMotion from '../hooks/useReducedMotion';
 
 // One renderer per pane, not one for the whole chart.
 //
@@ -38,17 +40,13 @@ const getSymbolSvg = (type, color) => {
 
 const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => {
   const { type, side } = event;
-  const colors = {
-    american: '#1e3a5f',
-    british: '#8b2323'
-  };
 
   // Depth-of-field: markers far from active shrink and fade
   const depthScale = isActive ? 1 : (0.65 + 0.35 * proximity);
   const baseSize = isActive ? 44 : 34;
   const size = Math.round(baseSize * depthScale);
   const depthOpacity = isFuture ? 0.2 : (isActive ? 1 : (0.45 + 0.55 * proximity));
-  const borderColor = colors[side] || '#1e3a5f';
+  const borderColor = SIDES[side] || SIDES.american;
   const bgColor = isActive ? borderColor : '#fffef5';
   const textColor = isActive ? '#fffef5' : borderColor;
   const shadowOpacity = isFuture ? 0.08 : (isActive ? 0.45 : 0.12 * proximity);
@@ -232,6 +230,10 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
   const prevCenterRef = useRef(null);
   const prevZoomRef = useRef(null);
   const [resizeTick, setResizeTick] = useState(0);
+  // A 2.4s flight across the Atlantic is exactly the kind of large-area motion
+  // the preference exists to suppress; the destination is what carries the
+  // meaning, so reduced motion cuts to it rather than slowing it down.
+  const reduceMotion = useReducedMotion();
 
   // The container is usually still laying out when the first positioning runs,
   // so `getSize()` under-reports and the offset that lifts the target clear of
@@ -287,11 +289,12 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
 
     const bottomPadding = [0, Math.round(map.getSize().y * coveredRatio)];
 
-    if (prevCenter == null) {
-      // First positioning — a deep link, or the first render. Land on the
-      // target immediately: a 2.4s flight in from the default centre is
-      // wasted motion, and `panTo` cannot change zoom, which a deep link
-      // straight to an overseas event needs it to.
+    if (prevCenter == null || reduceMotion) {
+      // First positioning — a deep link, or the first render — or a reader who
+      // asked for reduced motion. Land on the target immediately: a 2.4s
+      // flight in from the default centre is wasted motion, and `panTo`
+      // cannot change zoom, which a deep link straight to an overseas event
+      // needs it to.
       if (fitBounds) {
         map.fitBounds(fitBounds, { paddingBottomRight: bottomPadding, animate: false });
       } else {
@@ -321,7 +324,7 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
 
     prevCenterRef.current = center;
     prevZoomRef.current = zoom;
-  }, [center, zoom, map, autoFly, coveredRatio, fitBounds, resizeTick]);
+  }, [center, zoom, map, autoFly, coveredRatio, fitBounds, resizeTick, reduceMotion]);
 
   return null;
 }
@@ -566,6 +569,11 @@ function ColonyLabels({ boundaries, darkMode }) {
             position={[props.labelLat, props.labelLng]}
             icon={createColonyLabel(props.abbrev, darkMode)}
             interactive={false}
+            // `interactive: false` only stops mouse handlers. Leaflet still
+            // stamps role="button" and tabindex="0" on the icon while
+            // `keyboard` is on, which put every decorative label in the tab
+            // order ahead of the markers that actually do something.
+            keyboard={false}
           />
         );
       })}
@@ -603,6 +611,7 @@ const PeriodLabels = memo(({ darkMode, atlantic }) => (
         key={label.text}
         position={[label.lat, label.lng]}
         interactive={false}
+        keyboard={false}
         icon={L.divIcon({
           className: 'period-map-label',
           html: `<span class="period-label-text ${label.kind} ${darkMode ? 'dark' : ''}" style="transform: translate(-50%, -50%) rotate(${label.rotate}deg)">${label.text}</span>`,
@@ -652,6 +661,7 @@ const TrailYearMarkers = memo(({ events, activeEventId, darkMode }) => {
               iconAnchor: [18, -6],
             })}
             interactive={false}
+            keyboard={false}
           />
         );
       }
@@ -662,16 +672,15 @@ const TrailYearMarkers = memo(({ events, activeEventId, darkMode }) => {
 });
 
 function MapLegend({ darkMode, timelineOpen }) {
-  const items = [
-    { type: 'battle', label: 'Battle', border: '#7A1212' },
-    { type: 'political', label: 'Political', border: '#0A244A' },
-    { type: 'diplomatic', label: 'Diplomatic', border: '#C5A02F' },
-    { type: 'military', label: 'Military', border: '#228B22' },
-  ];
+  const items = Object.entries(EVENT_TYPES).map(([type, meta]) => ({
+    type,
+    label: meta.label,
+    border: typeTheme(type, darkMode).hue,
+  }));
 
   const sides = [
-    { color: '#1e3a5f', label: 'American' },
-    { color: '#8b2323', label: 'British' },
+    { color: SIDES.american, label: 'American' },
+    { color: SIDES.british, label: 'British' },
   ];
 
   const getLegendSymbol = (type, color) => {
