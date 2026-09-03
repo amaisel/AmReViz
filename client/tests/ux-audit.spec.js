@@ -148,6 +148,108 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await expect(page.getByRole('button', { name: /^Siege of Yorktown, 1781(,|$)/ })).toBeVisible();
   });
 
+  // flyToBounds CSS-scales the start-zoom SVG, then on zoomend swaps in the
+  // destination-zoom redraw — and Leaflet's maxBounds handler may start a
+  // second pan into the clamped centre. Either one is the hitch at the end
+  // of the Atlantic hop.
+  test('the Atlantic flight does not hitch after it lands', async ({ page }) => {
+    await page.goto(`${baseUrl}#/explore/siege-of-yorktown`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Siege of Yorktown' })).toBeVisible();
+    await expect(page.locator('.leaflet-container')).toBeVisible();
+
+    const frames = await page.evaluate(() => new Promise((resolve) => {
+      window.location.hash = '#/explore/the-commons-votes-against-the-war';
+      const samples = [];
+      const start = performance.now();
+      const tick = () => {
+        const svg = document.querySelector('.leaflet-base-land-pane svg');
+        const path = svg?.querySelector('path');
+        const r = path?.getBoundingClientRect();
+        const transform = svg?.style?.transform || '';
+        const scaleMatch = /scale\(([^)]+)\)/.exec(transform);
+        samples.push({
+          t: performance.now() - start,
+          left: r?.left ?? null,
+          top: r?.top ?? null,
+          width: r?.width ?? null,
+          scale: scaleMatch ? Number(scaleMatch[1]) : 1,
+        });
+        if (performance.now() - start < 3200) requestAnimationFrame(tick);
+        else resolve(samples);
+      };
+      requestAnimationFrame(tick);
+    }));
+
+    await expect(page.getByRole('heading', { name: 'The Commons Votes Against the War' })).toBeVisible();
+
+    const drawn = frames.filter((f) => f.left != null && f.width > 0);
+    expect(drawn.length, 'land chart never mounted during the flight').toBeGreaterThan(10);
+
+    const maxScale = Math.max(...drawn.map((f) => f.scale));
+    const minScale = Math.min(...drawn.map((f) => f.scale));
+    expect(
+      maxScale - minScale,
+      `land SVG was CSS-scaled during flyTo (scale ${minScale.toFixed(3)}–${maxScale.toFixed(3)})`,
+    ).toBeLessThan(0.05);
+
+    const rest = drawn[drawn.length - 1];
+    const landed = drawn.find((f) => f.t >= 2700) ?? rest;
+    const hitch = Math.hypot(rest.left - landed.left, rest.top - landed.top);
+    expect(
+      hitch,
+      `chart shifted ${hitch.toFixed(1)}px after the fly should have landed (${JSON.stringify({ landed, rest })})`,
+    ).toBeLessThan(3);
+  });
+
+  test('the return flight from Europe does not hitch after it lands', async ({ page }) => {
+    await page.goto(`${baseUrl}#/explore/the-commons-votes-against-the-war`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'The Commons Votes Against the War' })).toBeVisible();
+    await expect(page.locator('.europe-coast')).toHaveCount(1);
+
+    const frames = await page.evaluate(() => new Promise((resolve) => {
+      window.location.hash = '#/explore/siege-of-yorktown';
+      const samples = [];
+      const start = performance.now();
+      const tick = () => {
+        const svg = document.querySelector('.leaflet-base-land-pane svg');
+        const path = svg?.querySelector('path');
+        const r = path?.getBoundingClientRect();
+        const transform = svg?.style?.transform || '';
+        const scaleMatch = /scale\(([^)]+)\)/.exec(transform);
+        samples.push({
+          t: performance.now() - start,
+          left: r?.left ?? null,
+          top: r?.top ?? null,
+          width: r?.width ?? null,
+          scale: scaleMatch ? Number(scaleMatch[1]) : 1,
+        });
+        if (performance.now() - start < 3200) requestAnimationFrame(tick);
+        else resolve(samples);
+      };
+      requestAnimationFrame(tick);
+    }));
+
+    await expect(page.getByRole('heading', { name: 'Siege of Yorktown' })).toBeVisible();
+
+    const drawn = frames.filter((f) => f.left != null && f.width > 0);
+    expect(drawn.length, 'land chart never mounted during the return').toBeGreaterThan(10);
+
+    const maxScale = Math.max(...drawn.map((f) => f.scale));
+    const minScale = Math.min(...drawn.map((f) => f.scale));
+    expect(
+      maxScale - minScale,
+      `land SVG was CSS-scaled during the return flyTo (scale ${minScale.toFixed(3)}–${maxScale.toFixed(3)})`,
+    ).toBeLessThan(0.05);
+
+    const rest = drawn[drawn.length - 1];
+    const landed = drawn.find((f) => f.t >= 2700) ?? rest;
+    const hitch = Math.hypot(rest.left - landed.left, rest.top - landed.top);
+    expect(
+      hitch,
+      `chart shifted ${hitch.toFixed(1)}px after the fly should have landed (${JSON.stringify({ landed, rest })})`,
+    ).toBeLessThan(3);
+  });
+
   // Events are not a march: nobody travelled Savannah → Charleston → Camden in
   // one line, and across the ocean the connector degenerated into a rubber band.
   test('no connecting line is drawn between consecutive events', async ({ page }) => {

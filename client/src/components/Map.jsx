@@ -23,6 +23,27 @@ const LAND_SVG = chartRenderer('base-land');
 const COLONY_SVG = chartRenderer('colonies');
 const WATER_SVG = chartRenderer('base-water');
 
+// flyTo fires `zoom` with `{flyTo: true}` each frame, not `zoomanim`.
+// Leaflet's default handler CSS-scales the SVG that was projected at the
+// start zoom; zoomend then swaps in a destination-zoom redraw, which is
+// the hitch at the end of a transatlantic flight. Redraw those frames at
+// the current zoom and skip the transform so the last frame and the
+// settled frame are the same picture.
+const origRendererOnZoom = L.Renderer.prototype._onZoom;
+L.Renderer.prototype._onZoom = function onZoom(ev) {
+  if (ev && ev.flyTo && this._map) {
+    const held = this._map._animatingZoom;
+    this._map._animatingZoom = false;
+    this._update();
+    for (const id in this._layers) {
+      this._layers[id]._reset();
+    }
+    this._map._animatingZoom = held;
+    return;
+  }
+  origRendererOnZoom.call(this, ev);
+};
+
 const getSymbolSvg = (type, color) => {
   switch (type) {
     case 'battle':
@@ -258,12 +279,26 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
     return () => { map.off('resize', reaim); };
   }, [map]);
 
+  const boundsHoldRef = useRef(null);
+
   // MapContainer props are only read at mount, so the frame has to be
   // resized imperatively when the story crosses the Atlantic. This must
   // happen before the camera moves, or maxBounds clamps the flight.
+  //
+  // Write the options rather than calling setMinZoom/setMaxBounds: setMinZoom
+  // animates a clamp (Atlantic zoom 3 → seaboard floor 5) before flyTo can
+  // run, and setMaxBounds starts an animated panInsideBounds that then
+  // finishes as a hitch after the flight.
   useEffect(() => {
-    map.setMinZoom(minZoom);
-    map.setMaxBounds(maxBounds);
+    if (map.options.minZoom !== minZoom) {
+      map.options.minZoom = minZoom;
+      map.fire('zoomlevelschange');
+    }
+    const bounds = L.latLngBounds(maxBounds);
+    map.options.maxBounds = bounds;
+    if (!map.listens('moveend', map._panInsideMaxBounds)) {
+      map.on('moveend', map._panInsideMaxBounds);
+    }
   }, [map, maxBounds, minZoom]);
 
   useEffect(() => {
@@ -295,7 +330,25 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
       ? Math.hypot(prevCenter[0] - center[0], prevCenter[1] - center[1])
       : 0;
 
-    map.stop();
+    // Public stop() also setZoom(_limitZoom), which snaps a fractional
+    // crossing zoom and can start a CSS zoom animation under the flight.
+    map._stop();
+
+    // Keep Leaflet's moveend bounds clamp from starting a second pan after
+    // flyTo. The flag is what panInsideBounds uses to avoid recursing; hold
+    // it through this moveend, then release.
+    if (boundsHoldRef.current) {
+      map.off('moveend', boundsHoldRef.current);
+    }
+    map._enforcingBounds = true;
+    const releaseBounds = () => {
+      queueMicrotask(() => {
+        map._enforcingBounds = false;
+        boundsHoldRef.current = null;
+      });
+    };
+    boundsHoldRef.current = releaseBounds;
+    map.once('moveend', releaseBounds);
 
     const bottomPadding = [0, Math.round(map.getSize().y * coveredRatio)];
 
@@ -318,9 +371,9 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
         paddingBottomRight: bottomPadding,
       });
     } else if (zoomChanged) {
-      // Coming back from overseas. flyTo has to reproject every path per
-      // frame, which is why it is reserved for the handful of steps a
-      // same-zoom pan cannot reach at all.
+      // Coming back from overseas. The flyTo renderer hook reprojects every
+      // path per frame so the landing isn't a CSS-scale swap — reserved for
+      // the handful of steps a same-zoom pan cannot reach at all.
       map.flyTo(target, zoom, { duration: 2.4, easeLinearity: 0.25 });
     } else {
       // Short same-zoom pan. Geo is simplified and zoom is fixed, so mid-pan
@@ -334,6 +387,14 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
 
     prevCenterRef.current = center;
     prevZoomRef.current = zoom;
+
+    return () => {
+      if (boundsHoldRef.current) {
+        map.off('moveend', boundsHoldRef.current);
+        map._enforcingBounds = false;
+        boundsHoldRef.current = null;
+      }
+    };
   }, [center, zoom, map, autoFly, coveredRatio, fitBounds, resizeTick, reduceMotion]);
 
   return null;
