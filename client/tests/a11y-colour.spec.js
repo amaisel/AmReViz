@@ -105,6 +105,12 @@ test.describe('axe across every view and theme', () => {
           await page.goto(`${baseUrl}${hash}`, { waitUntil: 'domcontentloaded' });
           await setTheme(page, dark);
           await expect(page.locator('.app')).toBeVisible();
+          // The explore route is a lazy chunk. Under load, "no animation is
+          // running" is true before the card has mounted at all, and axe then
+          // scans the crossfade it starts a moment later. Wait for the card.
+          if (hash.startsWith('#/explore')) {
+            await expect(page.locator('.event-card-title').first()).toBeVisible();
+          }
           await expect
             .poll(() => page.evaluate(() => document
               .getAnimations()

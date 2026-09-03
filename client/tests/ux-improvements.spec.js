@@ -693,6 +693,16 @@ test.describe('Large screens', () => {
   // card. Widening it alone would have made the reading worse — the measure was
   // already 80 characters at 1440 and 90 at 1920 — so the type scales with it
   // and the text column is capped in `ch`.
+  // Geometry is only meaningful once the entry animations have run: the card
+  // arrives at scale 0.95 and the charts slide up 20px, and a rect or a
+  // scrollHeight read during either is off by exactly that much.
+  const settled = (page) => expect
+    .poll(() => page.evaluate(() => document
+      .getAnimations()
+      .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity)
+      .length), { timeout: 10_000 })
+    .toBe(0);
+
   const measure = async (page) => page.evaluate(() => {
     const panel = document.querySelector('.desktop-event-card');
     const body = document.querySelector('.event-card-description');
@@ -756,6 +766,7 @@ test.describe('Large screens', () => {
     await page.setViewportSize({ width: 2560, height: 1440 });
     await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+    await settled(page);
 
     const m = await page.evaluate(() => {
       const box = (s) => document.querySelector(s).getBoundingClientRect();
@@ -778,6 +789,42 @@ test.describe('Large screens', () => {
     // The paragraph alone stops short, for line length.
     expect(m.description).toBeLessThan(m.card * 0.85);
   });
+
+  // An interlude is mostly chart, and the compact charts were fixed at 200 or
+  // 240px whatever the panel — a strip across the middle of 1200px of parchment.
+  // They take a share of the viewport height above the breakpoint; below it,
+  // where there is no room to spend, they are exactly what they were.
+  for (const [width, height, kind, slug, minChart, maxChart] of [
+    [2560, 1440, 'a single chart', 'declaration-of-independence', 450, 600],
+    [2560, 1440, 'a stacked pair', 'siege-of-yorktown', 300, 400],
+    [1440, 900, 'a single chart, unchanged below the breakpoint', 'declaration-of-independence', 200, 200],
+  ]) {
+    test(`${width}x${height}: ${kind} grows with the panel`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto(`${baseUrl}#/explore/${slug}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.event-card-title')).toBeVisible();
+      await page.keyboard.press('ArrowRight');
+      await expect(page.locator('.data-interlude-card')).toBeVisible();
+      await settled(page);
+
+      const m = await page.evaluate(() => {
+        const panel = document.querySelector('.desktop-event-card');
+        const card = document.querySelector('.data-interlude-card');
+        return {
+          charts: [...card.querySelectorAll('.recharts-responsive-container')]
+            .map((c) => Math.round(c.getBoundingClientRect().height)),
+          fits: card.scrollHeight <= panel.clientHeight,
+        };
+      });
+      expect(m.charts.length).toBeGreaterThan(0);
+      for (const h of m.charts) {
+        expect(h, 'chart height').toBeGreaterThanOrEqual(minChart);
+        expect(h, 'chart height').toBeLessThanOrEqual(maxChart);
+      }
+      // Growing the chart must not push the card past the panel.
+      if (width >= 1600) expect(m.fits, 'the card should not need to scroll').toBe(true);
+    });
+  }
 
   // Cards focus mode has its own spacious layout and must not inherit the
   // narrow prose cap meant for the split view.

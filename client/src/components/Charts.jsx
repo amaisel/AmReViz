@@ -15,6 +15,20 @@ import {
 } from 'recharts';
 import { motion as Motion } from 'framer-motion';
 import { chartSeries, chartInk } from '../constants/palette';
+import useReducedMotion from '../hooks/useReducedMotion';
+
+// The entry rise-and-fade, or nothing at all when motion is reduced. The
+// charts were the one place that still animated regardless of preference —
+// and with everything else at rest, a title mid-fade is what an accessibility
+// scan of the data view kept catching.
+function entrance(reduceMotion, delay = 0) {
+  if (reduceMotion) return { initial: false };
+  return {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5, delay },
+  };
+}
 
 // Legend labels and tooltip rows in body ink, with the series colour carried by
 // a swatch beside them.
@@ -114,18 +128,31 @@ const ChartSource = ({ source, note }) => (
   </div>
 );
 
+// A compact chart takes its height from CSS — `--compact-chart-height` — so the
+// story panel can scale it with the viewport the way it scales the type; the
+// fallback is the fixed height each chart had before. Recharts sizes its
+// container from props alone, so the height has to live on a frame around it
+// with the chart filling that frame.
+function CompactFrame({ compact, fallback, children }) {
+  if (!compact) return children;
+  return (
+    <div className="chart-compact-frame" style={{ height: `var(--compact-chart-height, ${fallback}px)` }}>
+      {children}
+    </div>
+  );
+}
+
 export function ArmyChart({ data, darkMode, onYearClick, source, compact = false }) {
   const ink = chartInk(darkMode);
   const textColor = ink.muted;
   const continental = chartSeries('american', darkMode);
   const militia = chartSeries('militia', darkMode);
+  const reduceMotion = useReducedMotion();
 
   return (
     <Motion.div
       className={`chart-container ${compact ? 'compact' : ''}`}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      {...entrance(reduceMotion)}
       role="region"
       aria-label="American Troops Furnished by Year Chart"
     >
@@ -139,9 +166,10 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
           </p>
         </>
       )}
+      <CompactFrame compact={compact} fallback={200}>
       <ResponsiveContainer
         width="100%"
-        height={compact ? 200 : 280}
+        height={compact ? '100%' : 280}
         minWidth={0}
         initialDimension={{ width: 320, height: compact ? 200 : 280 }}
       >
@@ -230,6 +258,7 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
           />
         </AreaChart>
       </ResponsiveContainer>
+      </CompactFrame>
       <ChartTable
         caption="American troops furnished by year"
         columns={['Year', 'In Continental pay', 'Militia & short-term troops']}
@@ -259,13 +288,12 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
   const importDrop = peakImports
     ? ((1 - finalImports / peakImports) * 100).toFixed(1)
     : '0.0';
+  const reduceMotion = useReducedMotion();
 
   return (
     <Motion.div
       className={`chart-container ${compact ? 'compact' : ''}`}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: compact ? 0 : 0.15 }}
+      {...entrance(reduceMotion, compact ? 0 : 0.15)}
       role="region"
       aria-label="Colonial Trade Chart"
     >
@@ -278,9 +306,10 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
           </p>
         </>
       )}
+      <CompactFrame compact={compact} fallback={200}>
       <ResponsiveContainer
         width="100%"
-        height={compact ? 200 : 280}
+        height={compact ? '100%' : 280}
         minWidth={0}
         initialDimension={{ width: 320, height: compact ? 200 : 280 }}
       >
@@ -340,6 +369,7 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
           />
         </LineChart>
       </ResponsiveContainer>
+      </CompactFrame>
       <ChartTable
         caption="Colonial trade with England by year, in millions of pounds"
         columns={['Year', 'Exports to England (£m)', 'Imports from England (£m)']}
@@ -370,13 +400,12 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
   // Scoped per theme: the pattern paints a solid rect in the series colour,
   // so light and dark cannot share one definition.
   const hatchId = `crown-hatch-${darkMode ? 'dark' : 'light'}`;
+  const reduceMotion = useReducedMotion();
 
   return (
     <Motion.div
       className={`chart-container ${compact ? 'compact' : ''}`}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: compact ? 0 : 0.25 }}
+      {...entrance(reduceMotion, compact ? 0 : 0.25)}
       role="region"
       aria-label="Casualties by Major Battle Chart"
     >
@@ -397,7 +426,7 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
         <div
           style={{
             minWidth: `${compact ? Math.max(360, data.length * 80) : Math.max(900, data.length * 88)}px`,
-            height: compact ? '240px' : '340px'
+            height: compact ? 'var(--compact-chart-height, 240px)' : '340px'
           }}
         >
           <ResponsiveContainer
@@ -517,13 +546,12 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
     const d = new Date(baseDate + dayOffset * dayMs);
     return `${d.getUTCFullYear()}`;
   };
+  const reduceMotion = useReducedMotion();
 
   return (
     <Motion.div
       className={`chart-container ${compact ? 'compact' : ''}`}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: compact ? 0 : 0.35 }}
+      {...entrance(reduceMotion, compact ? 0 : 0.35)}
       role="region"
       aria-label="Military Campaigns Timeline"
     >
@@ -544,9 +572,10 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
           </span>
         ))}
       </div>
+      <CompactFrame compact={compact} fallback={240}>
       <ResponsiveContainer
         width="100%"
-        height={compact ? 240 : Math.max(300, data.length * 36)}
+        height={compact ? '100%' : Math.max(300, data.length * 36)}
         minWidth={0}
         initialDimension={{ width: 320, height: compact ? 240 : Math.max(300, data.length * 36) }}
       >
@@ -602,6 +631,7 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      </CompactFrame>
       <ChartTable
         caption="Campaigns by theatre and date range"
         columns={['Campaign', 'Theatre', 'Began', 'Ended']}

@@ -5716,4 +5716,16 @@ body.dark-mode {
 .scrollytelling-view:not(.view-mode-cards) .desktop-controls .explore-btn {
   min-height: 46px;
 }
+
+/* An interlude is mostly chart, and a chart fixed at 200px in a panel 1200px
+   tall is a strip with the rest of the panel empty around it. The chart takes
+   a share of the viewport's height instead, capped so a line chart does not
+   turn square. The pair variant stacks two charts and splits the room. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .interlude-chart-wrap {
+  --compact-chart-height: clamp(220px, 38vh, 560px);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .interlude-chart-wrap--pair {
+  --compact-chart-height: clamp(200px, 26vh, 380px);
+}
 }
