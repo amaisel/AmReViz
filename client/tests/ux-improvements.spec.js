@@ -601,3 +601,81 @@ test.describe('Accessibility scans that reach every event type', () => {
     });
   }
 });
+
+test.describe('Large screens', () => {
+  // The story panel was capped at `clamp(390px, 40vw, 640px)`, so past about
+  // 1600px it stopped growing: 25% of a 2560 display, 19% of a 3440, a strip of
+  // 12.8px text beside an enormous map with 362px of dead parchment under the
+  // card. Widening it alone would have made the reading worse — the measure was
+  // already 80 characters at 1440 and 90 at 1920 — so the type scales with it
+  // and the text column is capped in `ch`.
+  const measure = async (page) => page.evaluate(() => {
+    const panel = document.querySelector('.desktop-event-card');
+    const body = document.querySelector('.event-card-description');
+    const cs = getComputedStyle(body);
+    // Characters per line, from this font's own average advance rather than a
+    // guess: `ch` is the width of "0", which runs wide for a proportional face.
+    const probe = document.createElement('span');
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${cs.font}`;
+    probe.textContent = 'abcdefghijklmnopqrstuvwxyz';
+    body.appendChild(probe);
+    const charWidth = probe.getBoundingClientRect().width / 26;
+    probe.remove();
+    return {
+      panelShare: panel.getBoundingClientRect().width / window.innerWidth,
+      bodyPx: parseFloat(cs.fontSize),
+      measure: body.getBoundingClientRect().width / charWidth,
+    };
+  });
+
+  for (const [width, height] of [[1920, 1080], [2560, 1440], [3440, 1440]]) {
+    test(`${width}x${height} gets a readable column, not a strip`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+
+      const m = await measure(page);
+      // The panel keeps a real share of the width. It was 0.25 at 2560 and
+      // 0.19 at 3440 before this.
+      expect(m.panelShare, 'panel share of viewport width').toBeGreaterThan(0.28);
+      // And the map is still the larger half — this is a map-led story.
+      expect(m.panelShare).toBeLessThan(0.45);
+      // Type grows with the display instead of sitting at 12.8px forever.
+      expect(m.bodyPx, 'body text size').toBeGreaterThanOrEqual(15);
+      // The whole point of growing them together: the line length comes down
+      // rather than up. 45-75 is the comfortable band; 80 is where it started.
+      expect(m.measure, 'characters per line').toBeLessThan(78);
+      expect(m.measure, 'characters per line').toBeGreaterThan(40);
+    });
+  }
+
+  test('the type scale climbs with the viewport', async ({ page }) => {
+    const sizes = [];
+    for (const width of [1440, 1920, 2560, 3440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+      sizes.push((await measure(page)).bodyPx);
+    }
+    // Monotonic, and materially bigger by the end.
+    for (let i = 1; i < sizes.length; i += 1) {
+      expect(sizes[i], `${sizes} should not shrink as the viewport grows`)
+        .toBeGreaterThanOrEqual(sizes[i - 1]);
+    }
+    expect(sizes[sizes.length - 1]).toBeGreaterThan(sizes[0] * 1.3);
+  });
+
+  // Cards focus mode has its own spacious layout and must not inherit the
+  // narrow prose cap meant for the split view.
+  test('cards focus mode keeps its own wide layout', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Focus cards' }).click();
+    await expect(page.locator('.scrollytelling-view.view-mode-cards')).toBeVisible();
+
+    const cardWidth = await page.locator('.event-card-fixed').first()
+      .evaluate((el) => el.getBoundingClientRect().width);
+    // Far wider than the split view's capped prose column.
+    expect(cardWidth).toBeGreaterThan(900);
+  });
+});

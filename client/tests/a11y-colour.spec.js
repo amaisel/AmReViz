@@ -92,17 +92,24 @@ test.describe('axe across every view and theme', () => {
       for (const [name, hash] of VIEWS) {
         test(`${device} ${dark ? 'dark' : 'light'} — ${name}`, async ({ page }) => {
           await quietFirstVisit(page);
+          // Scan with motion reduced. axe blends a half-faded badge against
+          // whatever is behind it and reports a contrast failure no user ever
+          // sees, so the page has to be at rest first — and waiting for it to
+          // settle is a race the suite loses under four parallel workers
+          // against one dev server. Reducing motion removes the thing being
+          // waited on instead of racing it: the entry animations become short
+          // crossfades and the marker's endless pulse stops. It changes no
+          // colour, which is all this scan measures.
+          await page.emulateMedia({ reducedMotion: 'reduce' });
           await page.setViewportSize({ width, height });
           await page.goto(`${baseUrl}${hash}`, { waitUntil: 'domcontentloaded' });
           await setTheme(page, dark);
           await expect(page.locator('.app')).toBeVisible();
-          // Let entry transitions finish: axe blends a half-faded badge with
-          // whatever is behind it and reports contrast nobody ever sees.
           await expect
             .poll(() => page.evaluate(() => document
               .getAnimations()
               .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity)
-              .length), { timeout: 10_000 })
+              .length), { timeout: 15_000 })
             .toBe(0);
 
           const { violations } = await new AxeBuilder({ page }).analyze();

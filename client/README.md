@@ -1,16 +1,50 @@
-# React + Vite
+# client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The whole application. There is no backend — events and metrics are static
+modules and the build output is a static site.
 
-Currently, two official plugins are available:
+Start at the [root README](../README.md) for what this project is, and
+[`ROADMAP.md`](../ROADMAP.md) for the state of the work and the decisions
+already taken.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Commands
 
-## React Compiler
+```bash
+npm install
+npm run dev           # vite, port 5173
+npm run lint          # eslint, must be clean
+npm run build         # must be clean
+npm run preview       # serve the production build
+npx playwright test   # 104 tests; boots its own server on 5174
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+There is no `npm test` script — Playwright runs through `npx`. The suite starts
+its own dev server on 5174 so a `npm run dev` on 5173 can keep running beside
+it. `AMREVIZ_TEST_URL` points the suite at a server you are already running.
 
-## Expanding the ESLint configuration
+## Layout
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+src/
+  components/   ExploreView, Map, EventCard, Charts, MobileBottomSheet, …
+  constants/    palette.js (colour, with measured contrast), layout.js
+  data/         events.js, interludes.js, metrics.js, geo/ (generated)
+  hooks/        useHashRouter, useReducedMotion, useEventImage
+tests/
+  ux-audit.spec.js          map framing, mobile sheet geometry
+  ux-improvements.spec.js   keyboard, touch, motion, routing, large screens
+  a11y-colour.spec.js       axe, contrast sweep, focus, colour-independence
+scripts/
+  build-geo-data.mjs        regenerates src/data/geo/ from Natural Earth
+  fetch-event-images.mjs    refreshes public/events/
+```
+
+## Before changing anything visual
+
+`src/constants/palette.js` is the single source of truth for colour. Every
+entry records the contrast ratio it was chosen for, and a test walks the table
+and fails on anything under threshold. The four hues used to live in four
+components and had already drifted — that is what the module exists to prevent.
+
+Map geometry under `src/data/geo/` is generated. Rerun
+`node scripts/build-geo-data.mjs` rather than editing it.

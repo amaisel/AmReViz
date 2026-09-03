@@ -5193,6 +5193,11 @@ body.dark-mode {
   .scrollytelling-view {
     --desktop-story-panel-width: clamp(390px, 40vw, 640px);
     --desktop-controls-height: 120px;
+    /* One knob per breakpoint. `--story-text` scales the card's prose and
+       everything sized against it; `--story-measure` caps the text column so
+       widening the panel adds margin rather than line length. */
+    --story-text: 0.8rem;
+    --story-measure: none;
   }
 
   .scrollytelling-view:not(.view-mode-cards) .scrolly-map-container {
@@ -5372,7 +5377,7 @@ body.dark-mode {
     transform: translateX(50%);
   }
 
-  /* Focus mode becomes a spacious reading canvas instead of a shallow strip. */
+/* Focus mode becomes a spacious reading canvas instead of a shallow strip. */
   .scrollytelling-view.view-mode-cards {
     --desktop-focus-controls-height: 70px;
   }
@@ -5592,4 +5597,123 @@ body.dark-mode {
     .event-card-nav {
     grid-row: 11;
   }
+}
+
+/* ===== LARGE SCREENS =====
+ Past about 1600px the story panel stopped growing: `clamp(…, 40vw, 640px)`
+ caps out, so on a 2560 display the panel was 25% of the width and on a 3440
+ it was 19% — a strip of 12.8px text beside an enormous map, with 362px of
+ dead parchment under the card.
+
+ Three things move together, and they have to. Widening the panel alone makes
+ the line length worse: the measure was already 80 characters at 1440 and 90
+ at 1920, against a comfortable 45-75. So the type grows, the panel grows, and
+ the text column is capped in `ch` — a unit defined in terms of the font's own
+ character width, which is the only way to state "keep the measure" that stays
+ true when the font size changes underneath it. The extra panel width becomes
+ margin around a column that stays readable.
+
+ Everything below 1600px is deliberately untouched. */
+@media (min-width: 1600px) {
+.scrollytelling-view {
+  --desktop-story-panel-width: clamp(640px, 36vw, 940px);
+  --desktop-controls-height: 132px;
+  --story-text: 0.95rem;
+  --story-measure: 64ch;
+}
+}
+
+@media (min-width: 2200px) {
+.scrollytelling-view {
+  --desktop-story-panel-width: clamp(800px, 33vw, 1120px);
+  --desktop-controls-height: 148px;
+  --story-text: 1.0625rem;
+  --story-measure: 62ch;
+}
+}
+
+@media (min-width: 3000px) {
+.scrollytelling-view {
+  --desktop-story-panel-width: clamp(1000px, 31vw, 1320px);
+  --story-text: 1.1875rem;
+  --story-measure: 60ch;
+}
+}
+
+@media (min-width: 1600px) {
+/* The column the prose actually occupies. The panel is wider than this by
+   design; the difference is breathing room, not line length. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-fixed {
+  max-width: var(--story-measure);
+  margin-inline: auto;
+}
+
+/* A short entry on a tall screen was pinned to the top with a third of the
+   panel empty beneath it. Centring is only safe with `align-content`: a
+   flex/grid centre on a scroll container puts overflow above the scrollport
+   where it cannot be reached. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card {
+  display: block;
+  align-content: safe center;
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-description,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance p,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-stat-note {
+  font-size: var(--story-text);
+  line-height: 1.62;
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-title {
+  font-size: calc(var(--story-text) * 2.15);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-date-inline,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-location,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-source,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-campaign,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-nav-btn {
+  font-size: calc(var(--story-text) * 0.92);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-type-badge,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-outcome,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance strong {
+  font-size: calc(var(--story-text) * 0.82);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-stats-row,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-fact span {
+  font-size: calc(var(--story-text) * 0.86);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-fact strong {
+  font-size: calc(var(--story-text) * 1.35);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance {
+  padding: calc(var(--story-text) * 0.95);
+}
+
+/* The hero image is capped at 240px, which reads as a postage stamp once the
+   panel is 900px wide. Let it keep the card's proportions instead. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-image {
+  max-height: none;
+}
+
+/* The controls row grows with the panel it sits under. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-controls .explore-btn,
+.scrollytelling-view:not(.view-mode-cards) .desktop-controls .speed-indicator,
+.scrollytelling-view:not(.view-mode-cards) .desktop-controls .search-input {
+  font-size: calc(var(--story-text) * 0.92);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-controls .explore-btn {
+  min-height: 46px;
+}
+
+/* An interlude is mostly chart, so it wants the room the prose cap gives up. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .data-interlude-card {
+  max-width: none;
+}
 }

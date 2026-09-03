@@ -6,6 +6,14 @@ A living note on where AmReViz stands and what is worth doing next. Every claim
 here was measured rather than estimated; where a number appears, the method is
 given so it can be re-checked when it goes stale.
 
+## Public docs
+
+`README.md`, `docs/DATA.md` and `docs/ACCESSIBILITY.md` are written for someone
+arriving from outside. This file is the opposite: an internal record of what was
+measured, what was tried and reverted, and why. Keep the numbers in the public
+docs consistent with the ones here — the test count in particular appears in
+three places.
+
 ## How to work here
 
 `main` is protected by the "Protect main" ruleset, so all changes land through a
@@ -18,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 99 tests; boots its own server on 5174
+npx playwright test    # 104 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
@@ -400,12 +408,60 @@ also flags anything sitting over a gradient, where declared colours do not
 describe what is rendered — those were checked by sampling pixels instead and
 measure 10.7:1 to 13.0:1.
 
-### 11. Still open, unchanged
+### 11. Large screens — fixed
+
+Resolved 2026-09-03. The story panel was `clamp(390px, 40vw, 640px)`, so it
+stopped growing at about 1600px: 33% of a 1920 display, **25% of a 2560, 19% of
+a 3440**. Past that point the app was a strip of text beside an ever-larger map,
+with 362px of dead parchment under the card.
+
+The trap here is that widening the panel alone makes the reading worse. Measured
+before the change, the line length was already **80 characters at 1440 and 90 at
+1920**, against a comfortable 45–75 — and the body text was **12.8px at every
+size**, from a 1366 laptop to a 4K display. It was simultaneously too small and
+too long per line, and more width would only have lengthened the line.
+
+So three things move together, and they have to:
+
+- the panel grows,
+- the type grows with it,
+- the prose column is capped in `ch`, which is defined in terms of the font's
+  own character width and so stays true when the font size changes underneath
+  it. The extra panel width becomes margin, not line length.
+
+| | panel share | body | measure | dead space |
+|---|---|---|---|---|
+| 1920 before | 33% | 12.8px | 90 | 2px |
+| 1920 after | **36%** | **15.2px** | **77** | — |
+| 2560 before | 25% | 12.8px | 90 | 362px |
+| 2560 after | **33%** | **17px** | **66** | **85px** |
+| 3440 before | 19% | 12.8px | 90 | 362px |
+| 3440 after | **31%** | **19px** | **57** | **65px** |
+
+Breakpoints at 1600, 2200 and 3000, each setting `--story-text`,
+`--story-measure` and the panel width; the card's type is sized against
+`--story-text` so one knob moves the whole scale. A short entry is also
+vertically centred now, with `align-content: safe center` — a flex or grid
+centre on a scroll container puts overflow above the scrollport where it cannot
+be reached, and `safe` is what prevents that.
+
+**Everything below 1600px is deliberately untouched.** At 1440x900 the fullest
+card already overflows its panel, so a larger font there buys legibility by
+pushing more content below the fold. That trade only pays where there is
+vertical room to spend, which is what the breakpoint is choosing.
+
+Cards focus mode keeps its own wide layout and is excluded from the prose cap;
+a test guards that, since it was the obvious thing for this change to break.
+
+### 12. Still open, unchanged
 
 - The mobile sticky-map redesign (route 2 under item 1).
 - Holding an arrow key still drops steps (item 3) — the marker layer, untouched
   here.
 - The `metrics` chunk (item 4), now 385.86 kB after the chart work.
+- Line length below 1600px: about 80 characters at 1440. See item 11 for why
+  the fix stops where it does.
+- `@reduxjs/toolkit` is a declared dependency that nothing imports.
 - `cursor/fix-review-findings-39f3` (item 5).
 - `HorizontalTimeline.jsx` and `Map.jsx`'s `MapLegend` are both dead — defined,
   never rendered. `MapLegend` now reads from the palette so it cannot drift
