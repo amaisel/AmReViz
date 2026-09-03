@@ -840,3 +840,53 @@ test.describe('Large screens', () => {
     expect(cardWidth).toBeGreaterThan(900);
   });
 });
+
+test.describe('Map markers stay clickable', () => {
+  // The active marker's pulse ring is decorative and 8px wider than the marker
+  // on every side, and it had no `pointer-events: none`, so its overhang was
+  // the topmost thing in that band and took clicks aimed at whatever sat
+  // behind it. Across seven events it was covering the centre of 17 other
+  // markers, 8 of which nothing else was covering — Lexington and Concord and
+  // Bunker Hill among them.
+  //
+  // The assertion is deliberately about decorative elements only. Markers
+  // genuinely overlap each other around Boston and New York, and the active
+  // one is drawn on top by design; that is z-ordering between two real
+  // controls, not a bug, and 45 centres are still covered that way. A
+  // decoration taking a click is always a bug.
+  const DECORATIVE = '.marker-pulse-ring, .colony-label, .trail-year-marker, .period-map-label';
+
+  for (const id of [1, 5, 16, 110]) {
+    test(`no decoration takes a marker's click at event ${id}`, async ({ page }) => {
+      await page.goto(`${baseUrl}#/explore/${id}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.custom-marker [role="button"]').first()).toBeVisible();
+      await expect(page.locator('.marker-pulse-ring')).toBeVisible();
+
+      const stolen = await page.evaluate((decorative) => {
+        const out = [];
+        for (const marker of document.querySelectorAll('.custom-marker [role="button"]')) {
+          const box = marker.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            box.left + box.width / 2,
+            box.top + box.height / 2,
+          );
+          if (!hit || hit === marker || marker.contains(hit)) continue;
+          // Covered by another marker: legitimate. Covered by a decoration: not.
+          if (!hit.closest(decorative)) continue;
+          out.push(`${marker.getAttribute('aria-label')} blocked by ${hit.closest(decorative).className}`);
+        }
+        return out;
+      }, DECORATIVE);
+
+      expect(stolen, 'markers whose click a decorative element takes').toEqual([]);
+    });
+  }
+
+  test('the pulse ring is transparent to the pointer', async ({ page }) => {
+    await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.marker-pulse-ring')).toBeVisible();
+    expect(
+      await page.locator('.marker-pulse-ring').evaluate((el) => getComputedStyle(el).pointerEvents),
+    ).toBe('none');
+  });
+});

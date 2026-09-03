@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 104 tests; boots its own server on 5174
+npx playwright test    # 123 tests; boots its own server on 5174
 ```
 
 There is no `npm test` script — Playwright runs through `npx`. The suite starts
@@ -453,7 +453,35 @@ vertical room to spend, which is what the breakpoint is choosing.
 Cards focus mode keeps its own wide layout and is excluded from the prose cap;
 a test guards that, since it was the obvious thing for this change to break.
 
-### 12. Still open, unchanged
+### 12. A decoration was taking the markers' clicks — fixed
+
+The active marker's pulse ring is decorative and 8px wider than the marker on
+every side, and it had no `pointer-events: none`. Its overhang was therefore the
+topmost thing in that band and took the click.
+
+Measured across seven events before the fix: it was covering the centre of
+**17 other markers, 8 of which nothing else was covering** — Lexington and
+Concord and Bunker Hill among them, which is to say some of the most-wanted
+events in the story could not be selected from the map at all. After: zero.
+
+Worth being precise about what this does *not* fix. 45 marker centres are still
+covered, by other markers. Around Boston and New York they genuinely overlap and
+the active one is drawn on top by design; that is z-ordering between two real
+controls, and clicking the visible part still works. A decoration taking a click
+is always a bug; two controls overlapping is a density problem, and if it is
+ever worth solving the answer is spiderfying or a zoom threshold, not
+`pointer-events`. The test asserts only the first.
+
+**Two lint errors are also fixed here**, deliberately by silencing rather than
+rewriting. `react-hooks/immutability` flagged `map.options.minZoom = …` and
+`map._enforcingBounds = true`, both of which are intentional — the comment above
+them explains that `setMinZoom` animates a clamp before `flyTo` can run and
+`setMaxBounds` starts a pan that lands as a hitch after the flight. Leaflet's
+map is a mutable imperative handle rather than React state, so the rule is a
+false positive here. Narrow `eslint-disable-next-line` directives with the
+reason, no behaviour change. `npm run lint` is a gate and the branch was red.
+
+### 13. Still open, unchanged
 
 - The mobile sticky-map redesign (route 2 under item 1).
 - Holding an arrow key still drops steps (item 3) — the marker layer, untouched

@@ -88,6 +88,14 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
   const pulseRing = isActive ? `
     <div class="marker-pulse-ring" style="
       position: absolute;
+      /* Decorative, and 8px wider than the marker on every side, so its
+         overhang is the topmost thing in that band and takes the click.
+         Measured at event 5: three neighbours — Lexington and Concord, Bunker
+         Hill, and Boston — returned the ring from elementFromPoint at their
+         own centres, so they simply could not be selected. The markers cluster
+         hardest around Boston and New York, which is where the story spends
+         most of its time. */
+      pointer-events: none;
       top: ${-(pulseSize - size) / 2}px;
       left: ${-(pulseSize - size) / 2}px;
       width: ${pulseSize}px;
@@ -291,6 +299,11 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
   // finishes as a hitch after the flight.
   useEffect(() => {
     if (map.options.minZoom !== minZoom) {
+      // Leaflet's map is a mutable imperative handle, not React state, and
+      // `useMap()` returns the same instance for the life of the container.
+      // The rule cannot tell those apart, and the setters are unusable here
+      // for the reason given above.
+      // eslint-disable-next-line react-hooks/immutability
       map.options.minZoom = minZoom;
       map.fire('zoomlevelschange');
     }
@@ -340,6 +353,9 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
     if (boundsHoldRef.current) {
       map.off('moveend', boundsHoldRef.current);
     }
+    // Same as above: Leaflet's own internal flag, and setting it is how
+    // panInsideBounds is kept from recursing.
+    // eslint-disable-next-line react-hooks/immutability
     map._enforcingBounds = true;
     const releaseBounds = () => {
       queueMicrotask(() => {
