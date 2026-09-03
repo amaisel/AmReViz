@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './Charts';
 import BattleComparison from './BattleComparison';
 import AnimatedCounter from './AnimatedCounter';
@@ -14,10 +15,7 @@ import { events } from '../data/events';
 export default function DataView({ darkMode, onNavigateToEvent }) {
   const battles = events.filter(event => event.casualties && event.forces);
   const battleCount = events.filter(event => event.type === 'battle').length;
-
-  const handleBattleClick = (eventId) => {
-    onNavigateToEvent?.(eventId);
-  };
+  const [focusedBattleId, setFocusedBattleId] = useState(battles[0]?.id);
 
   const handleYearClick = (year) => {
     const match = events.find(event => event.year === year);
@@ -97,14 +95,15 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
 
       <section className="data-group">
         <h3 className="data-group-title">Military Strength & Theater</h3>
-        <div className="data-grid">
+        <div className="data-stack data-stack--shared-time">
           <ArmyChart
             data={armyData}
             darkMode={darkMode}
             onYearClick={handleYearClick}
             source={aggregateSources.americanManpower}
+            sharedTimeAxis
           />
-          <CampaignTimeline data={campaignData} darkMode={darkMode} />
+          <CampaignTimeline data={campaignData} darkMode={darkMode} sharedTimeAxis />
         </div>
       </section>
 
@@ -119,13 +118,20 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
 
       <section className="data-group">
         <h3 className="data-group-title">Battle Analysis</h3>
-        <div className="data-grid">
+        <div className="data-stack">
           <CasualtiesChart
             data={battleData}
             darkMode={darkMode}
-            onBattleClick={handleBattleClick}
+            selectedBattleId={focusedBattleId}
+            onBattleSelect={setFocusedBattleId}
           />
-          <BattleComparison battles={battles} darkMode={darkMode} />
+          <BattleComparison
+            battles={battles}
+            darkMode={darkMode}
+            selectedId={focusedBattleId}
+            onSelect={setFocusedBattleId}
+            onOpenStory={onNavigateToEvent}
+          />
         </div>
       </section>
     </div>

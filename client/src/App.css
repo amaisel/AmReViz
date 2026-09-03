@@ -114,6 +114,13 @@
   scrollbar-color: rgba(10, 36, 74, 0.28) transparent;
 }
 
+.chart-scroll-frame--y {
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: var(--compact-chart-height, 240px);
+  padding-bottom: 0;
+}
+
 .chart-scroll-frame:focus-visible {
   outline: 2px solid var(--color-gold);
   outline-offset: 3px;
@@ -122,6 +129,11 @@
 
 .chart-scroll-frame::-webkit-scrollbar {
   height: 8px;
+}
+
+.chart-scroll-frame--y::-webkit-scrollbar {
+  width: 8px;
+  height: auto;
 }
 
 .chart-scroll-frame::-webkit-scrollbar-thumb {
@@ -352,9 +364,40 @@
   color: #aeb6c2;
 }
 
+.comparison-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1.1rem;
+  margin-top: 0.85rem;
+}
+
+.comparison-open-story {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid rgba(10, 36, 74, 0.22);
+  border-radius: 8px;
+  background: var(--color-american);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.comparison-open-story:hover {
+  filter: brightness(1.08);
+}
+
+.dark .comparison-open-story {
+  background: #2C4B7A;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 .comparison-source {
   display: inline-flex;
-  margin-top: 0.5rem;
   font-size: 0.72rem;
 }
 
@@ -2042,8 +2085,27 @@ body.dark-mode {
 }
 
 .data-grid > *,
+.data-stack > *,
 .chart-container {
   min-width: 0;
+}
+
+.data-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.data-stack--shared-time {
+  gap: 1rem;
+}
+
+/* Recharts still paints a cursor/active rect on some ticks even with
+   cursor={false}. Those boxes were the extra squares on a few rows. */
+.casualties-chart .recharts-tooltip-cursor,
+.casualties-chart .recharts-activeBar,
+.casualties-chart .recharts-rectangle.recharts-tooltip-cursor {
+  display: none;
 }
 
 .chart-scroll-frame {
@@ -2052,6 +2114,11 @@ body.dark-mode {
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+.chart-scroll-frame--y {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 @media (min-width: 1024px) {
@@ -4649,6 +4716,7 @@ body.dark-mode {
 /* ===== CAMPAIGN LEGEND ===== */
 .campaign-legend {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 0.75rem;
   font-size: 0.8rem;
@@ -5009,8 +5077,13 @@ body.dark-mode {
     margin: 0.75rem 0;
   }
 
+  .data-stack--shared-time > .chart-container {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
   .comparison-grid {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
 

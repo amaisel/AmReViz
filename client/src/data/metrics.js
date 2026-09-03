@@ -76,7 +76,9 @@ export const battleData = events
       .replace('Battles of ', '')
       .replace('Battle of ', '')
       .replace('British Surrender at ', '')
-      .replace('Siege of ', ''),
+      .replace('Siege of ', '')
+      .replace('Capture of ', '')
+      .replace('Fall of Fort Ticonderoga', 'Fall of Ticonderoga'),
     year: event.year,
     americanCasualties: event.casualties.american,
     britishCasualties: event.casualties.british,

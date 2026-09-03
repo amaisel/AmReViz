@@ -605,11 +605,9 @@ test.describe('Routing', () => {
 });
 
 test.describe('Data view', () => {
-  // Recharts 3 stopped passing `activePayload` to a chart's onClick, so the
-  // guard reading `state.activePayload[0].payload.id` never matched and the
-  // chart's own instruction — "Click a bar to inspect its definition" —
-  // pointed at nothing.
-  test('clicking a casualties bar opens that battle in the story', async ({ page }) => {
+  // A click on the ledger inspects the comparison below. The story is a
+  // separate, explicit action so scanning the chart does not yank the view.
+  test('clicking a casualties bar updates the comparison; the story opens from a button', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
 
@@ -620,6 +618,11 @@ test.describe('Data view', () => {
     await expect(chart.locator('.recharts-bar-rectangle').first()).toBeVisible();
     await chart.locator('.recharts-bar-rectangle').nth(2).click();
 
+    await expect(page).toHaveURL(/#\/data/);
+    await expect(page.getByRole('combobox', { name: 'Select a battle to compare' }))
+      .toHaveValue('5');
+
+    await page.getByRole('button', { name: 'Open in the story' }).click();
     await expect(page).toHaveURL(/#\/explore\/[a-z0-9-]+$/);
     await expect(page.locator('.event-card-title').first()).toContainText('Bunker Hill');
   });
@@ -639,6 +642,59 @@ test.describe('Data view', () => {
 
     await expect(page).toHaveURL(/#\/explore\/[a-z0-9-]+$/);
     await expect(page.locator('.event-card-title').first()).toBeVisible();
+  });
+
+  test('troop years line up with campaign years and do not overflow', async ({ page }) => {
+    const yearTicks = (region) => region
+      .locator('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value')
+      .evaluateAll((els) => els.map((el) => ({
+        year: el.textContent.trim(),
+        x: Math.round(el.getBoundingClientRect().x),
+      })));
+
+    const assertAligned = async () => {
+      const troops = page.getByRole('region', { name: 'American Troops Furnished by Year Chart' });
+      const campaigns = page.getByRole('region', { name: 'Military Campaigns Timeline' });
+      await troops.scrollIntoViewIfNeeded();
+      await expect(troops.locator('.recharts-area-curve').first()).toBeVisible();
+      await campaigns.scrollIntoViewIfNeeded();
+      await expect(campaigns.locator('.recharts-bar-rectangle').first()).toBeVisible();
+
+      const troopTicks = await yearTicks(troops);
+      const campaignTicks = await yearTicks(campaigns);
+      const campaignByYear = Object.fromEntries(campaignTicks.map((t) => [t.year, t.x]));
+
+      expect(troopTicks.map((t) => t.year), 'troop chart is missing year ticks').toEqual(
+        expect.arrayContaining(['1775', '1781']),
+      );
+
+      const drift = troopTicks
+        .filter((t) => campaignByYear[t.year] != null)
+        .map((t) => ({ year: t.year, dx: Math.abs(t.x - campaignByYear[t.year]) }))
+        .filter((t) => t.dx > 4);
+      expect(drift, 'year ticks should share an x position').toEqual([]);
+
+      const overflow = await page.locator('.data-stack--shared-time').evaluate((stack) => {
+        const view = stack.closest('.data-view-container') ?? stack;
+        const limit = view.getBoundingClientRect().right;
+        return Math.max(
+          0,
+          ...[stack, ...stack.querySelectorAll('.chart-container, .recharts-wrapper')].map((n) => (
+            Math.round(n.getBoundingClientRect().right - limit)
+          )),
+        );
+      });
+      expect(overflow, 'aligned charts overflow the data column').toBeLessThanOrEqual(1);
+    };
+
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.data-stack--shared-time')).toBeVisible();
+    await expect(page.locator('.data-group').first().locator('.data-grid')).toHaveCount(0);
+    await assertAligned();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await assertAligned();
   });
 
   test('the source citations are reachable targets on a phone', async ({ page }) => {
