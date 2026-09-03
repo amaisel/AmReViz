@@ -5610,8 +5610,9 @@ body.dark-mode {
  at 1920, against a comfortable 45-75. So the type grows, the panel grows, and
  the text column is capped in `ch` — a unit defined in terms of the font's own
  character width, which is the only way to state "keep the measure" that stays
- true when the font size changes underneath it. The extra panel width becomes
- margin around a column that stays readable.
+ true when the font size changes underneath it. The cap applies to the
+ paragraphs, not the card: the image, the stats table and the badges use the
+ full panel width, and only the running text stops at a readable measure.
 
  Everything below 1600px is deliberately untouched. */
 @media (min-width: 1600px) {
@@ -5641,11 +5642,15 @@ body.dark-mode {
 }
 
 @media (min-width: 1600px) {
-/* The column the prose actually occupies. The panel is wider than this by
-   design; the difference is breathing room, not line length. */
-.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-fixed {
+/* The card fills the panel; only running text is capped. Capping the whole
+   card and centring it left the image, the stats table and the badges
+   floating in a narrow column with parchment on both sides — the panel was
+   wider but nothing used the width. A measure is a property of a paragraph,
+   so the cap goes on the paragraphs, flush with the title above them. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-description,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance p,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-stat-note {
   max-width: var(--story-measure);
-  margin-inline: auto;
 }
 
 /* A short entry on a tall screen was pinned to the top with a third of the
@@ -5710,10 +5715,5 @@ body.dark-mode {
 
 .scrollytelling-view:not(.view-mode-cards) .desktop-controls .explore-btn {
   min-height: 46px;
-}
-
-/* An interlude is mostly chart, so it wants the room the prose cap gives up. */
-.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .data-interlude-card {
-  max-width: none;
 }
 }

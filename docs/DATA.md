@@ -24,6 +24,19 @@ Rebellion, Franklin's arrival at Passy, the Treaty of Alliance, the Commons
 vote against the war, and the Treaty of Paris — and the map widens to reach
 them rather than pretending the war was fought only on the seaboard.
 
+### Linking to an event
+
+The address bar names an event by its slug, taken from the title:
+`#/explore/battle-of-bunker-hill`. Slugs are stored on the record rather than
+derived at run time, so a later rewording of a title does not break links
+already shared. A data interlude shares the URL of the event it follows.
+
+Each event also carries a numeric `id`. It is an internal key, not a position:
+the first 18 events were numbered 1–18 and the 29 added later took 101–129, so
+that nothing already pointing at the first block had to move. Links written
+before slugs — `#/explore/105` — still resolve, and are rewritten to the slug
+on load.
+
 ### Where the events come from
 
 | Source | Events |

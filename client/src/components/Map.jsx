@@ -947,6 +947,13 @@ export default function Map({
         dragging={true}
         doubleClickZoom={true}
         touchZoom={true}
+        // The arrow keys belong to the story. Leaflet's keyboard handler
+        // makes the container focusable, and once a click on the sea has
+        // focused it, it pans on ← → and stops the event before the story's
+        // window listener sees it — so the keys that are meant to be the
+        // default way through the story went dead after touching the map.
+        // The markers stay reachable on their own tab stops.
+        keyboard={false}
         preferCanvas={false}
         // No map-wide renderer: every vector layer names the renderer bound to
         // its own pane, so ordering is decided by z-index rather than by which

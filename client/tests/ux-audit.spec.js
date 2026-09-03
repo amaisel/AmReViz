@@ -407,7 +407,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await searchInput.press('ArrowDown');
     await searchInput.press('Enter');
 
-    await expect(page).toHaveURL(/#\/explore\/109$/);
+    await expect(page).toHaveURL(/#\/explore\/fall-of-fort-ticonderoga$/);
     await expect(page.getByRole('heading', { name: 'Fall of Fort Ticonderoga' })).toBeVisible();
     await expect(page.getByText('July 2, 1777 – July 6, 1777')).toBeVisible();
   });

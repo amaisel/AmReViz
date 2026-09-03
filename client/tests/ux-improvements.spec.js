@@ -116,7 +116,7 @@ test.describe('Keyboard and assistive technology', () => {
     await expect(page.locator('#main-content')).toBeFocused();
     // A plain <a href="#main-content"> would have rewritten the hash to
     // #main-content, which parses as an unknown view and lands on welcome.
-    await expect(page).toHaveURL(/#\/explore\/9$/);
+    await expect(page).toHaveURL(/#\/explore\/battle-of-long-island$/);
   });
 
   test('each story step is announced', async ({ page }) => {
@@ -134,6 +134,28 @@ test.describe('Keyboard and assistive technology', () => {
     const box = await status.boundingBox();
     expect(box.width).toBeLessThanOrEqual(1);
     expect(box.height).toBeLessThanOrEqual(1);
+  });
+
+  // Leaflet's keyboard handler makes the map container focusable and, once a
+  // click on the sea has focused it, pans on the arrow keys and stops the
+  // event — so the story's own listener never heard them. The arrows are the
+  // default way through the story on desktop; touching the map must not
+  // switch them off.
+  test('arrow keys still step the story after clicking the map', async ({ page }) => {
+    await page.goto(`${baseUrl}#/explore/1`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Boston Tea Party' })).toBeVisible();
+
+    // Open water, well clear of any marker.
+    await page.locator('.leaflet-container').click({ position: { x: 60, y: 420 } });
+    expect(
+      await page.evaluate(() => document.activeElement.classList.contains('leaflet-container')),
+      'the map container must not take focus',
+    ).toBe(false);
+
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('heading', { name: 'Coercive Acts Target Massachusetts' })).toBeVisible();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('heading', { name: 'Boston Tea Party' })).toBeVisible();
   });
 
   test('the shortcuts overlay is a modal dialog that returns focus', async ({ page }) => {
@@ -499,25 +521,87 @@ test.describe('Routing', () => {
   });
 
   // The address bar has to name the event on screen, or a copied link hands
-  // someone else something different from what was being read.
-  for (const hash of ['#/explore/99999', '#/explore/abc', '#/explore/-3', '#/explore/0']) {
+  // someone else something different from what was being read. Five kinds of
+  // junk: numbers no event has, a slug no event has, and two the router itself
+  // rejects as malformed.
+  for (const hash of ['#/explore/99999', '#/explore/0', '#/explore/no-such-battle', '#/explore/-3', '#/explore/Bunker%20Hill']) {
     test(`${hash} is rewritten to the event actually shown`, async ({ page }) => {
       // Cold: nothing on screen yet, so the story opens at the beginning.
       await freshVisit(page, hash);
-      await expect(page).toHaveURL(/#\/explore\/\d+$/);
+      await expect(page).toHaveURL(/#\/explore\/stamp-act-congress-meets$/);
       const coldTitle = await page.locator('.event-card-title').first().textContent();
       expect(coldTitle.trim()).toBe('Stamp Act Congress Meets');
 
       // Live: the story is already somewhere, and stays there — but the URL
-      // has to come back to it rather than keep advertising the bogus id.
-      await freshVisit(page, '#/explore/9');
+      // has to come back to it rather than keep advertising the bogus key.
+      await freshVisit(page, '#/explore/battle-of-long-island');
       await expect(page.getByRole('heading', { name: 'Battle of Long Island' })).toBeVisible();
       await page.evaluate((h) => { window.location.hash = h; }, hash);
 
-      await expect(page).toHaveURL(/#\/explore\/9$/);
+      await expect(page).toHaveURL(/#\/explore\/battle-of-long-island$/);
       await expect(page.getByRole('heading', { name: 'Battle of Long Island' })).toBeVisible();
     });
   }
+
+  // The number in the old links was the event's internal id, which only looks
+  // like a position: the first 18 events are 1-18 and the 29 added later are
+  // 101-129, so `#/explore/105` read as "the 105th of 47 events". The URL now
+  // carries the slug, and every number that was ever shared still resolves.
+  test('the story steps through slugs, not ids', async ({ page }) => {
+    await page.goto(`${baseUrl}#/explore/battle-of-bunker-hill`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+    await expect(page).toHaveURL(/#\/explore\/battle-of-bunker-hill$/);
+
+    // Bunker Hill's interlude shares its URL; the step after is id 126 —
+    // the number a reader used to see jump from 5 to 126.
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('heading', { name: 'The Cost of Rebellion' })).toBeVisible();
+    await expect(page).toHaveURL(/#\/explore\/battle-of-bunker-hill$/);
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('heading', { name: 'Proclamation of Rebellion' })).toBeVisible();
+    await expect(page).toHaveURL(/#\/explore\/proclamation-of-rebellion$/);
+  });
+
+  for (const [id, slug, title] of [
+    [5, 'battle-of-bunker-hill', 'Battle of Bunker Hill'],
+    [105, 'dunmores-proclamation', "Dunmore's Proclamation"],
+    [129, 'the-commons-votes-against-the-war', 'The Commons Votes Against the War'],
+  ]) {
+    test(`a pre-slug link #/explore/${id} still opens ${title} and is rewritten`, async ({ page }) => {
+      await page.goto(`${baseUrl}#/explore/${id}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: title })).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`#/explore/${slug}$`));
+    });
+  }
+
+  // Correcting the address must not push history: a pre-slug link that was
+  // rewritten by pushing left Back pointing at the old number, which was
+  // corrected forward again, and the page before it could not be reached.
+  test('a pre-slug link is replaced, not pushed, so Back leaves the story', async ({ page }) => {
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'War in Numbers' })).toBeVisible();
+
+    await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+    await expect(page).toHaveURL(/#\/explore\/battle-of-bunker-hill$/);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/#\/data$/);
+    await expect(page.getByRole('heading', { name: 'War in Numbers' })).toBeVisible();
+  });
+
+  test('every event has a unique, URL-safe slug', async ({ page }) => {
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    const slugs = await page.evaluate(async () => {
+      const { events } = await import('/src/data/events.js');
+      return events.map((e) => e.slug);
+    });
+    expect(slugs.length).toBeGreaterThan(40);
+    expect(new Set(slugs).size, 'slugs must be unique').toBe(slugs.length);
+    for (const slug of slugs) {
+      expect(slug, 'lowercase words and digits joined by single hyphens').toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    }
+  });
 });
 
 test.describe('Data view', () => {
@@ -536,7 +620,7 @@ test.describe('Data view', () => {
     await expect(chart.locator('.recharts-bar-rectangle').first()).toBeVisible();
     await chart.locator('.recharts-bar-rectangle').nth(2).click();
 
-    await expect(page).toHaveURL(/#\/explore\/\d+$/);
+    await expect(page).toHaveURL(/#\/explore\/[a-z0-9-]+$/);
     await expect(page.locator('.event-card-title').first()).toContainText('Bunker Hill');
   });
 
@@ -553,7 +637,7 @@ test.describe('Data view', () => {
     // to the chart, where the whole column is the target.
     await dots.nth(4).click({ force: true });
 
-    await expect(page).toHaveURL(/#\/explore\/\d+$/);
+    await expect(page).toHaveURL(/#\/explore\/[a-z0-9-]+$/);
     await expect(page.locator('.event-card-title').first()).toBeVisible();
   });
 
@@ -663,6 +747,36 @@ test.describe('Large screens', () => {
         .toBeGreaterThanOrEqual(sizes[i - 1]);
     }
     expect(sizes[sizes.length - 1]).toBeGreaterThan(sizes[0] * 1.3);
+  });
+
+  // The measure is a property of the paragraphs, not the card. Capping and
+  // centring the whole card left the image, the stats table and the badges in
+  // a narrow column with parchment on both sides — a wider panel nothing used.
+  test('the card fills the panel; only the prose is capped', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await page.goto(`${baseUrl}#/explore/5`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Battle of Bunker Hill' })).toBeVisible();
+
+    const m = await page.evaluate(() => {
+      const box = (s) => document.querySelector(s).getBoundingClientRect();
+      const panel = document.querySelector('.desktop-event-card');
+      const card = box('.event-card-fixed');
+      const padding = getComputedStyle(panel);
+      return {
+        // clientWidth leaves out the scrollbar gutter the panel reserves.
+        panelInner: panel.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight),
+        card: card.width,
+        image: box('.event-card-image').width,
+        table: box('.event-card-stats-table').width,
+        description: box('.event-card-description').width,
+      };
+    });
+    // Card, image and table span the panel's content box.
+    expect(m.card).toBeGreaterThanOrEqual(m.panelInner - 2);
+    expect(m.image).toBeGreaterThanOrEqual(m.card - 2);
+    expect(m.table).toBeGreaterThanOrEqual(m.card - 2);
+    // The paragraph alone stops short, for line length.
+    expect(m.description).toBeLessThan(m.card * 0.85);
   });
 
   // Cards focus mode has its own spacious layout and must not inherit the

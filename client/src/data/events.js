@@ -7,6 +7,7 @@
 export const events = [
   {
     "id": 101,
+    "slug": "stamp-act-congress-meets",
     "date": "1765-10-07",
     "endDate": "1765-10-25",
     "duration": "19 days",
@@ -36,6 +37,7 @@ export const events = [
   },
   {
     "id": 102,
+    "slug": "boston-massacre",
     "date": "1770-03-05",
     "year": 1770,
     "title": "Boston Massacre",
@@ -63,6 +65,7 @@ export const events = [
   },
   {
     "id": 1,
+    "slug": "boston-tea-party",
     "date": "1773-12-16",
     "year": 1773,
     "title": "Boston Tea Party",
@@ -82,6 +85,7 @@ export const events = [
   },
   {
     "id": 103,
+    "slug": "coercive-acts-target-massachusetts",
     "date": "1774-03-31",
     "endDate": "1774-06-22",
     "duration": "Spring 1774",
@@ -111,6 +115,7 @@ export const events = [
   },
   {
     "id": 2,
+    "slug": "first-continental-congress",
     "date": "1774-09-05",
     "endDate": "1774-10-26",
     "duration": "52 days",
@@ -132,6 +137,7 @@ export const events = [
   },
   {
     "id": 3,
+    "slug": "battles-of-lexington-and-concord",
     "date": "1775-04-19",
     "year": 1775,
     "title": "Battles of Lexington and Concord",
@@ -161,6 +167,7 @@ export const events = [
   },
   {
     "id": 4,
+    "slug": "second-continental-congress-convenes",
     "date": "1775-05-10",
     "endDate": "1781-03-01",
     "duration": "~6 years (until Articles ratified)",
@@ -182,6 +189,7 @@ export const events = [
   },
   {
     "id": 104,
+    "slug": "capture-of-fort-ticonderoga",
     "date": "1775-05-10",
     "year": 1775,
     "title": "Capture of Fort Ticonderoga",
@@ -215,6 +223,7 @@ export const events = [
   },
   {
     "id": 5,
+    "slug": "battle-of-bunker-hill",
     "date": "1775-06-17",
     "year": 1775,
     "title": "Battle of Bunker Hill",
@@ -244,6 +253,7 @@ export const events = [
   },
   {
     "id": 126,
+    "slug": "proclamation-of-rebellion",
     "date": "1775-08-23",
     "year": 1775,
     "title": "Proclamation of Rebellion",
@@ -271,6 +281,7 @@ export const events = [
   },
   {
     "id": 105,
+    "slug": "dunmores-proclamation",
     "date": "1775-11-07",
     "year": 1775,
     "title": "Dunmore's Proclamation",
@@ -298,6 +309,7 @@ export const events = [
   },
   {
     "id": 106,
+    "slug": "battle-of-quebec",
     "date": "1775-12-31",
     "year": 1775,
     "title": "Battle of Quebec",
@@ -330,6 +342,7 @@ export const events = [
   },
   {
     "id": 6,
+    "slug": "publication-of-common-sense",
     "date": "1776-01-10",
     "year": 1776,
     "title": "Publication of Common Sense",
@@ -349,6 +362,7 @@ export const events = [
   },
   {
     "id": 7,
+    "slug": "british-evacuation-of-boston",
     "date": "1776-03-17",
     "year": 1776,
     "title": "British Evacuation of Boston",
@@ -368,6 +382,7 @@ export const events = [
   },
   {
     "id": 8,
+    "slug": "declaration-of-independence",
     "date": "1776-07-04",
     "year": 1776,
     "title": "Declaration of Independence",
@@ -387,6 +402,7 @@ export const events = [
   },
   {
     "id": 9,
+    "slug": "battle-of-long-island",
     "date": "1776-08-27",
     "endDate": "1776-08-30",
     "duration": "4 days (battle to evacuation)",
@@ -418,6 +434,7 @@ export const events = [
   },
   {
     "id": 107,
+    "slug": "battle-of-fort-washington",
     "date": "1776-11-16",
     "year": 1776,
     "title": "Battle of Fort Washington",
@@ -452,6 +469,7 @@ export const events = [
   },
   {
     "id": 127,
+    "slug": "franklin-arrives-in-france",
     "date": "1776-12-21",
     "year": 1776,
     "title": "Franklin Arrives in France",
@@ -479,6 +497,7 @@ export const events = [
   },
   {
     "id": 10,
+    "slug": "battle-of-trenton",
     "date": "1776-12-26",
     "year": 1776,
     "title": "Battle of Trenton",
@@ -512,6 +531,7 @@ export const events = [
   },
   {
     "id": 108,
+    "slug": "battle-of-princeton",
     "date": "1777-01-03",
     "year": 1777,
     "title": "Battle of Princeton",
@@ -539,6 +559,7 @@ export const events = [
   },
   {
     "id": 109,
+    "slug": "fall-of-fort-ticonderoga",
     "date": "1777-07-02",
     "endDate": "1777-07-06",
     "duration": "5 days",
@@ -569,6 +590,7 @@ export const events = [
   },
   {
     "id": 110,
+    "slug": "battle-of-oriskany",
     "date": "1777-08-06",
     "year": 1777,
     "title": "Battle of Oriskany",
@@ -601,6 +623,7 @@ export const events = [
   },
   {
     "id": 111,
+    "slug": "battle-of-brandywine",
     "date": "1777-09-11",
     "year": 1777,
     "title": "Battle of Brandywine",
@@ -628,6 +651,7 @@ export const events = [
   },
   {
     "id": 112,
+    "slug": "battle-of-germantown",
     "date": "1777-10-04",
     "year": 1777,
     "title": "Battle of Germantown",
@@ -655,6 +679,7 @@ export const events = [
   },
   {
     "id": 11,
+    "slug": "british-surrender-at-saratoga",
     "date": "1777-10-17",
     "endDate": null,
     "duration": "Campaign: Sept 19 - Oct 17 (battles Sept 19 & Oct 7)",
@@ -686,6 +711,7 @@ export const events = [
   },
   {
     "id": 12,
+    "slug": "articles-of-confederation-adopted",
     "date": "1777-11-15",
     "year": 1777,
     "title": "Articles of Confederation Adopted",
@@ -717,6 +743,7 @@ export const events = [
   },
   {
     "id": 13,
+    "slug": "valley-forge-winter-encampment",
     "date": "1777-12-19",
     "endDate": "1778-06-19",
     "duration": "6 months",
@@ -738,6 +765,7 @@ export const events = [
   },
   {
     "id": 128,
+    "slug": "treaty-of-alliance-signed-with-france",
     "date": "1778-02-06",
     "year": 1778,
     "title": "Treaty of Alliance Signed with France",
@@ -765,6 +793,7 @@ export const events = [
   },
   {
     "id": 113,
+    "slug": "congress-ratifies-the-french-alliance",
     "date": "1778-05-04",
     "year": 1778,
     "title": "Congress Ratifies the French Alliance",
@@ -792,6 +821,7 @@ export const events = [
   },
   {
     "id": 14,
+    "slug": "battle-of-monmouth",
     "date": "1778-06-28",
     "year": 1778,
     "title": "Battle of Monmouth",
@@ -822,6 +852,7 @@ export const events = [
   },
   {
     "id": 114,
+    "slug": "battle-of-rhode-island",
     "date": "1778-08-29",
     "year": 1778,
     "title": "Battle of Rhode Island",
@@ -854,6 +885,7 @@ export const events = [
   },
   {
     "id": 115,
+    "slug": "sullivan-clinton-campaign",
     "date": "1779-08-26",
     "endDate": "1779-09-30",
     "duration": "Main invasion: Aug 26–Sept 1779",
@@ -883,6 +915,7 @@ export const events = [
   },
   {
     "id": 116,
+    "slug": "siege-of-savannah",
     "date": "1779-09-16",
     "endDate": "1779-10-20",
     "duration": "35 days",
@@ -916,6 +949,7 @@ export const events = [
   },
   {
     "id": 117,
+    "slug": "siege-of-charleston",
     "date": "1780-02-11",
     "endDate": "1780-05-12",
     "duration": "92 days",
@@ -950,6 +984,7 @@ export const events = [
   },
   {
     "id": 118,
+    "slug": "battle-of-camden",
     "date": "1780-08-16",
     "year": 1780,
     "title": "Battle of Camden",
@@ -981,6 +1016,7 @@ export const events = [
   },
   {
     "id": 15,
+    "slug": "arnolds-treason-discovered",
     "date": "1780-09-21",
     "endDate": "1780-09-25",
     "duration": "5 days (meeting to Arnold's escape)",
@@ -1002,6 +1038,7 @@ export const events = [
   },
   {
     "id": 119,
+    "slug": "battle-of-kings-mountain",
     "date": "1780-10-07",
     "year": 1780,
     "title": "Battle of Kings Mountain",
@@ -1035,6 +1072,7 @@ export const events = [
   },
   {
     "id": 120,
+    "slug": "battle-of-cowpens",
     "date": "1781-01-17",
     "year": 1781,
     "title": "Battle of Cowpens",
@@ -1066,6 +1104,7 @@ export const events = [
   },
   {
     "id": 121,
+    "slug": "spanish-gulf-campaign-culminates-at-pensacola",
     "date": "1781-03-09",
     "endDate": "1781-05-10",
     "duration": "Two-month siege",
@@ -1095,6 +1134,7 @@ export const events = [
   },
   {
     "id": 122,
+    "slug": "battle-of-guilford-courthouse",
     "date": "1781-03-15",
     "year": 1781,
     "title": "Battle of Guilford Courthouse",
@@ -1127,6 +1167,7 @@ export const events = [
   },
   {
     "id": 123,
+    "slug": "battle-of-the-chesapeake",
     "date": "1781-09-05",
     "year": 1781,
     "title": "Battle of the Chesapeake",
@@ -1162,6 +1203,7 @@ export const events = [
   },
   {
     "id": 124,
+    "slug": "battle-of-eutaw-springs",
     "date": "1781-09-08",
     "year": 1781,
     "title": "Battle of Eutaw Springs",
@@ -1194,6 +1236,7 @@ export const events = [
   },
   {
     "id": 16,
+    "slug": "siege-of-yorktown",
     "date": "1781-09-28",
     "endDate": "1781-10-19",
     "duration": "22 days",
@@ -1230,6 +1273,7 @@ export const events = [
   },
   {
     "id": 129,
+    "slug": "the-commons-votes-against-the-war",
     "date": "1782-02-27",
     "year": 1782,
     "title": "The Commons Votes Against the War",
@@ -1257,6 +1301,7 @@ export const events = [
   },
   {
     "id": 125,
+    "slug": "treaty-of-paris-signed",
     "date": "1783-09-03",
     "year": 1783,
     "title": "Treaty of Paris Signed",
@@ -1284,6 +1329,7 @@ export const events = [
   },
   {
     "id": 17,
+    "slug": "british-evacuation-of-new-york",
     "date": "1783-11-25",
     "year": 1783,
     "title": "British Evacuation of New York",
@@ -1303,6 +1349,7 @@ export const events = [
   },
   {
     "id": 18,
+    "slug": "washington-resigns-commission",
     "date": "1783-12-23",
     "year": 1783,
     "title": "Washington Resigns Commission",
@@ -1326,3 +1373,26 @@ export const eventRange = {
   start: events[0].year,
   end: events[events.length - 1].year
 };
+
+// The address bar names an event by slug: #/explore/battle-of-bunker-hill.
+//
+// `id` is an internal key that only looks like a sequence number. The first
+// 18 events were numbered 1-18 and the 29 added later took 101-129, so that
+// nothing already linking to the first block had to move — which is exactly
+// why it cannot be shown to a reader: 105 is not the 105th of 47 events, and
+// the story runs 1, 103, 2, 3 when read off the URL. The slug is stored
+// rather than derived so that rewording a title later does not break every
+// link to it. Numeric links from before the change still resolve here and are
+// rewritten to the slug by the story's own URL sync.
+const eventsBySlug = new Map(events.map((event) => [event.slug, event]));
+const eventsById = new Map(events.map((event) => [event.id, event]));
+
+export const eventSlug = (id) => eventsById.get(id)?.slug ?? null;
+
+// Resolve whatever followed `#/explore/` to an event id, or null when it
+// names nothing: an unknown slug, a retired number, or `0`.
+export function resolveEventKey(key) {
+  if (key == null) return null;
+  if (/^\d+$/.test(key)) return eventsById.has(Number(key)) ? Number(key) : null;
+  return eventsBySlug.get(key)?.id ?? null;
+}
