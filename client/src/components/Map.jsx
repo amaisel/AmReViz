@@ -23,15 +23,12 @@ const LAND_SVG = chartRenderer('base-land');
 const COLONY_SVG = chartRenderer('colonies');
 const WATER_SVG = chartRenderer('base-water');
 
-// flyTo fires `zoom` with `{flyTo: true}` each frame, not `zoomanim`.
-// Leaflet's default handler CSS-scales the SVG that was projected at the
-// start zoom; zoomend then swaps in a destination-zoom redraw, which is
-// the hitch at the end of a transatlantic flight. Redraw those frames at
-// the current zoom and skip the transform so the last frame and the
-// settled frame are the same picture.
+// flyTo fires `zoom` with `{flyTo: true}` each frame, not `zoomanim` —
+// except the last `_move`, which has no flag and would CSS-scale then
+// swap. `_amrevizFlying` covers that landing frame too.
 const origRendererOnZoom = L.Renderer.prototype._onZoom;
 L.Renderer.prototype._onZoom = function onZoom(ev) {
-  if (ev && ev.flyTo && this._map) {
+  if (this._map && (ev?.flyTo || this._map._amrevizFlying)) {
     const held = this._map._animatingZoom;
     this._map._animatingZoom = false;
     this._update();
@@ -39,9 +36,34 @@ L.Renderer.prototype._onZoom = function onZoom(ev) {
       this._layers[id]._reset();
     }
     this._map._animatingZoom = held;
+    stampFlyState(this._map);
     return;
   }
   origRendererOnZoom.call(this, ev);
+};
+
+function stampFlyState(map) {
+  const el = map?._container;
+  if (el) el.dataset.amrevizFlying = map._amrevizFlying ? '1' : '0';
+}
+
+// The last flyTo `_move` omits `{flyTo:true}` and snaps to the exact target
+// zoom. That is often 3.02 → 3.00 — small, but smoothFactor re-simplifies
+// every coast at a dead stop, which reads as a hitch. Lock onto the
+// destination zoom for the last ~0.08 of the interpolation so the paths
+// are already drawn at the landing zoom while the camera is still moving.
+// `pinch` forces a `zoom` event even after the zoom value stops changing,
+// so the renderer keeps following the remaining pan.
+const origMapMove = L.Map.prototype._move;
+L.Map.prototype._move = function amrevizMove(center, zoom, data, suppressEvent) {
+  if (this._amrevizFlying && zoom != null) {
+    const target = this._amrevizFlyTargetZoom;
+    if (target != null && Math.abs(zoom - target) < 0.08) {
+      zoom = target;
+    }
+    data = { ...data, flyTo: true, pinch: true };
+  }
+  return origMapMove.call(this, center, zoom, data, suppressEvent);
 };
 
 const getSymbolSvg = (type, color) => {
@@ -280,6 +302,10 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
   // marker straddling the sheet edge. Re-aim once the real size is known.
   useEffect(() => {
     const reaim = () => {
+      // Nulling the target mid-flight makes the next run treat this as a
+      // first positioning and `fitBounds` instantly — a snap at whatever
+      // moment the story card finished laying out.
+      if (map._amrevizFlying) return;
       prevCenterRef.current = null;
       setResizeTick((t) => t + 1);
     };
@@ -347,6 +373,29 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
     // crossing zoom and can start a CSS zoom animation under the flight.
     map._stop();
 
+    const bottomPadding = [0, Math.round(map.getSize().y * coveredRatio)];
+
+    const willFly = prevCenter != null && !reduceMotion && (Boolean(fitBounds) || zoomChanged);
+    if (willFly) {
+      map._amrevizFlying = true;
+      if (fitBounds) {
+        map._amrevizFlyTargetZoom = map._getBoundsCenterZoom(
+          L.latLngBounds(fitBounds),
+          { paddingBottomRight: bottomPadding },
+        ).zoom;
+      } else {
+        map._amrevizFlyTargetZoom = zoom;
+      }
+      // Clear after moveend, not zoomend: zoomend runs before the landing
+      // `_update`, and a trailing move still needs the fly renderer path.
+      map.once('moveend', () => {
+        map._amrevizFlying = false;
+        map._amrevizFlyTargetZoom = null;
+        stampFlyState(map);
+      });
+      stampFlyState(map);
+    }
+
     // Keep Leaflet's moveend bounds clamp from starting a second pan after
     // flyTo. The flag is what panInsideBounds uses to avoid recursing; hold
     // it through this moveend, then release.
@@ -365,8 +414,6 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
     };
     boundsHoldRef.current = releaseBounds;
     map.once('moveend', releaseBounds);
-
-    const bottomPadding = [0, Math.round(map.getSize().y * coveredRatio)];
 
     if (prevCenter == null || reduceMotion) {
       // First positioning — a deep link, or the first render — or a reader who
@@ -426,10 +473,16 @@ function useIsWideFrame() {
   const [wide, setWide] = useState(() => map.getZoom() < INLAND_DETAIL_ZOOM);
 
   useEffect(() => {
-    const update = () => setWide(map.getZoom() < INLAND_DETAIL_ZOOM);
-    map.on('zoomend', update);
+    // Follow zoom during flyTo, not only zoomend. Waiting until the flight
+    // lands mounted lakes, rivers, and colony labels in one frame — that was
+    // the hitch at the end of the return from Europe.
+    const update = () => {
+      const next = map.getZoom() < INLAND_DETAIL_ZOOM;
+      setWide((prev) => (prev === next ? prev : next));
+    };
+    map.on('zoom zoomend', update);
     update();
-    return () => { map.off('zoomend', update); };
+    return () => { map.off('zoom zoomend', update); };
   }, [map]);
 
   return wide;

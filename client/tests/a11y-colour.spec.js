@@ -302,7 +302,7 @@ test.describe('Charts', () => {
       .evaluateAll((els) => els.map((el) => el.getAttribute('stroke-dasharray')));
     expect(lineDashes.filter(Boolean).length, 'no dashed line series').toBeGreaterThan(0);
 
-    // And the Crown bars carry a hatch, not just a hue. Scoped and scrolled:
+    // Casualties are two solid fills (navy / Crown red). Scoped and scrolled:
     // `.recharts-bar-rectangle` also matches the campaign timeline at the top
     // of the page, and the casualties chart does not render until it is near
     // the viewport — so an unscoped query returns the wrong chart's bars.
@@ -311,7 +311,11 @@ test.describe('Charts', () => {
     await expect(casualties.locator('.recharts-bar-rectangle').first()).toBeVisible();
     const barFills = await casualties.locator('.recharts-bar-rectangle path')
       .evaluateAll((els) => [...new Set(els.map((el) => el.getAttribute('fill')))]);
-    expect(barFills.some((f) => (f || '').startsWith('url(#crown-hatch')), 'no patterned bar series').toBe(true);
+    expect(barFills.length, 'casualties chart needs two solid series').toBeGreaterThanOrEqual(2);
+    expect(
+      barFills.every((f) => f && !String(f).startsWith('url(')),
+      'Crown series still uses a pattern',
+    ).toBe(true);
   });
 
   // An SVG in a labelled region announces that a chart exists and then offers

@@ -167,11 +167,16 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
         const r = path?.getBoundingClientRect();
         const transform = svg?.style?.transform || '';
         const scaleMatch = /scale\(([^)]+)\)/.exec(transform);
+        const europe = document.querySelector('.europe-coast');
         samples.push({
           t: performance.now() - start,
           left: r?.left ?? null,
           top: r?.top ?? null,
           width: r?.width ?? null,
+          euWidth: europe?.getBoundingClientRect()?.width ?? null,
+          landD: path?.getAttribute('d')?.length ?? 0,
+          euD: europe?.getAttribute('d')?.length ?? 0,
+          flying: document.querySelector('.leaflet-container')?.dataset?.amrevizFlying === '1',
           scale: scaleMatch ? Number(scaleMatch[1]) : 1,
         });
         if (performance.now() - start < 3200) requestAnimationFrame(tick);
@@ -193,12 +198,29 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     ).toBeLessThan(0.05);
 
     const rest = drawn[drawn.length - 1];
-    const landed = drawn.find((f) => f.t >= 2700) ?? rest;
-    const hitch = Math.hypot(rest.left - landed.left, rest.top - landed.top);
+    const lastFly = [...drawn].reverse().find((f) => f.flying);
+    const firstRest = lastFly && drawn.find((f) => f.t > lastFly.t && !f.flying);
+    expect(lastFly, 'flight flag never appeared on the map').toBeTruthy();
+    expect(firstRest, 'flight never cleared after landing').toBeTruthy();
+
+    const hitch = Math.hypot(rest.left - firstRest.left, rest.top - firstRest.top);
     expect(
       hitch,
-      `chart shifted ${hitch.toFixed(1)}px after the fly should have landed (${JSON.stringify({ landed, rest })})`,
+      `chart shifted ${hitch.toFixed(1)}px after the fly landed (${JSON.stringify({ firstRest, rest })})`,
     ).toBeLessThan(3);
+
+    // The last flyTo `_move` used to snap 3.02 → 3.00 and re-simplify every
+    // coast at a dead stop: land width jumped ~3px and the Europe path `d`
+    // gained a few dozen vertices. Compare the last in-flight frame to the
+    // first settled one — not a wall-clock cut, which can fall mid-ease.
+    expect(
+      Math.abs((firstRest.width ?? 0) - (lastFly.width ?? 0)),
+      `land width jumped at landing (${lastFly.width} → ${firstRest.width})`,
+    ).toBeLessThan(2);
+    expect(
+      Math.abs((firstRest.euD ?? 0) - (lastFly.euD ?? 0)),
+      `Europe coast path re-simplified at landing (${lastFly.euD} → ${firstRest.euD})`,
+    ).toBeLessThan(40);
   });
 
   test('the return flight from Europe does not hitch after it lands', async ({ page }) => {
@@ -221,7 +243,10 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
           left: r?.left ?? null,
           top: r?.top ?? null,
           width: r?.width ?? null,
+          landD: path?.getAttribute('d')?.length ?? 0,
+          flying: document.querySelector('.leaflet-container')?.dataset?.amrevizFlying === '1',
           scale: scaleMatch ? Number(scaleMatch[1]) : 1,
+          lakes: document.querySelectorAll('.leaflet-base-water-pane path').length,
         });
         if (performance.now() - start < 3200) requestAnimationFrame(tick);
         else resolve(samples);
@@ -242,12 +267,33 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     ).toBeLessThan(0.05);
 
     const rest = drawn[drawn.length - 1];
-    const landed = drawn.find((f) => f.t >= 2700) ?? rest;
-    const hitch = Math.hypot(rest.left - landed.left, rest.top - landed.top);
+    const lastFly = [...drawn].reverse().find((f) => f.flying);
+    const firstRest = lastFly && drawn.find((f) => f.t > lastFly.t && !f.flying);
+    expect(lastFly, 'return flight flag never appeared on the map').toBeTruthy();
+    expect(firstRest, 'return flight never cleared after landing').toBeTruthy();
+
+    const hitch = Math.hypot(rest.left - firstRest.left, rest.top - firstRest.top);
     expect(
       hitch,
-      `chart shifted ${hitch.toFixed(1)}px after the fly should have landed (${JSON.stringify({ landed, rest })})`,
+      `chart shifted ${hitch.toFixed(1)}px after the return fly landed (${JSON.stringify({ firstRest, rest })})`,
     ).toBeLessThan(3);
+    expect(
+      Math.abs((firstRest.width ?? 0) - (lastFly.width ?? 0)),
+      `land width jumped at the return landing (${lastFly.width} → ${firstRest.width})`,
+    ).toBeLessThan(2);
+    expect(
+      Math.abs((firstRest.landD ?? 0) - (lastFly.landD ?? 0)),
+      `land path re-simplified at the return landing (${lastFly.landD} → ${firstRest.landD})`,
+    ).toBeLessThan(80);
+
+    // Inland detail used to mount on zoomend, so lakes popped in as the
+    // camera stopped. They should already be on the chart before the last 400ms.
+    const withLakes = drawn.find((f) => f.lakes > 0);
+    expect(withLakes, 'lakes never returned on the inbound flight').toBeTruthy();
+    expect(
+      withLakes.t,
+      'lakes mounted at the landing instead of during the zoom',
+    ).toBeLessThan(2400);
   });
 
   // Events are not a march: nobody travelled Savannah → Charleston → Camden in

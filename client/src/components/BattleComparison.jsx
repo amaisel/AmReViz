@@ -3,8 +3,13 @@ import { motion as Motion, AnimatePresence } from 'framer-motion';
 import AnimatedCounter from './AnimatedCounter';
 import { outcomeTheme, outcomeLabel as outcomeLabelFor, chartSeries } from '../constants/palette';
 
-export default function BattleComparison({ battles, darkMode }) {
-  const [selectedId, setSelectedId] = useState(battles[0]?.id);
+export default function BattleComparison({ battles, darkMode, selectedId: selectedIdProp, onSelect, onOpenStory }) {
+  const [internalId, setInternalId] = useState(battles[0]?.id);
+  const selectedId = selectedIdProp ?? internalId;
+  const setSelectedId = (id) => {
+    if (onSelect) onSelect(id);
+    else setInternalId(id);
+  };
   const selected = battles.find(b => b.id === selectedId) || battles[0];
 
   if (!selected) return null;
@@ -33,7 +38,7 @@ export default function BattleComparison({ battles, darkMode }) {
       <div className="comparison-header" style={{ marginBottom: '1.5rem' }}>
         <h3 className="chart-title">Detailed Battle Analysis</h3>
         <p className="chart-takeaway" style={{ marginBottom: '1rem' }}>
-          Compare the forces and casualties of pivotal engagements.
+          Click a row in the chart, or choose an engagement here, to compare forces and casualties.
         </p>
         
         <div className="custom-select-wrapper">
@@ -153,16 +158,27 @@ export default function BattleComparison({ battles, darkMode }) {
               <strong>Reading the numbers:</strong> {selected.statNote}
             </p>
           )}
-          {selected.source && (
-            <a
-              className="comparison-source"
-              href={selected.source.url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Source: {selected.source.label} ↗
-            </a>
-          )}
+          <div className="comparison-actions">
+            {onOpenStory && (
+              <button
+                type="button"
+                className="comparison-open-story"
+                onClick={() => onOpenStory(selected.id)}
+              >
+                Open in the story
+              </button>
+            )}
+            {selected.source && (
+              <a
+                className="comparison-source"
+                href={selected.source.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Source: {selected.source.label} ↗
+              </a>
+            )}
+          </div>
         </Motion.div>
       </AnimatePresence>
     </Motion.div>

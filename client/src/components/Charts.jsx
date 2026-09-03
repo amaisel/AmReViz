@@ -11,8 +11,9 @@ import {
   Bar,
   Cell,
   Legend,
-  ReferenceLine
+  ReferenceLine,
 } from 'recharts';
+import { useState } from 'react';
 import { motion as Motion } from 'framer-motion';
 import { chartSeries, chartInk } from '../constants/palette';
 import useReducedMotion from '../hooks/useReducedMotion';
@@ -62,6 +63,32 @@ const ChartTable = ({ caption, columns, rows }) => (
 );
 
 const REGION_NAMES = { north: 'Northern', mid: 'Mid-Atlantic', south: 'Southern' };
+
+// Shared chronological scale for the stacked troop curve + campaign bars.
+// Both charts plot years as offsets from 1775 so a BarChart (which insists
+// on including 0) and an AreaChart share one numeric domain. 7 is the right
+// fence — the end of 1781. Army points stop at 1781 (offset 6).
+const SHARED_YEAR_ORIGIN = 1775;
+const SHARED_AXIS_DOMAIN = [0, 7];
+const SHARED_AXIS_TICKS = [0, 1, 2, 3, 4, 5, 6];
+const SHARED_TIME_MARGIN = { top: 20, right: 16, left: 4, bottom: 4 };
+const SHARED_Y_AXIS_WIDTH = 120;
+
+function utcYearFraction(iso) {
+  const date = new Date(iso);
+  const year = date.getUTCFullYear();
+  const start = Date.UTC(year, 0, 1);
+  const end = Date.UTC(year + 1, 0, 1);
+  return year + (date.getTime() - start) / (end - start);
+}
+
+function yearToAxis(year) {
+  return year - SHARED_YEAR_ORIGIN;
+}
+
+function formatYearTick(value) {
+  return String(Math.round(value + SHARED_YEAR_ORIGIN));
+}
 
 const CustomTooltip = ({ active, payload, label, darkMode }) => {
   if (active && payload && payload.length) {
@@ -142,12 +169,25 @@ function CompactFrame({ compact, fallback, children }) {
   );
 }
 
-export function ArmyChart({ data, darkMode, onYearClick, source, compact = false }) {
+export function ArmyChart({
+  data,
+  darkMode,
+  onYearClick,
+  source,
+  compact = false,
+  sharedTimeAxis = false,
+}) {
   const ink = chartInk(darkMode);
   const textColor = ink.muted;
   const continental = chartSeries('american', darkMode);
   const militia = chartSeries('militia', darkMode);
   const reduceMotion = useReducedMotion();
+  const timeMargin = sharedTimeAxis
+    ? SHARED_TIME_MARGIN
+    : { top: 20, right: 30, left: 0, bottom: 0 };
+  const plotData = sharedTimeAxis
+    ? data.map((d) => ({ ...d, axisYear: yearToAxis(d.year) }))
+    : data;
 
   return (
     <Motion.div
@@ -162,7 +202,10 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
           <p className="chart-takeaway">
             These annual service totals are higher than the army present at any one time because
             short enlistments, militia tours, and reenlistments could count the same person again.
-            Click a year to open it in the story.
+            {sharedTimeAxis
+              ? ' The campaign bars below share these years.'
+              : ''}
+            {' '}Click a year to open it in the story.
           </p>
         </>
       )}
@@ -179,8 +222,8 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
             a year's marker reached nothing at all. On the chart it also means
             the whole column is the target, rather than an 11px dot. */}
         <AreaChart
-          data={data}
-          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+          data={plotData}
+          margin={timeMargin}
           onClick={(state) => {
             const index = Number(state?.activeIndex);
             const datum = Number.isInteger(index) ? data[index] : undefined;
@@ -199,14 +242,29 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
             </linearGradient>
           </defs>
           <XAxis
-            dataKey="year"
+            type={sharedTimeAxis ? 'number' : 'category'}
+            dataKey={sharedTimeAxis ? 'axisYear' : 'year'}
+            domain={sharedTimeAxis ? SHARED_AXIS_DOMAIN : undefined}
+            ticks={sharedTimeAxis ? SHARED_AXIS_TICKS : undefined}
+            tickFormatter={sharedTimeAxis ? formatYearTick : undefined}
+            allowDecimals={false}
+            interval={sharedTimeAxis ? 0 : undefined}
+            minTickGap={sharedTimeAxis ? 0 : undefined}
+            padding={sharedTimeAxis ? { left: 0, right: 0 } : undefined}
             stroke={textColor}
-            tick={{ fontSize: 12, fill: textColor }}
+            tick={{ fontSize: sharedTimeAxis ? 11 : 12, fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
-            label={{ value: 'Year', position: 'insideBottomRight', offset: -5, fontSize: 11, fill: textColor }}
+            label={sharedTimeAxis ? undefined : {
+              value: 'Year',
+              position: 'insideBottomRight',
+              offset: -5,
+              fontSize: 11,
+              fill: textColor,
+            }}
           />
           <YAxis
+            width={sharedTimeAxis ? SHARED_Y_AXIS_WIDTH : undefined}
             stroke={textColor}
             tick={{ fontSize: 12, fill: textColor }}
             tickFormatter={(value) => `${value / 1000}k`}
@@ -214,13 +272,23 @@ export function ArmyChart({ data, darkMode, onYearClick, source, compact = false
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
             label={{ value: 'Troops furnished', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
           />
-          <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
+          <Tooltip
+            content={(props) => (
+              <CustomTooltip
+                {...props}
+                label={sharedTimeAxis && props.label != null
+                  ? formatYearTick(props.label)
+                  : props.label}
+                darkMode={darkMode}
+              />
+            )}
+          />
           <Legend
             wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }}
             formatter={(value, entry) => legendLabel(value, entry, darkMode)}
           />
           <ReferenceLine
-            x={1778}
+            x={sharedTimeAxis ? yearToAxis(1778) : 1778}
             stroke={ink.body}
             strokeDasharray="3 3"
             label={{
@@ -392,19 +460,239 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
   );
 }
 
-export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false }) {
+function wrapTitle(title, maxChars) {
+  if (!title || title.length <= maxChars) return [title];
+  const idx = title.lastIndexOf(' ', maxChars);
+  if (idx < 6) return [title];
+  const rest = title.slice(idx + 1);
+  return [title.slice(0, idx), ...wrapTitle(rest, maxChars)];
+}
+
+function CampaignNameTick({ x, y, payload, darkMode, compact }) {
+  const ink = chartInk(darkMode);
+  const lines = wrapTitle(payload.value, compact ? 11 : 14);
+  const fontSize = compact ? 10 : 11;
+  const lineH = compact ? 11 : 13;
+  const startY = -((lines.length - 1) * lineH) / 2 + 4;
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {lines.map((line, i) => (
+        <text
+          key={`${line}-${i}`}
+          x={-6}
+          y={startY + i * lineH}
+          textAnchor="end"
+          fill={ink.body}
+          fontSize={fontSize}
+          fontFamily="var(--font-body)"
+        >
+          {line}
+        </text>
+      ))}
+    </g>
+  );
+}
+
+// Label column plus a fixed mark gutter to the left of every battle name.
+// The mark must not sit on the plot origin — that docks it to the bar start
+// and collides with short values.
+const CASUALTY_LABEL_WIDTH = { compact: 88, full: 120 };
+const CASUALTY_MARK_GUTTER = { compact: 14, full: 16 };
+
+function casualtyAxisWidth(compact) {
+  const key = compact ? 'compact' : 'full';
+  return CASUALTY_LABEL_WIDTH[key] + CASUALTY_MARK_GUTTER[key];
+}
+
+function CasualtyAxisTick({
+  x,
+  y,
+  payload,
+  year,
+  darkMode,
+  compact,
+  marked,
+  markColor,
+}) {
+  const ink = chartInk(darkMode);
+  const lines = wrapTitle(payload.value, compact ? 11 : 14);
+  const fontSize = compact ? 10 : 12;
+  const lineH = compact ? 11 : 13;
+  const extra = compact || year == null ? 0 : 12;
+  const blockH = lines.length * lineH + extra;
+  const startY = -blockH / 2 + lineH * 0.75;
+  const key = compact ? 'compact' : 'full';
+  // Fixed column: left edge of the label block, same x on every row.
+  const markX = -casualtyAxisWidth(compact) + CASUALTY_MARK_GUTTER[key] / 2;
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {marked && (
+        <circle
+          className="casualty-row-mark"
+          cx={markX}
+          cy={0}
+          r={compact ? 3 : 3.5}
+          fill={markColor}
+        />
+      )}
+      {lines.map((line, i) => (
+        <text
+          key={`${line}-${i}`}
+          x={-6}
+          y={startY + i * lineH}
+          textAnchor="end"
+          fill={ink.body}
+          fontSize={fontSize}
+          fontFamily="var(--font-body)"
+        >
+          {line}
+        </text>
+      ))}
+      {!compact && year != null && (
+        <text
+          x={-6}
+          y={startY + lines.length * lineH + 1}
+          textAnchor="end"
+          fill={ink.muted}
+          fontSize={10}
+          fontFamily="var(--font-body)"
+        >
+          {year}
+        </text>
+      )}
+    </g>
+  );
+}
+
+export function CasualtiesChart({
+  data,
+  darkMode,
+  onBattleClick,
+  onBattleSelect,
+  selectedBattleId,
+  compact = false,
+}) {
   const ink = chartInk(darkMode);
   const textColor = ink.muted;
   const american = chartSeries('american', darkMode);
   const crown = chartSeries('british', darkMode);
-  // Scoped per theme: the pattern paints a solid rect in the series colour,
-  // so light and dark cannot share one definition.
-  const hatchId = `crown-hatch-${darkMode ? 'dark' : 'light'}`;
   const reduceMotion = useReducedMotion();
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+  // Horizontal bars: one row per engagement so names stay readable and the
+  // chart grows with the list instead of forcing a sideways scroll.
+  const rowPx = compact ? 26 : 46;
+  const chartHeight = Math.max(compact ? 160 : 280, data.length * rowPx + (compact ? 48 : 88));
+
+  const selectDatum = (state) => {
+    const index = Number(state?.activeIndex);
+    return Number.isInteger(index) ? data[index] : undefined;
+  };
+
+  const plot = (
+    <ResponsiveContainer
+      width="100%"
+      height="100%"
+      minWidth={0}
+      initialDimension={{ width: compact ? 320 : 720, height: compact ? 240 : chartHeight }}
+    >
+      <BarChart
+        layout="vertical"
+        data={data}
+        margin={{ top: compact ? 4 : 28, right: 16, left: 4, bottom: compact ? 4 : 4 }}
+        barCategoryGap="22%"
+        barGap={2}
+        // Recharts 3 dropped `activePayload` from the chart-level click
+        // state — it now reports `activeIndex` and `activeLabel` only.
+        onClick={(state) => {
+          const datum = selectDatum(state);
+          if (datum?.id == null) return;
+          // Data tab: a click inspects the comparison below. Interludes still
+          // jump into the story because there is no comparison panel there.
+          if (compact) onBattleClick?.(datum.id);
+          else onBattleSelect?.(datum.id);
+        }}
+        onMouseMove={(state) => {
+          const index = Number(state?.activeIndex);
+          setHoveredIndex(Number.isInteger(index) ? index : null);
+        }}
+        onMouseLeave={() => setHoveredIndex(null)}
+        style={{ cursor: 'pointer' }}
+        // ChartTable already exposes the numbers. The default layer puts
+        // tabindex on inner <g>s; a click then frames the whole plot.
+        accessibilityLayer={false}
+      >
+        <XAxis
+          type="number"
+          scale="sqrt"
+          domain={[0, 'dataMax']}
+          allowDecimals={false}
+          stroke={textColor}
+          tick={{ fontSize: 11, fill: textColor }}
+          tickFormatter={(n) => Number(n).toLocaleString()}
+          axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
+          tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
+        />
+        <YAxis
+          type="category"
+          dataKey="title"
+          width={casualtyAxisWidth(compact)}
+          interval={0}
+          stroke={textColor}
+          tick={(props) => {
+            const id = data[props.index]?.id;
+            const marked = props.index === hoveredIndex || (id != null && id === selectedBattleId);
+            return (
+              <CasualtyAxisTick
+                {...props}
+                year={data[props.index]?.year}
+                darkMode={darkMode}
+                compact={compact}
+                marked={marked}
+                markColor={crown.hue}
+              />
+            );
+          }}
+          axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
+          tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
+        />
+        <Tooltip
+          content={<CustomTooltip darkMode={darkMode} />}
+          cursor={false}
+          trigger="hover"
+        />
+        {!compact && (
+          <Legend
+            verticalAlign="top"
+            align="right"
+            wrapperStyle={{ paddingBottom: '4px', fontSize: '13px' }}
+            formatter={(value, entry) => legendLabel(value, entry, darkMode)}
+          />
+        )}
+        <Bar
+          dataKey="americanCasualties"
+          name="American / allied"
+          fill={american.hue}
+          radius={[0, 4, 4, 0]}
+          barSize={compact ? 7 : 11}
+          activeBar={false}
+        />
+        <Bar
+          dataKey="britishCasualties"
+          name="Crown / allied"
+          fill={crown.hue}
+          radius={[0, 4, 4, 0]}
+          barSize={compact ? 7 : 11}
+          activeBar={false}
+        />
+      </BarChart>
+    </ResponsiveContainer>
+  );
 
   return (
     <Motion.div
-      className={`chart-container ${compact ? 'compact' : ''}`}
+      className={`chart-container casualties-chart ${compact ? 'compact' : ''}`}
       {...entrance(reduceMotion, compact ? 0 : 0.25)}
       role="region"
       aria-label="Casualties by Major Battle Chart"
@@ -414,95 +702,23 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
           <h3 className="chart-title">Casualties by Major Battle</h3>
           <p className="chart-takeaway">
             These selected engagements mix killed, wounded, missing, and captured; they must not
-            be added to estimate total war deaths. Click a bar to inspect its definition.
+            be added to estimate total war deaths. The list runs chronologically, earliest at the
+            top. The axis uses a square-root scale so earlier, smaller fights remain readable
+            beside later surrenders. Click a row to compare it below.
           </p>
         </>
       )}
-      <div
-        className="chart-scroll-frame"
-        tabIndex={0}
-        aria-label="Scrollable chronological battle casualty chart"
-      >
+      {compact ? (
         <div
-          style={{
-            minWidth: `${compact ? Math.max(360, data.length * 80) : Math.max(900, data.length * 88)}px`,
-            height: compact ? 'var(--compact-chart-height, 240px)' : '340px'
-          }}
+          className="chart-scroll-frame chart-scroll-frame--y"
+          tabIndex={0}
+          aria-label="Scrollable chronological battle casualty chart"
         >
-          <ResponsiveContainer
-            width="100%"
-            height="100%"
-            minWidth={0}
-            initialDimension={{ width: compact ? 360 : 900, height: compact ? 240 : 340 }}
-          >
-            <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 70 }}
-              // Recharts 3 dropped `activePayload` from the chart-level click
-              // state — it now reports `activeIndex` and `activeLabel` only.
-              // The old guard read `state.activePayload[0].payload.id`, never
-              // matched, and left the chart's own instruction ("Click a bar to
-              // inspect its definition") pointing at nothing.
-              onClick={(state) => {
-                const index = Number(state?.activeIndex);
-                const datum = Number.isInteger(index) ? data[index] : undefined;
-                if (datum?.id != null) onBattleClick?.(datum.id);
-              }}
-              style={{ cursor: 'pointer' }}
-            >
-              <defs>
-                <pattern
-                  id={hatchId}
-                  patternUnits="userSpaceOnUse"
-                  width="6"
-                  height="6"
-                  patternTransform="rotate(45)"
-                >
-                  <rect width="6" height="6" fill={crown.hue} />
-                  <line
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="6"
-                    stroke={darkMode ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.55)'}
-                    strokeWidth="2.5"
-                  />
-                </pattern>
-              </defs>
-              <XAxis
-                dataKey="title"
-                stroke={textColor}
-                tick={{ fontSize: 11, fill: textColor, angle: -45, textAnchor: 'end' }}
-                interval={0}
-                height={90}
-                axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
-              />
-              <YAxis
-                stroke={textColor}
-                tick={{ fontSize: 12, fill: textColor }}
-                axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
-                tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
-                label={{ value: 'Estimated casualties', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
-              />
-              <Tooltip content={<CustomTooltip darkMode={darkMode} />} cursor={{fill: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}} />
-              <Legend
-                wrapperStyle={{ paddingTop: '10px', fontSize: '13px' }}
-                formatter={(value, entry) => legendLabel(value, entry, darkMode)}
-              />
-              <Bar dataKey="americanCasualties" name="American / allied" fill={american.hue} radius={[4, 4, 0, 0]} />
-              {/* The Crown bars carry a diagonal hatch as well as their colour.
-                  Paired bars put the two hues directly against each other, and
-                  red beside navy is the pairing protanopia flattens hardest.
-                  A pattern on the Bar rather than a <Cell>: Cell maps one entry
-                  per datum, so it would have hatched the first bar only. */}
-              <Bar
-                dataKey="britishCasualties"
-                name="Crown / allied"
-                fill={`url(#${hatchId})`}
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <div style={{ height: chartHeight }}>{plot}</div>
         </div>
-      </div>
+      ) : (
+        <div style={{ height: chartHeight }}>{plot}</div>
+      )}
       <ChartTable
         caption="Estimated casualties by major battle"
         columns={['Battle', 'Year', 'American / allied', 'Crown / allied']}
@@ -517,10 +733,9 @@ export function CasualtiesChart({ data, darkMode, onBattleClick, compact = false
   );
 }
 
-export function CampaignTimeline({ data, darkMode, compact = false }) {
+export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAxis = false }) {
   const ink = chartInk(darkMode);
   const textColor = ink.muted;
-  const baseDate = Date.UTC(1775, 0, 1);
   const dayMs = 86400000;
 
   const regionColors = {
@@ -530,23 +745,24 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
   };
 
   const chartData = data.map(c => {
-    const startDays = Math.round((new Date(c.start).getTime() - baseDate) / dayMs);
+    const startYear = utcYearFraction(c.start);
+    const endYear = utcYearFraction(c.end);
     const durationDays = Math.round((new Date(c.end).getTime() - new Date(c.start).getTime()) / dayMs);
     return {
       name: c.name,
-      start: startDays,
-      duration: durationDays,
+      start: yearToAxis(startYear),
+      duration: endYear - startYear,
+      durationDays,
       region: c.region,
       startDate: c.start,
       endDate: c.end
     };
   });
 
-  const formatDayOffset = (dayOffset) => {
-    const d = new Date(baseDate + dayOffset * dayMs);
-    return `${d.getUTCFullYear()}`;
-  };
   const reduceMotion = useReducedMotion();
+  const timeMargin = sharedTimeAxis
+    ? SHARED_TIME_MARGIN
+    : { top: 10, right: 30, left: 10, bottom: 10 };
 
   return (
     <Motion.div
@@ -561,10 +777,11 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
           <p className="chart-takeaway">
             The conflict overlapped across Canada, New England, the Mid-Atlantic, the Gulf,
             and the South before American-French forces converged on Yorktown.
+            {sharedTimeAxis ? ' Bars line up with the troop years above.' : ''}
           </p>
         </>
       )}
-      <div className="campaign-legend" style={{ marginBottom: '1rem' }}>
+      <div className="campaign-legend" style={{ marginBottom: sharedTimeAxis ? '0.5rem' : '1rem' }}>
         {Object.entries(regionColors).map(([region, color]) => (
           <span key={region} className="campaign-legend-item" style={{ fontSize: '12px' }}>
             <span className="campaign-legend-dot" style={{ background: color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block', marginRight: '6px' }} />
@@ -575,25 +792,33 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
       <CompactFrame compact={compact} fallback={240}>
       <ResponsiveContainer
         width="100%"
-        height={compact ? '100%' : Math.max(300, data.length * 36)}
+        height={compact ? '100%' : Math.max(300, data.length * (sharedTimeAxis ? 42 : 36))}
         minWidth={0}
-        initialDimension={{ width: 320, height: compact ? 240 : Math.max(300, data.length * 36) }}
+        initialDimension={{ width: 320, height: compact ? 240 : Math.max(300, data.length * (sharedTimeAxis ? 42 : 36)) }}
       >
-        <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+        <BarChart data={chartData} layout="vertical" margin={timeMargin}>
           <XAxis
             type="number"
-            tickFormatter={formatDayOffset}
+            tickFormatter={formatYearTick}
             stroke={textColor}
             tick={{ fontSize: 12, fill: textColor }}
-            domain={[0, 'dataMax']}
+            domain={SHARED_AXIS_DOMAIN}
+            ticks={SHARED_AXIS_TICKS}
+            allowDecimals={false}
+            interval={0}
+            minTickGap={0}
+            padding={{ left: 0, right: 0 }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
           />
           <YAxis
             type="category"
             dataKey="name"
             stroke={textColor}
-            tick={{ fontSize: 11, fill: textColor }}
-            width={140}
+            width={sharedTimeAxis ? SHARED_Y_AXIS_WIDTH : 140}
+            interval={0}
+            tick={sharedTimeAxis
+              ? (props) => <CampaignNameTick {...props} darkMode={darkMode} compact={compact} />
+              : { fontSize: 11, fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
           />
           <Tooltip
@@ -616,7 +841,7 @@ export function CampaignTimeline({ data, darkMode, compact = false }) {
                       {new Date(d.startDate).toLocaleDateString(undefined, { timeZone: 'UTC' })} to{' '}
                       {new Date(d.endDate).toLocaleDateString(undefined, { timeZone: 'UTC' })}
                     </p>
-                    <p style={{ margin: '2px 0', color: textColor }}>{d.duration} days</p>
+                    <p style={{ margin: '2px 0', color: textColor }}>{d.durationDays} days</p>
                   </div>
                 );
               }
