@@ -102,6 +102,33 @@ export async function settleTransitions(page, selector) {
     .toBe(0);
 }
 
+/**
+ * Read a measurement repeatedly until it stops changing, then return it.
+ *
+ * `settleAnimations` and `settleTransitions` only know about the Web Animations
+ * API. Recharts sizes itself from a ResizeObserver and animates on its own
+ * requestAnimationFrame loop, so a chart can still be growing when both of
+ * those report the page at rest — which is how the large-screen geometry tests
+ * failed roughly two full runs in three under parallel load, once on a chart
+ * still at its pre-resize height and once on a card that had not finished
+ * reflowing around one.
+ *
+ * A genuine regression still fails: on timeout this hands back the last read
+ * and lets the caller's assertions judge it.
+ */
+export async function stableMeasure(page, measure, { interval = 200, timeout = 10_000 } = {}) {
+  const deadline = Date.now() + timeout;
+  let previous = null;
+  let current = await page.evaluate(measure);
+  while (Date.now() < deadline) {
+    previous = JSON.stringify(current);
+    await page.waitForTimeout(interval);
+    current = await page.evaluate(measure);
+    if (JSON.stringify(current) === previous) return current;
+  }
+  return current;
+}
+
 // ---------------------------------------------------------------------------
 // Theme and first-visit state
 // ---------------------------------------------------------------------------

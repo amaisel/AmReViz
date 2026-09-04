@@ -4,6 +4,7 @@ import {
   baseUrl,
   contrastRatio,
   settleTransitions,
+  stableMeasure,
   openStory as freshVisit,
   EFFECTIVE_BG as EFFECTIVE_BACKGROUND,
 } from './helpers.js';
@@ -802,7 +803,10 @@ test.describe('Large screens', () => {
       await expect(page.locator('.data-interlude-card')).toBeVisible();
       await settled(page);
 
-      const m = await page.evaluate(() => {
+      // Recharts sizes itself outside the Web Animations API, so `settled` can
+      // report the page at rest while a chart is still growing. Read until the
+      // numbers stop moving.
+      const m = await stableMeasure(page, () => {
         const panel = document.querySelector('.desktop-event-card');
         const card = document.querySelector('.data-interlude-card');
         return {
