@@ -39,15 +39,17 @@ judgement the data never made.
 
 One test decides membership: **the war's direction, its aims, or the balance of
 forces measurably changed here.** Not the biggest engagement, not the bloodiest.
-By that test the set is 11 events, each carrying its reason in the data as
+By that test the set is 13 events, each carrying its reason in the data as
 `turningPoint`:
 
 | Year | Event | Why it turns |
 |---|---|---|
 | 1775 | Battles of Lexington and Concord | The dispute becomes a war |
+| 1776 | British Evacuation of Boston | The army's first strategic victory, and the British quit New England for good |
 | 1776 | Declaration of Independence | The aim changes from redress to independence |
 | 1776 | Battle of Trenton | Stops the rout after New York and keeps the army in being |
 | 1777 | British Surrender at Saratoga | A whole British army surrendered; it brought France in |
+| 1777 | Valley Forge Winter Encampment | The army that marched out was retrained, and held the line at Monmouth nine days later |
 | 1778 | Treaty of Alliance Signed with France | A colonial rebellion becomes a European war |
 | 1780 | Battle of Kings Mountain | Breaks Loyalist recruiting and stalls the southern strategy |
 | 1781 | Battle of Cowpens | Costs Cornwallis his light troops and starts the march to Yorktown |
@@ -56,11 +58,26 @@ By that test the set is 11 events, each carrying its reason in the data as
 | 1782 | The Commons Votes Against the War | Britain gives up the war and opens negotiations |
 | 1783 | Treaty of Paris Signed | Independence recognised, and the war formally over |
 
-It spans battles, a declaration, a treaty and a vote in the Commons, so no
-combination of the four event types describes it — which is why it is a flag on
+It spans battles, a declaration, a treaty, an encampment and a vote in the
+Commons, so no combination of the four event types describes it — which is why it is a flag on
 the event rather than a filter over types. Each event keeps the source already
 cited on its card; the selection is editorial, and arguing with it means
 arguing with the reasons above rather than with a number.
+
+Two of the thirteen were added after the first pass left them out, and the
+omission is worth recording because it shows what the test does when applied
+carelessly. Boston and Valley Forge both fail a reading of "the balance of
+forces changed" that only counts armies destroyed and territory taken, and both
+pass the one the sources actually support: the [National Park
+Service](https://www.nps.gov/articles/000/dorchester-heights-history.htm) calls
+Dorchester Heights "the first major strategic and political victory" for the
+Continental Army and "one of the most pivotal events of the Revolutionary War",
+and describes [Valley Forge](https://www.nps.gov/vafo/learn/historyculture/valley-forge-history-and-significance.htm)
+as one of the war's turning points because the army that marched out of it
+could stand against British regulars at Monmouth nine days later. A set chosen
+for strategic causation alone drifts toward the end of the war, where the chain
+to Yorktown is easiest to trace, and quietly drops the years when there was a
+question of whether an army would survive to fight at all.
 
 Reaching an event outside the set — by search, by a link, or from the data
 view — brings the rest of the story back rather than refusing to show it.

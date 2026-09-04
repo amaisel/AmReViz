@@ -677,6 +677,11 @@ test.describe('Turning points', () => {
   });
 
   test('reaching an event outside the set brings the rest of the story back', async ({ page }) => {
+    // Taken from the data, not named here: this test used to search for Valley
+    // Forge, which then joined the set and left the test asserting nothing.
+    const outside = events.find((event) => !event.turningPoint && event.type === 'battle');
+    expect(outside, 'every event is flagged').toBeTruthy();
+
     await openEvent(page, 'battles-of-lexington-and-concord');
     await page.locator('.filter-toggle-btn').click();
     await page.getByRole('button', { name: 'Turning Points', exact: true }).click();
@@ -684,10 +689,10 @@ test.describe('Turning points', () => {
 
     const search = page.getByRole('combobox', { name: 'Search historical events' });
     await search.click();
-    await search.fill('Valley Forge');
-    await page.getByRole('option').first().click();
+    await search.fill(outside.title);
+    await page.getByRole('option').filter({ hasText: outside.title }).first().click();
 
-    await expect(title(page)).toHaveText('Valley Forge Winter Encampment');
+    await expect(title(page)).toHaveText(outside.title);
     // Back to the whole story rather than a set that cannot contain it.
     await expect(page.locator('.status-chip-counter')).toHaveText(/\/51$/);
   });

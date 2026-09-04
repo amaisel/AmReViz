@@ -629,7 +629,7 @@ filters only thinned markers; once they drove the story it was a label making a
 promise the app could not keep.
 
 `turningPoint` on the event now carries both the judgement and the reason for
-it, and 11 events hold it. The test for membership is one line — the war's
+it, and 13 events hold it. The test for membership is one line — the war's
 direction, its aims, or the balance of forces measurably changed here — and it
 is written down in `docs/DATA.md` beside the reasons, so the selection can be
 argued with rather than merely counted. The set spans battles, a declaration, a
@@ -637,6 +637,16 @@ treaty and a Commons vote, which is why it cannot be a union of types.
 
 Reaching outside the set by search or by link brings the whole story back, the
 same way reaching outside a type filter does.
+
+**The first pass left out Boston and Valley Forge**, and the omission is the
+more useful half of this item. Read as "which events destroyed an army or took
+ground", the test drifts to the end of the war, where the chain to Yorktown is
+easiest to trace; it dropped the years when the question was whether there
+would be an army at all. The NPS calls Dorchester Heights the Continental
+Army's first strategic and political victory and one of the war's pivotal
+events, and Valley Forge a turning point because the army that marched out of
+it stood against British regulars at Monmouth nine days later. Both are in, and
+`docs/DATA.md` records why they were missed.
 
 Still open: "Major Battles" has the same shape of problem in miniature. It is
 every event of type `battle`, with no notion of major — Kettle Creek and
