@@ -84,7 +84,23 @@ export default function ExploreView({
   onEventChange, // New prop to sync URL
   routeEventId, // the event the address bar currently names, or null
 }) {
-  const storyItems = useMemo(() => buildStoryItems(events), [events]);
+  const [activeFilters, setActiveFilters] = useState(
+    new Set(['battle', 'political', 'diplomatic', 'military'])
+  );
+
+  // Filters drive the story, not only the map. Hiding a marker while the
+  // reader steps through every card regardless is a filter that does not
+  // filter: with "Major Battles" chosen the story walked straight on into the
+  // next political and diplomatic events, and the counter went on reading /51.
+  const filteredEvents = useMemo(
+    () => events.filter(event => activeFilters.has(event.type)),
+    [events, activeFilters]
+  );
+  const storyItems = useMemo(() => buildStoryItems(filteredEvents), [filteredEvents]);
+
+  // Where the reader is, by event rather than by position: a filter change
+  // renumbers every step, so the index alone means nothing across one.
+  const anchorIdRef = useRef(null);
 
   // Seed from the deep-linked event so the mount-time URL sync doesn't
   // clobber the requested event with event 0
@@ -101,9 +117,6 @@ export default function ExploreView({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(4000);
   const [fillColonies, setFillColonies] = useState(false);
-  const [activeFilters, setActiveFilters] = useState(
-    new Set(['battle', 'political', 'diplomatic', 'military'])
-  );
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia('(max-width: 768px)').matches
   );
@@ -118,6 +131,20 @@ export default function ExploreView({
   const currentItem = storyItems[currentIndex];
   const isInterlude = currentItem?.kind === 'interlude';
   const currentEvent = isInterlude ? currentItem.anchor : currentItem?.event;
+
+  // Record where the reader is — but not on the render that follows a filter
+  // change. The story is renumbered by then, so `currentEvent` is whatever now
+  // sits at the old index: narrowing to political events and widening again
+  // recorded that stranger and restored to it, landing the reader on the
+  // British evacuation of Boston instead of the resignation they were reading.
+  const knownStoryRef = useRef(storyItems);
+  useEffect(() => {
+    if (knownStoryRef.current !== storyItems) {
+      knownStoryRef.current = storyItems;
+      return; // the restore below owns this pass
+    }
+    if (currentEvent?.id != null) anchorIdRef.current = currentEvent.id;
+  }, [currentEvent, storyItems]);
 
   // Sync current event to URL when the selected event changes
   const lastSyncedEventId = useRef(null);
@@ -148,9 +175,20 @@ export default function ExploreView({
       // would yank us off the interlude.
       if (currentEvent?.id !== initialEventId) {
         const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === initialEventId);
+        const excluded = idx === -1
+          && events.find(event => event.id === initialEventId && !activeFilters.has(event.type));
         if (idx !== -1) {
           setCurrentIndex(idx);
           setIsPlaying(false);
+        } else if (excluded) {
+          // A link to an event the current filters exclude — a shared URL, or
+          // Back into one after narrowing the story. Turn its type back on and
+          // let the next pass land on it, rather than answering a link to
+          // Yorktown with wherever the reader happened to be.
+          anchorIdRef.current = initialEventId;
+          setIsPlaying(false);
+          setActiveFilters(prev => new Set(prev).add(excluded.type));
+          return; // not consumed: the jump happens once it is in the story
         } else if (currentEvent) {
           // A well-formed id that names no event — #/explore/99999. The story
           // stays where it is, so the address bar has to come back to it:
@@ -166,7 +204,7 @@ export default function ExploreView({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [currentEvent, initialEventId, onConsumeInitialEvent, onEventChange, storyItems]);
+  }, [currentEvent, initialEventId, onConsumeInitialEvent, onEventChange, storyItems, events, activeFilters]);
 
   const viewRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -184,11 +222,6 @@ export default function ExploreView({
 
   const currentYear = currentEvent?.year || 1773;
   const progress = ((currentIndex + 1) / storyItems.length) * 100;
-
-  const filteredEvents = useMemo(
-    () => events.filter(e => activeFilters.has(e.type)),
-    [events, activeFilters]
-  );
 
   // id -> position in the canonical order, so the "everything up to here"
   // slice below is a lookup instead of an indexOf scan per candidate.
@@ -425,12 +458,50 @@ export default function ExploreView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [storyItems.length, togglePlayback, viewMode, toggleViewMode, isMobile]);
 
+  // Put them back after a filter change: on the same event if it survived,
+  // otherwise on the nearest one that did, so narrowing to battles from a
+  // political event lands on the fighting either side of it rather than at
+  // 1765 again.
+  useEffect(() => {
+    const id = anchorIdRef.current;
+    if (id == null) return;
+
+    const exact = storyItems.findIndex(item => item.kind === 'event' && item.event.id === id);
+    if (exact !== -1) {
+      setCurrentIndex(exact);
+      return;
+    }
+
+    const position = eventOrder[id] ?? 0;
+    let nearest = 0;
+    let distance = Infinity;
+    storyItems.forEach((item, index) => {
+      if (item.kind !== 'event') return;
+      const gap = Math.abs((eventOrder[item.event.id] ?? 0) - position);
+      if (gap < distance) { distance = gap; nearest = index; }
+    });
+    setCurrentIndex(nearest);
+    // Deliberately keyed on the shape of the story rather than on the anchor:
+    // the anchor changes with every step, and depending on it would pull the
+    // reader back to it. The ref is read, not subscribed to.
+  }, [storyItems, eventOrder]);
+
   // --- Jump to an event by id (map, timeline, search, interlude charts) ---
   const jumpToEvent = useCallback((id) => {
     setIsPlaying(false);
     const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === id);
-    if (idx !== -1) setCurrentIndex(idx);
-  }, [storyItems]);
+    if (idx !== -1) {
+      setCurrentIndex(idx);
+      return;
+    }
+    // Search, the map and the data view can all name an event the current
+    // filters exclude. Answering with silence would be the worst of both:
+    // turn its type back on and let the effect above land on it.
+    const target = events.find(event => event.id === id);
+    if (!target) return;
+    anchorIdRef.current = id;
+    setActiveFilters(prev => (prev.has(target.type) ? prev : new Set(prev).add(target.type)));
+  }, [storyItems, events]);
 
   const handleMapEventClick = jumpToEvent;
   const handleSearchSelect = jumpToEvent;

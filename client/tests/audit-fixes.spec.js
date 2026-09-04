@@ -11,7 +11,12 @@ test.describe('The current event is always on the map', () => {
   // The map read its active event from the filtered marker list. A preset that
   // hid the current event's type left no active marker, flew the map to the
   // default centre and flipped the cartouche back to "The British Colonies".
-  test('a filter that hides the current type keeps its marker and cartouche', async ({ page }) => {
+  //
+  // Filters now narrow the story as well as the map, so the case has changed
+  // shape: rather than staying on an event the filter excludes, the story
+  // moves to the nearest one it keeps. What must hold either way is that the
+  // event on screen is the event on the map.
+  test('a filter that hides the current type leaves the story on the map', async ({ page }) => {
     await openEvent(page, 'siege-of-yorktown');
     const cartouche = page.locator('.cartouche-title');
     await expect(cartouche).toHaveText('The United States of America');
@@ -20,9 +25,37 @@ test.describe('The current event is always on the map', () => {
     await page.getByRole('button', { name: /Political Milestones/ }).click();
     await page.waitForTimeout(800);
 
+    // The story moved to a political event rather than being stranded.
+    await expect(page.locator('.event-card-type-badge')).toHaveText(/Political/);
+    const shown = (await title(page).textContent()).trim();
+
+    // And that event is the one the map is marking.
     await expect(page.locator('.marker-pulse-ring')).toHaveCount(1);
     await expect(cartouche).toHaveText('The United States of America');
-    await expect(page.locator('.custom-marker [role="button"][aria-label^="Siege of Yorktown"]')).toBeVisible();
+    await expect(
+      page.locator(`.custom-marker [role="button"][aria-label^="${shown}"]`),
+    ).toBeVisible();
+  });
+
+  // The safety net the case above used to test: whatever puts an event on
+  // screen, the map marks it. Search reaches outside the filters, so this is
+  // the path that can still ask the map for an event the filters exclude.
+  test('an event found outside the filters is marked on the map', async ({ page }) => {
+    await openEvent(page, 'declaration-of-independence');
+    await page.locator('.filter-toggle-btn').click();
+    await page.getByRole('button', { name: /Political Milestones/ }).click();
+    await page.waitForTimeout(600);
+
+    const search = page.getByRole('combobox', { name: 'Search historical events' });
+    await search.click();
+    await search.fill('Cowpens');
+    await page.getByRole('option').first().click();
+
+    await expect(title(page)).toHaveText('Battle of Cowpens');
+    await expect(page.locator('.marker-pulse-ring')).toHaveCount(1);
+    await expect(
+      page.locator('.custom-marker [role="button"][aria-label^="Battle of Cowpens"]'),
+    ).toBeVisible();
   });
 });
 
@@ -500,6 +533,84 @@ test.describe('Data view on a phone', () => {
         `a tap on ${part} did not select ${battleData[here.index].title}`,
       ).toHaveValue(expected);
     }
+  });
+});
+
+test.describe('The story follows the filters', () => {
+  // The filters used to hide markers and nothing else: with "Major Battles"
+  // chosen the story still walked into the next political and diplomatic
+  // events and the counter still read /51, which is a filter that does not
+  // filter. They now narrow the story itself.
+  const counter = (page) => page.locator('.status-chip-counter');
+  const openFilters = async (page) => {
+    await page.locator('.filter-toggle-btn').click();
+    await expect(page.locator('.filters-panel')).toBeVisible();
+  };
+
+  test('a preset narrows the story, and every step matches it', async ({ page }) => {
+    await openEvent(page, 'siege-of-yorktown');
+    await expect(counter(page)).toHaveText(/\/51$/);
+
+    await openFilters(page);
+    await page.getByRole('button', { name: 'Major Battles', exact: true }).click();
+
+    // 24 battles, plus the two interludes anchored to battles.
+    await expect(counter(page)).toHaveText('25/26');
+    await expect(title(page)).toHaveText('Siege of Yorktown');
+
+    // Stepping stays inside the filter rather than walking out of it.
+    for (let step = 0; step < 3; step += 1) {
+      await page.keyboard.press('ArrowRight');
+      await page.waitForTimeout(400);
+      const badge = await page.locator('.event-card-type-badge').textContent();
+      expect(badge.trim(), 'a step left the filter').toMatch(/Battle|Data Dispatch/);
+    }
+  });
+
+  test('the reader keeps their place across a filter change', async ({ page }) => {
+    await openEvent(page, 'washington-resigns-commission');
+    await openFilters(page);
+
+    // Narrowing to a filter this event belongs to keeps it on screen.
+    await page.getByRole('button', { name: 'Political Milestones', exact: true }).click();
+    await expect(title(page)).toHaveText('Washington Resigns Commission');
+    await expect(counter(page)).toHaveText('15/15');
+
+    // And widening again returns to the same event, not to the same number.
+    await page.getByRole('button', { name: 'All Events', exact: true }).click();
+    await expect(title(page)).toHaveText('Washington Resigns Commission');
+    await expect(counter(page)).toHaveText('51/51');
+  });
+
+  test('an event the filter excludes hands the reader the nearest one kept', async ({ page }) => {
+    await openEvent(page, 'declaration-of-independence');
+    await openFilters(page);
+    await page.getByRole('button', { name: 'Major Battles', exact: true }).click();
+
+    // Not back to 1765: the fighting either side of where they were.
+    await expect(counter(page)).not.toHaveText('1/26');
+    const year = Number(await page.locator('.status-chip-year').textContent());
+    expect(year, 'landed far from the event the reader was on').toBeGreaterThanOrEqual(1775);
+    await expect(page.locator('.event-card-type-badge')).toHaveText(/Battle/);
+  });
+
+  test('search reaches an event the filter excludes, and brings its type back', async ({ page }) => {
+    await openEvent(page, 'declaration-of-independence');
+    await openFilters(page);
+    await page.getByRole('button', { name: 'Political Milestones', exact: true }).click();
+    await expect(page.locator('.event-card-type-badge')).toHaveText(/Political/);
+
+    const search = page.getByRole('combobox', { name: 'Search historical events' });
+    await search.click();
+    await search.fill('Cowpens');
+    await page.getByRole('option').first().click();
+
+    // Silence would be the worst answer: the battle is shown, and battles are
+    // back in the story rather than the reader being stranded outside it.
+    await expect(title(page)).toHaveText('Battle of Cowpens');
+    await expect(
+      page.getByRole('group', { name: 'Filter events by type' }).getByRole('button', { name: /Battles/ }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

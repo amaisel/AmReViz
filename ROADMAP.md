@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npm test               # 164 tests; boots its own server on 5174
+npm test               # 169 tests; boots its own server on 5174
 npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
@@ -589,7 +589,38 @@ moved and the read came back stale. The whole row has always worked under a
 mouse. Worth recording because the wrong diagnosis nearly bought a fix for a
 bug that did not exist.
 
-### 16. Still open, unchanged
+### 16. The filters did not filter the story — fixed
+
+They hid map markers and nothing else. With "Major Battles" chosen the story
+still stepped into the next political and diplomatic events, and the counter
+still read /51: 43 markers became 24 and the reading experience did not change
+at all. Reported as "the filters don't seem to be working", which is the right
+reading of a control labelled "Filter events by type".
+
+The story is now built from the filtered events, so the counter, Prev/Next,
+the arrow keys and Play all follow the filter. Three things had to come with
+it:
+
+**The reader keeps their place, by event rather than by index.** A filter
+change renumbers every step. Narrowing to a filter the current event belongs
+to keeps it on screen; narrowing to one it does not lands on the nearest event
+that survived, rather than back at 1765.
+
+**The anchor is not recorded on the render after a filter change.** The story
+is renumbered by then, so `currentEvent` is whatever now sits at the old
+index. Recording that stranger and restoring to it moved the reader from
+Washington's resignation to the British evacuation of Boston — the same class
+of bug as the URL echo in item 6, and found the same way, by stepping through
+the change in a browser rather than by reading the code.
+
+**Search and deep links reach outside the filters.** Naming an event the
+filter excludes turns its type back on and goes there. Silence would be the
+worst answer: the reader asked for Cowpens by name.
+
+`ExploreView` deliberately still draws every marker up to the current event
+from the filtered set, so the map and the story agree on what is in view.
+
+### 17. Still open, unchanged
 
 - A 768x1024 tablet — the widest viewport the mobile layout covers — still
   hides Pensacola, the southernmost event, 36px behind the sheet. The sheet
