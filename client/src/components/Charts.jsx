@@ -74,6 +74,50 @@ const SHARED_AXIS_TICKS = [0, 1, 2, 3, 4, 5, 6];
 const SHARED_TIME_MARGIN = { top: 20, right: 16, left: 4, bottom: 4 };
 const SHARED_Y_AXIS_WIDTH = 120;
 
+// Seven year labels want about 230px of plot between them. On a phone they had
+// nothing like it: the campaign axis gives 120px of its width to the region
+// names, and what was left ran the labels into each other by up to 9.6px —
+// 1775 through 1781 rendered as one unbroken string of digits. `interval={0}`
+// is why Recharts did not drop any of its own: the two charts share a scale
+// and a tick that vanished from one but not the other would break the
+// alignment the shared axis exists for.
+//
+// So they thin together instead, on the same threshold and to the same
+// subset. Stacked in one column they are always the same width, so both reach
+// the same answer; the endpoints a reader needs to place the war — 1775 and
+// 1781 — survive either way.
+const SHARED_AXIS_TICKS_SPARSE = [0, 2, 4, 6];
+const SHARED_AXIS_DENSE_MIN_WIDTH = 380;
+
+function useSharedAxisTicks() {
+  const ref = useRef(null);
+  const [ticks, setTicks] = useState(SHARED_AXIS_TICKS);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const measure = () => {
+      const { width } = el.getBoundingClientRect();
+      if (!width) return;
+      setTicks((prev) => {
+        const next = width < SHARED_AXIS_DENSE_MIN_WIDTH ? SHARED_AXIS_TICKS_SPARSE : SHARED_AXIS_TICKS;
+        return prev === next ? prev : next;
+      });
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    observer?.observe(el);
+    // The chart inside sizes itself a frame after mount.
+    const frame = requestAnimationFrame(measure);
+    return () => {
+      observer?.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return [ref, ticks];
+}
+
 function utcYearFraction(iso) {
   const date = new Date(iso);
   const year = date.getUTCFullYear();
@@ -236,9 +280,11 @@ export function ArmyChart({
   const plotData = sharedTimeAxis
     ? data.map((d) => ({ ...d, axisYear: yearToAxis(d.year) }))
     : data;
+  const [axisRef, sharedTicks] = useSharedAxisTicks();
 
   return (
     <Motion.div
+      ref={axisRef}
       className={`chart-container ${compact ? 'compact' : ''}`}
       {...entrance(reduceMotion)}
       role="region"
@@ -293,7 +339,7 @@ export function ArmyChart({
             type={sharedTimeAxis ? 'number' : 'category'}
             dataKey={sharedTimeAxis ? 'axisYear' : 'year'}
             domain={sharedTimeAxis ? SHARED_AXIS_DOMAIN : undefined}
-            ticks={sharedTimeAxis ? SHARED_AXIS_TICKS : undefined}
+            ticks={sharedTimeAxis ? sharedTicks : undefined}
             tickFormatter={sharedTimeAxis ? formatYearTick : undefined}
             allowDecimals={false}
             interval={sharedTimeAxis ? 0 : undefined}
@@ -837,9 +883,11 @@ export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAx
   const timeMargin = sharedTimeAxis
     ? SHARED_TIME_MARGIN
     : { top: 10, right: 30, left: 10, bottom: 10 };
+  const [axisRef, sharedTicks] = useSharedAxisTicks();
 
   return (
     <Motion.div
+      ref={axisRef}
       className={`chart-container ${compact ? 'compact' : ''}`}
       {...entrance(reduceMotion, compact ? 0 : 0.35)}
       role="region"
@@ -877,7 +925,7 @@ export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAx
             stroke={textColor}
             tick={{ fontSize: 12, fill: textColor }}
             domain={SHARED_AXIS_DOMAIN}
-            ticks={SHARED_AXIS_TICKS}
+            ticks={sharedTicks}
             allowDecimals={false}
             interval={0}
             minTickGap={0}

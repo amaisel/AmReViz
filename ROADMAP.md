@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npm test               # 156 tests; boots its own server on 5174
+npm test               # 160 tests; boots its own server on 5174
 npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
@@ -537,7 +537,27 @@ Verified at 360x740, 390x844, 412x915 and 430x932 — every event clears the
 sheet, and the northern events land where they always did. Five tests in
 `audit-fixes.spec.js`, each observed to fail against the code before the fix.
 
-### 14. Still open, unchanged
+### 14. The year axis ran together on a phone — fixed
+
+Seven year labels, `interval={0}` so Recharts drops none of them, and about
+200px of plot to put them in: 1775 through 1781 rendered as one unbroken
+string of digits on the troop curve, the campaign bars and the Full Ledger.
+They overlapped by up to 9.6px at 360.
+
+`interval={0}` is not a mistake — the two charts share a scale, and a tick
+Recharts dropped from one but not the other would break the alignment the
+shared axis exists for. So they thin together instead: `useSharedAxisTicks`
+measures the chart and, under 380px, both fall back to every other year.
+Stacked in one column they are always the same width, so both reach the same
+answer, and 1775 and 1781 survive either way.
+
+The alignment test that guards this pair passed throughout. It compares the
+two charts to each other, and they were illegible in exactly the same way —
+which is the shape of the gap, not an oversight: a test that asks whether two
+things agree cannot notice that both are wrong. Four tests now measure the
+gaps between the labels themselves.
+
+### 15. Still open, unchanged
 
 - A 768x1024 tablet — the widest viewport the mobile layout covers — still
   hides Pensacola, the southernmost event, 36px behind the sheet. The sheet

@@ -237,6 +237,95 @@ test.describe('Data view', () => {
   });
 });
 
+test.describe('The shared year axis', () => {
+  // Seven labels, `interval={0}` so Recharts drops none of them, and on a
+  // phone about 200px of plot to put them in: 1775 through 1781 rendered as
+  // one unbroken string of digits, overlapping by up to 9.6px at 360. The
+  // alignment test above it passed throughout — it compared the two charts to
+  // each other, and they were illegible in exactly the same way.
+  // Year labels that share a baseline — an axis, in practice. Grouping by
+  // baseline matters: the casualties chart stacks a year against every battle
+  // row, one under another at the same x, and comparing those left-to-right
+  // reads as a 22px overlap that no one can see.
+  const axisRows = (page) => page.evaluate(() => {
+    const rows = [];
+    for (const svg of document.querySelectorAll('.recharts-surface')) {
+      if (svg.closest('.recharts-legend-wrapper')) continue;
+      const host = svg.closest('.chart-container, .interlude-chart-wrap');
+      const title = host?.querySelector('.chart-title')?.textContent?.trim()
+        || host?.getAttribute('aria-label') || 'chart';
+      const labels = [...svg.querySelectorAll('text')]
+        .map((t) => ({ text: t.textContent.trim(), box: t.getBoundingClientRect() }))
+        .filter((t) => /^1[678]\d\d$/.test(t.text) && t.box.width > 0);
+
+      const baselines = new Map();
+      for (const label of labels) {
+        const key = Math.round(label.box.top / 4);
+        if (!baselines.has(key)) baselines.set(key, []);
+        baselines.get(key).push(label);
+      }
+      for (const row of baselines.values()) {
+        if (row.length < 2) continue;
+        row.sort((a, b) => a.box.left - b.box.left);
+        rows.push({
+          title,
+          years: row.map((l) => l.text),
+          minGap: Math.min(...row.slice(1).map((l, i) => l.box.left - row[i].box.right)),
+        });
+      }
+    }
+    return rows;
+  });
+
+  // The troop curve and the campaign bars are the two on the shared scale.
+  // Colonial Trade plots 1770-76 on its own axis and is measured for
+  // legibility like everything else, but it has no business agreeing with them.
+  const SHARED = /American Troops Furnished by Year|Theater of Operations|Military Campaigns Timeline/;
+
+  const assertLegible = async (page) => {
+    const rows = await axisRows(page);
+    expect(rows.length, 'no year axis was measured').toBeGreaterThan(0);
+
+    // No chart may run its year labels together.
+    for (const row of rows) {
+      expect(row.minGap, `${row.title}: "${row.years.join(' ')}" labels touch`).toBeGreaterThanOrEqual(2);
+    }
+
+    const shared = rows.filter((row) => SHARED.test(row.title));
+    expect(shared.length, 'neither shared-axis chart was measured').toBeGreaterThan(0);
+    for (const row of shared) {
+      // Thinning must not cost the two dates that place the war.
+      expect(row.years, `${row.title} lost an endpoint`).toEqual(
+        expect.arrayContaining(['1775', '1781']),
+      );
+    }
+    // They share a scale, so they have to thin together or stop lining up.
+    const sets = [...new Set(shared.map((r) => r.years.join(',')))];
+    expect(sets.length, `the stacked charts disagree on their years: ${sets.join(' vs ')}`).toBe(1);
+  };
+
+  for (const [w, h] of [[360, 740], [390, 844], [1280, 800]]) {
+    test(`${w}x${h}: the data view's year labels are legible`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.data-stack--shared-time .recharts-surface').first()).toBeVisible();
+      await page.locator('.data-stack--shared-time').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(1200);
+      await assertLegible(page);
+    });
+  }
+
+  test("390x844: the Full Ledger's year labels are legible", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openEvent(page, 'siege-of-yorktown');
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.data-interlude-card')).toBeVisible();
+    await page.getByRole('button', { name: 'Expand event details' }).click();
+    await page.waitForTimeout(1200);
+    await assertLegible(page);
+  });
+});
+
 test.describe('Search', () => {
   test('finds by several words and by year', async ({ page }) => {
     await openEvent(page, 'boston-tea-party');
