@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './Charts';
 import BattleComparison from './BattleComparison';
 import AnimatedCounter from './AnimatedCounter';
@@ -11,11 +11,37 @@ import {
   aggregateSources,
 } from '../data/metrics';
 import { events } from '../data/events';
+import useReducedMotion from '../hooks/useReducedMotion';
 
 export default function DataView({ darkMode, onNavigateToEvent }) {
   const battles = events.filter(event => event.casualties && event.forces);
   const battleCount = events.filter(event => event.type === 'battle').length;
   const [focusedBattleId, setFocusedBattleId] = useState(battles[0]?.id);
+  const comparisonRef = useRef(null);
+  const reduceMotion = useReducedMotion();
+
+  // A row in the casualties chart answers below the chart — and the chart is
+  // ~1300px tall, taller than any viewport it is read in, so the answer landed
+  // 253px under the fold on a 1280x900 and 332px under on a phone. The click
+  // worked; nothing moved where the reader was looking, which reads exactly
+  // like a control that does nothing.
+  //
+  // Only when it is off screen: a reader who can already see the panel is
+  // comparing rows against it, and pulling the page around under them would
+  // be its own defect. The select inside the panel is not routed through here
+  // for the same reason.
+  const handleBattleSelect = useCallback((id) => {
+    setFocusedBattleId(id);
+    const panel = comparisonRef.current;
+    if (!panel) return;
+    const { top, bottom } = panel.getBoundingClientRect();
+    const offScreen = top >= window.innerHeight || bottom <= 0;
+    if (!offScreen) return;
+    panel.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'nearest',
+    });
+  }, [reduceMotion]);
 
   const handleYearClick = (year) => {
     const match = events.find(event => event.year === year);
@@ -123,15 +149,17 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
             data={battleData}
             darkMode={darkMode}
             selectedBattleId={focusedBattleId}
-            onBattleSelect={setFocusedBattleId}
+            onBattleSelect={handleBattleSelect}
           />
-          <BattleComparison
-            battles={battles}
-            darkMode={darkMode}
-            selectedId={focusedBattleId}
-            onSelect={setFocusedBattleId}
-            onOpenStory={onNavigateToEvent}
-          />
+          <div ref={comparisonRef}>
+            <BattleComparison
+              battles={battles}
+              darkMode={darkMode}
+              selectedId={focusedBattleId}
+              onSelect={setFocusedBattleId}
+              onOpenStory={onNavigateToEvent}
+            />
+          </div>
         </div>
       </section>
     </div>

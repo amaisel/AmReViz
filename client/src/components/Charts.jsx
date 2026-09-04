@@ -682,9 +682,58 @@ export function CasualtiesChart({
   const rowPx = compact ? 26 : 46;
   const chartHeight = Math.max(compact ? 160 : 280, data.length * rowPx + (compact ? 48 : 88));
 
-  const selectDatum = (state) => {
-    const index = Number(state?.activeIndex);
-    return Number.isInteger(index) ? data[index] : undefined;
+  // Which row a pointer is over, from geometry rather than from Recharts'
+  // hover state.
+  //
+  // The chart used to read `activeIndex`, which Recharts sets from whatever
+  // the pointer has moved over. A mouse always moves before it clicks, so
+  // that worked on a desktop and hid the fact that a tap has no hover phase
+  // at all: on iOS the first tap on a row raises the tooltip and the
+  // selection never happens, which is a control that does nothing to the
+  // reader holding the phone. The y-axis draws one tick per battle, evenly
+  // spaced, so the row under a point is the nearest tick centre — true
+  // whatever the input, and true across the whole row rather than only where
+  // the bar happens to reach.
+  const plotRef = useRef(null);
+  const tapStart = useRef(null);
+
+  const rowAt = (clientY) => {
+    const host = plotRef.current;
+    if (!host) return undefined;
+    const centres = [...host.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick')]
+      .map((tick) => {
+        const box = tick.getBoundingClientRect();
+        return box.top + box.height / 2;
+      });
+    if (centres.length !== data.length) return undefined;
+
+    let nearest = -1;
+    let distance = Infinity;
+    centres.forEach((centre, index) => {
+      const gap = Math.abs(centre - clientY);
+      if (gap < distance) { distance = gap; nearest = index; }
+    });
+    // Outside every row — the legend, the axis, the padding under the last bar.
+    const spacing = centres.length > 1 ? Math.abs(centres[1] - centres[0]) : 44;
+    if (nearest < 0 || distance > spacing / 2) return undefined;
+    return data[nearest];
+  };
+
+  const handlePointerDown = (event) => {
+    tapStart.current = { x: event.clientX, y: event.clientY };
+  };
+
+  const handlePointerUp = (event) => {
+    const start = tapStart.current;
+    tapStart.current = null;
+    // A scroll through the compact frame, or a drag, is not a choice of row.
+    if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) return;
+    const datum = rowAt(event.clientY);
+    if (datum?.id == null) return;
+    // Data tab: a click inspects the comparison below. Interludes still
+    // jump into the story because there is no comparison panel there.
+    if (compact) onBattleClick?.(datum.id);
+    else onBattleSelect?.(datum.id);
   };
 
   // One explicit domain for both axes: a second axis with no series bound to
@@ -725,16 +774,6 @@ export function CasualtiesChart({
         margin={{ top: compact ? 4 : 28, right: 16, left: 4, bottom: compact ? 4 : 4 }}
         barCategoryGap="22%"
         barGap={2}
-        // Recharts 3 dropped `activePayload` from the chart-level click
-        // state — it now reports `activeIndex` and `activeLabel` only.
-        onClick={(state) => {
-          const datum = selectDatum(state);
-          if (datum?.id == null) return;
-          // Data tab: a click inspects the comparison below. Interludes still
-          // jump into the story because there is no comparison panel there.
-          if (compact) onBattleClick?.(datum.id);
-          else onBattleSelect?.(datum.id);
-        }}
         onMouseMove={(state) => {
           const index = Number(state?.activeIndex);
           setHoveredIndex(Number.isInteger(index) ? index : null);
@@ -834,10 +873,24 @@ export function CasualtiesChart({
       )}
       {compact ? (
         <ScrollFrame label="Scrollable chronological battle casualty chart">
-          <div style={{ height: chartHeight }}>{plot}</div>
+          <div
+            ref={plotRef}
+            style={{ height: chartHeight }}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+          >
+            {plot}
+          </div>
         </ScrollFrame>
       ) : (
-        <div style={{ height: chartHeight }}>{plot}</div>
+        <div
+          ref={plotRef}
+          style={{ height: chartHeight }}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+        >
+          {plot}
+        </div>
       )}
       <ChartTable
         caption="Estimated casualties by major battle"

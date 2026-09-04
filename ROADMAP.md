@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npm test               # 160 tests; boots its own server on 5174
+npm test               # 164 tests; boots its own server on 5174
 npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
@@ -557,7 +557,39 @@ which is the shape of the gap, not an oversight: a test that asks whether two
 things agree cannot notice that both are wrong. Four tests now measure the
 gaps between the labels themselves.
 
-### 15. Still open, unchanged
+### 15. Tapping a battle did nothing on a phone — fixed
+
+The casualties chart read its target from Recharts' `activeIndex`, which is
+set by whatever the pointer has moved over. A mouse always moves before it
+clicks, so every desktop check passed and the one input with no hover phase
+went untested: on iOS the first tap on a row raises the tooltip and the
+selection never happens. Reported from a phone, with the tooltip open on
+Yorktown and the panel below still showing Lexington and Concord.
+
+The row under a point is now found from geometry — the y-axis draws one tick
+per battle, evenly spaced, so the nearest tick centre is the row — on
+`pointerup`, which mouse and touch both raise. A drag of more than 10px is a
+scroll rather than a choice, so the compact chart still scrolls inside its
+frame without selecting anything.
+
+Two things it uncovered on the way:
+
+**The answer was below the fold.** The chart is ~1300px tall, taller than any
+viewport it is read in, so the comparison a row updates sat 253px under the
+fold on a 1280x900 and 332px under on a phone. The click worked and nothing
+moved where the reader was looking, which reads exactly like a control that
+does nothing. Choosing a row now brings the panel into view when it is off
+screen — and only then, since a reader who can already see it is comparing
+rows against it.
+
+**The clicks were fine all along on a desktop.** An earlier reading of this
+suggested only the painted bars responded; that was a probe setting
+`select.value` directly without dispatching an event, so React's state never
+moved and the read came back stale. The whole row has always worked under a
+mouse. Worth recording because the wrong diagnosis nearly bought a fix for a
+bug that did not exist.
+
+### 16. Still open, unchanged
 
 - A 768x1024 tablet — the widest viewport the mobile layout covers — still
   hides Pensacola, the southernmost event, 36px behind the sheet. The sheet

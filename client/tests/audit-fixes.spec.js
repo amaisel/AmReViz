@@ -5,6 +5,7 @@ import {
   cardTitle as title,
   openEvent,
 } from './helpers.js';
+import { battleData } from '../src/data/metrics.js';
 
 test.describe('The current event is always on the map', () => {
   // The map read its active event from the filtered marker list. A preset that
@@ -235,6 +236,119 @@ test.describe('Data view', () => {
     expect(m.below).toBe(true);
     for (const n of m.tickLines) expect(n, 'each axis should have ticks').toBeGreaterThan(2);
   });
+
+  // The takeaway promises "Click a row to compare it below", and the row is
+  // mostly empty plot: on a square-root scale a small engagement draws a
+  // sliver a few pixels wide. The chart reads its target from `activeIndex`,
+  // which Recharts tracks from the pointer's category band rather than from
+  // the ink, so the whole row works — this pins that, because a change to how
+  // the click resolves its datum would leave the bars working and quietly
+  // shrink the target to them.
+  // Dragging the page under a finger is not a choice of row.
+  test('a scroll across the rows selects nothing', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.battle-comparison')).toBeVisible();
+    await page.waitForTimeout(1200);
+
+    const chart = page.locator('.casualties-chart');
+    await chart.locator('.recharts-bar-rectangle').first().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    const y = await chart.evaluate((el) => {
+      const first = el.querySelector('.recharts-bar-rectangle').getBoundingClientRect();
+      return first.top + first.height / 2;
+    });
+
+    const select = page.locator('.battle-select');
+    await select.selectOption('16');
+    await page.mouse.move(400, y);
+    await page.mouse.down();
+    await page.mouse.move(400, y - 200, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+    await expect(select, 'a drag across the chart selected a row').toHaveValue('16');
+  });
+
+  // The chart is ~1300px tall, so the panel a row updates is below the fold on
+  // every viewport it is read in: the click worked and nothing moved where the
+  // reader was looking.
+  test('choosing a row brings the comparison into view', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.battle-comparison')).toBeVisible();
+    await page.waitForTimeout(1200);
+
+    const chart = page.locator('.casualties-chart');
+    await chart.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+
+    const onScreen = () => page.locator('.battle-comparison').evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      return box.top < window.innerHeight && box.bottom > 0;
+    });
+
+    const bar = chart.locator('.recharts-bar-rectangle').nth(6);
+    await bar.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    expect(await onScreen(), 'the panel should start out of view for this test').toBe(false);
+
+    await bar.click({ force: true });
+    await expect.poll(onScreen, {
+      message: 'the comparison stayed off screen after a row was chosen',
+      timeout: 5_000,
+    }).toBe(true);
+  });
+
+  test('a click anywhere along a row selects that battle', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.battle-comparison')).toBeVisible();
+    await page.waitForTimeout(1200);
+
+    const chart = page.locator('.casualties-chart');
+
+    const select = page.locator('.battle-select');
+    // Everything is re-measured per click and the expected battle read from
+    // the row itself: choosing one can bring the comparison into view, which
+    // moves the chart, and a row that happens to be the battle already
+    // selected would look like a click that did nothing.
+    for (const fraction of [0.1, 0.4, 0.75, 0.95]) {
+      // Seed a selection first: choosing through the dropdown scrolls it into
+      // view, and anything measured before that is measured in the wrong place.
+      await select.selectOption(String(battleData[0].id));
+      await expect(select).toHaveValue(String(battleData[0].id));
+      // Back to the chart, where a reader clicks from. The container, not a
+      // bar: the bars are re-rendered when the selection changes.
+      await chart.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+
+      const here = await chart.evaluate((el) => {
+        const bars = [...el.querySelectorAll('.recharts-bar-rectangle')];
+        const surface = el.querySelector('.recharts-surface').getBoundingClientRect();
+        const centres = [...el.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick')]
+          .map((tick) => {
+            const box = tick.getBoundingClientRect();
+            return box.top + box.height / 2;
+          });
+        // A row that is on screen and is not the one already selected.
+        const index = centres.findIndex((y, i) => i > 0 && y > 140 && y < window.innerHeight - 140);
+        return index === -1 ? null : {
+          index,
+          y: centres[index],
+          left: Math.min(...bars.map((b) => b.getBoundingClientRect().left)),
+          right: surface.right,
+        };
+      });
+      expect(here, 'no row was on screen to click').toBeTruthy();
+      const expected = String(battleData[here.index].id);
+
+      await page.mouse.click(here.left + (here.right - here.left) * fraction, here.y);
+      await expect(
+        select,
+        `a click ${Math.round(fraction * 100)}% along the row did not select ${battleData[here.index].title}`,
+      ).toHaveValue(expected);
+    }
+  });
 });
 
 test.describe('The shared year axis', () => {
@@ -323,6 +437,69 @@ test.describe('The shared year axis', () => {
     await page.getByRole('button', { name: 'Expand event details' }).click();
     await page.waitForTimeout(1200);
     await assertLegible(page);
+  });
+});
+
+test.describe('Data view on a phone', () => {
+  // A touchscreen, so a tap is a tap rather than a synthesised click.
+  test.use({ hasTouch: true, isMobile: true });
+
+  // A tap has no hover phase. The chart used to read Recharts' `activeIndex`,
+  // which is set by whatever the pointer moved over, so a mouse — which always
+  // moves before it clicks — worked and a phone did not: on iOS the first tap
+  // raised the tooltip and the selection never happened.
+  test('a tap selects a row without hovering first', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.battle-comparison')).toBeVisible();
+    await page.waitForTimeout(1200);
+
+    const chart = page.locator('.casualties-chart');
+
+    const select = page.locator('.battle-select');
+    // Every part of the row, not only where the ink reaches: the name in the
+    // gutter, the bar, and the empty plot beyond it.
+    for (const part of ['the battle name', 'the bar', 'the empty row']) {
+      // Seed first, then measure: the dropdown scrolls itself into view.
+      await select.selectOption(String(battleData[0].id));
+      await expect(select).toHaveValue(String(battleData[0].id));
+      // Back to the chart, where a reader taps from. The container, not a bar:
+      // the bars are re-rendered when the selection changes, and a locator on
+      // one detaches mid-action.
+      await chart.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+
+      const here = await chart.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const centres = [...el.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick')]
+          .map((tick) => {
+            const b = tick.getBoundingClientRect();
+            return b.top + b.height / 2;
+          });
+        const index = centres.findIndex((y, i) => i > 0 && y > 140 && y < window.innerHeight - 140);
+        // From the plot's own geometry rather than guessed offsets: the
+        // gutter carries the battle name, the bars start where the plot does.
+        const bars = [...el.querySelectorAll('.recharts-bar-rectangle')];
+        const plotLeft = Math.min(...bars.map((b) => b.getBoundingClientRect().left));
+        const surface = el.querySelector('.recharts-surface').getBoundingClientRect();
+        return index === -1 ? null : {
+          index,
+          y: centres[index],
+          name: box.left + (plotLeft - box.left) / 2,
+          bar: plotLeft + 4,
+          empty: surface.right - 12,
+        };
+      });
+      expect(here, 'no row was on screen to tap').toBeTruthy();
+      const expected = String(battleData[here.index].id);
+
+      const x = part === 'the battle name' ? here.name : part === 'the bar' ? here.bar : here.empty;
+      await page.touchscreen.tap(x, here.y);
+      await expect(
+        select,
+        `a tap on ${part} did not select ${battleData[here.index].title}`,
+      ).toHaveValue(expected);
+    }
   });
 });
 
