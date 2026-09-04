@@ -675,11 +675,13 @@ export default function ExploreView({
       {/* Full-screen Map — CSS-hidden in cards mode; never unmount */}
       {/* `inert` both hides this from assistive tech and pulls its contents
           out of the tab order; aria-hidden alone left Leaflet's controls
-          focusable inside a hidden subtree. */}
+          focusable inside a hidden subtree. A boolean, not `''`: React 19
+          treats an empty string as false, logs an error, and drops the
+          attribute — so it was never actually applied. */}
       <div
         className="scrolly-map-container"
         ref={mapContainerRef}
-        inert={viewMode === 'cards' ? '' : undefined}
+        inert={viewMode === 'cards'}
       >
         <Map
           events={mapEvents}
