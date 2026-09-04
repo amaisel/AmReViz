@@ -89,7 +89,7 @@ npm run dev        # http://localhost:5173
 ```bash
 npm run lint       # eslint, must be clean
 npm run build      # must be clean
-npm test           # 169 tests; boots its own server on 5174
+npm test           # 172 tests; boots its own server on 5174
 npm run walkthrough   # the end-to-end walk through the whole app
 ```
 

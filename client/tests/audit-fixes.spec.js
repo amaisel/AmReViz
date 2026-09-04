@@ -6,6 +6,8 @@ import {
   openEvent,
 } from './helpers.js';
 import { battleData } from '../src/data/metrics.js';
+import { events } from '../src/data/events.js';
+import { interludes } from '../src/data/interludes.js';
 
 test.describe('The current event is always on the map', () => {
   // The map read its active event from the filtered marker list. A preset that
@@ -611,6 +613,83 @@ test.describe('The story follows the filters', () => {
     await expect(
       page.getByRole('group', { name: 'Filter events by type' }).getByRole('button', { name: /Battles/ }),
     ).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+test.describe('Turning points', () => {
+  // The preset used to be `battle + diplomatic`: every engagement plus the
+  // four treaties, 28 of 47 events, and a strict superset of the battles
+  // preset next to it. Nothing was selected for being a turning point. The
+  // judgement now lives on the events themselves.
+  test('the preset shows the flagged events and nothing else', async ({ page }) => {
+    const flagged = events.filter((event) => event.turningPoint);
+    expect(flagged.length, 'no events are flagged').toBeGreaterThan(5);
+
+    // The sequence the story should walk: each flagged event, then any
+    // interlude anchored to it. Derived from the data rather than typed out,
+    // so flagging another event extends this instead of breaking it.
+    const expected = flagged.flatMap((event) => [
+      event.title,
+      ...interludes
+        .filter((interlude) => interlude.afterEventId === event.id)
+        .map((interlude) => interlude.title),
+    ]);
+
+    await openEvent(page, 'battles-of-lexington-and-concord');
+    await page.locator('.filter-toggle-btn').click();
+    await page.getByRole('button', { name: 'Turning Points', exact: true }).click();
+
+    await expect(page.locator('.status-chip-counter')).toHaveText(`1/${expected.length}`);
+    for (let step = 0; step < expected.length; step += 1) {
+      // `toHaveText` polls, so a card still crossfading is waited out rather
+      // than sampled — reading on a timer recorded one card twice and skipped
+      // the Declaration entirely.
+      await expect(title(page), `step ${step + 1} of the turning points`)
+        .toHaveText(expected[step]);
+      if (step < expected.length - 1) await page.keyboard.press('ArrowRight');
+    }
+
+    // 24 battles under the old preset; 11 flagged events under this one.
+    expect(expected.length, 'the set has grown to most of the story').toBeLessThan(20);
+  });
+
+  // It spans battles, a declaration, a treaty and a vote in the Commons, so
+  // no union of types can describe it — which is the reason for the flag.
+  test('the set is not any union of event types', async ({ page }) => {
+    const flagged = events.filter((event) => event.turningPoint);
+    const types = [...new Set(flagged.map((event) => event.type))];
+    expect(types.length, 'a single type would not need a flag').toBeGreaterThan(2);
+    for (const type of types) {
+      const all = events.filter((event) => event.type === type);
+      expect(
+        flagged.filter((event) => event.type === type).length,
+        `every ${type} event is flagged, so the flag is doing nothing there`,
+      ).toBeLessThan(all.length);
+    }
+
+    // And each one says why it was chosen.
+    for (const event of flagged) {
+      expect(typeof event.turningPoint, `${event.title} carries no reason`).toBe('string');
+      expect(event.turningPoint.length).toBeGreaterThan(10);
+    }
+    await page.goto(`${baseUrl}#/explore/siege-of-yorktown`, { waitUntil: 'domcontentloaded' });
+    await expect(title(page)).toHaveText('Siege of Yorktown');
+  });
+
+  test('reaching an event outside the set brings the rest of the story back', async ({ page }) => {
+    await openEvent(page, 'battles-of-lexington-and-concord');
+    await page.locator('.filter-toggle-btn').click();
+    await page.getByRole('button', { name: 'Turning Points', exact: true }).click();
+    await page.waitForTimeout(500);
+
+    const search = page.getByRole('combobox', { name: 'Search historical events' });
+    await search.click();
+    await search.fill('Valley Forge');
+    await page.getByRole('option').first().click();
+
+    await expect(title(page)).toHaveText('Valley Forge Winter Encampment');
+    // Back to the whole story rather than a set that cannot contain it.
+    await expect(page.locator('.status-chip-counter')).toHaveText(/\/51$/);
   });
 });
 

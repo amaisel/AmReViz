@@ -147,6 +147,7 @@ export const events = [
     "lat": 42.4495,
     "lng": -71.231,
     "type": "battle",
+    "turningPoint": "the dispute becomes a war",
     "side": "american",
     "casualties": {
       "american": 93,
@@ -392,6 +393,7 @@ export const events = [
     "lat": 39.9489,
     "lng": -75.15,
     "type": "political",
+    "turningPoint": "the aim changes from redress to independence",
     "side": "american",
     "description": "The Continental Congress adopted Thomas Jefferson's Declaration of Independence, formally severing ties with Britain. The document articulated Enlightenment ideals of natural rights and consent of the governed, influencing democratic movements worldwide.",
     "significance": "Birth of the United States as an independent nation; defined American ideals of liberty and equality.",
@@ -507,6 +509,7 @@ export const events = [
     "lat": 40.2206,
     "lng": -74.7597,
     "type": "battle",
+    "turningPoint": "stops the rout after New York and keeps the army in being",
     "side": "american",
     "casualties": {
       "american": 5,
@@ -691,6 +694,7 @@ export const events = [
     "lat": 43.0025,
     "lng": -73.626,
     "type": "battle",
+    "turningPoint": "a whole British army surrendered; it brought France in",
     "side": "american",
     "casualties": {
       "american": 330,
@@ -773,6 +777,7 @@ export const events = [
     "lat": 48.8676,
     "lng": 2.3212,
     "type": "diplomatic",
+    "turningPoint": "a colonial rebellion becomes a European war",
     "side": "american",
     "facts": [
       {
@@ -1046,6 +1051,7 @@ export const events = [
     "lat": 35.1428,
     "lng": -81.3824,
     "type": "battle",
+    "turningPoint": "breaks Loyalist recruiting and stalls the southern strategy",
     "side": "american",
     "casualties": {
       "american": 90,
@@ -1080,6 +1086,7 @@ export const events = [
     "lat": 35.1316,
     "lng": -81.8094,
     "type": "battle",
+    "turningPoint": "costs Cornwallis his light troops and starts the march to Yorktown",
     "side": "american",
     "casualties": {
       "american": 149,
@@ -1175,6 +1182,7 @@ export const events = [
     "lat": 36.9,
     "lng": -75.7,
     "type": "battle",
+    "turningPoint": "the French fleet seals the bay; without it there is no siege",
     "side": "american",
     "combatants": {
       "american": "French Navy",
@@ -1248,6 +1256,7 @@ export const events = [
     "lat": 37.2388,
     "lng": -76.5097,
     "type": "battle",
+    "turningPoint": "ends major operations in North America",
     "side": "american",
     "casualties": {
       "american": 389,
@@ -1281,6 +1290,7 @@ export const events = [
     "lat": 51.4995,
     "lng": -0.1248,
     "type": "political",
+    "turningPoint": "Britain gives up the war and opens negotiations",
     "side": "british",
     "facts": [
       {
@@ -1309,6 +1319,7 @@ export const events = [
     "lat": 48.8566,
     "lng": 2.3522,
     "type": "diplomatic",
+    "turningPoint": "independence recognised, and the war formally over",
     "side": "american",
     "facts": [
       {

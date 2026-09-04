@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npm test               # 169 tests; boots its own server on 5174
+npm test               # 172 tests; boots its own server on 5174
 npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
@@ -620,7 +620,30 @@ worst answer: the reader asked for Cowpens by name.
 `ExploreView` deliberately still draws every marker up to the current event
 from the filtered set, so the map and the story agree on what is in view.
 
-### 17. Still open, unchanged
+### 17. "Turning Points" named a judgement the data never made — fixed
+
+The preset was `battle + diplomatic`: every engagement plus the four treaties,
+28 of the 47 events, and a strict superset of the "Major Battles" preset beside
+it. Nothing was selected for being a turning point. It went unnoticed while the
+filters only thinned markers; once they drove the story it was a label making a
+promise the app could not keep.
+
+`turningPoint` on the event now carries both the judgement and the reason for
+it, and 11 events hold it. The test for membership is one line — the war's
+direction, its aims, or the balance of forces measurably changed here — and it
+is written down in `docs/DATA.md` beside the reasons, so the selection can be
+argued with rather than merely counted. The set spans battles, a declaration, a
+treaty and a Commons vote, which is why it cannot be a union of types.
+
+Reaching outside the set by search or by link brings the whole story back, the
+same way reaching outside a type filter does.
+
+Still open: "Major Battles" has the same shape of problem in miniature. It is
+every event of type `battle`, with no notion of major — Kettle Creek and
+Yorktown weigh the same to it. Either the word goes or the data needs a second
+judgement; left alone here because that is an editorial call, not a bug.
+
+### 18. Still open, unchanged
 
 - A 768x1024 tablet — the widest viewport the mobile layout covers — still
   hides Pensacola, the southernmost event, 36px behind the sheet. The sheet

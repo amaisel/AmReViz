@@ -15,14 +15,55 @@ to its source.
 |---|---|---|
 | Battle | 24 | Engagements and sieges |
 | Political | 14 | Congresses, acts, declarations, constitutional milestones |
-| Military | 5 | Campaigns, expeditions and army movements that were not single battles |
+| Military | 5 | Campaigns, encampments and evacuations — armed activity that was not a single engagement |
 | Diplomatic | 4 | Treaties, alliances and missions abroad |
+
+The line between Battle and Military is where the estimates stop: every one
+of the 24 battles carries an outcome and 23 of them carry force and casualty
+figures, while no Military event carries either. Valley Forge, the Sullivan–
+Clinton campaign, the two evacuations and the Spanish Gulf campaign are army
+activity spread over weeks or months with no single engagement to count.
 
 23 of the 47 carry force and casualty estimates. 18 carry a period image, each
 credited to its Wikipedia source. Five happen in Europe — the Proclamation of
 Rebellion, Franklin's arrival at Passy, the Treaty of Alliance, the Commons
 vote against the war, and the Treaty of Paris — and the map widens to reach
 them rather than pretending the war was fought only on the seaboard.
+
+### Turning points
+
+The Explore view's "Turning Points" filter is a judgement, not a category. It
+used to be every battle plus the four diplomatic events — 28 of the 47, and a
+strict superset of the "Major Battles" filter beside it — which named a
+judgement the data never made.
+
+One test decides membership: **the war's direction, its aims, or the balance of
+forces measurably changed here.** Not the biggest engagement, not the bloodiest.
+By that test the set is 11 events, each carrying its reason in the data as
+`turningPoint`:
+
+| Year | Event | Why it turns |
+|---|---|---|
+| 1775 | Battles of Lexington and Concord | The dispute becomes a war |
+| 1776 | Declaration of Independence | The aim changes from redress to independence |
+| 1776 | Battle of Trenton | Stops the rout after New York and keeps the army in being |
+| 1777 | British Surrender at Saratoga | A whole British army surrendered; it brought France in |
+| 1778 | Treaty of Alliance Signed with France | A colonial rebellion becomes a European war |
+| 1780 | Battle of Kings Mountain | Breaks Loyalist recruiting and stalls the southern strategy |
+| 1781 | Battle of Cowpens | Costs Cornwallis his light troops and starts the march to Yorktown |
+| 1781 | Battle of the Chesapeake | The French fleet seals the bay; without it there is no siege |
+| 1781 | Siege of Yorktown | Ends major operations in North America |
+| 1782 | The Commons Votes Against the War | Britain gives up the war and opens negotiations |
+| 1783 | Treaty of Paris Signed | Independence recognised, and the war formally over |
+
+It spans battles, a declaration, a treaty and a vote in the Commons, so no
+combination of the four event types describes it — which is why it is a flag on
+the event rather than a filter over types. Each event keeps the source already
+cited on its card; the selection is editorial, and arguing with it means
+arguing with the reasons above rather than with a number.
+
+Reaching an event outside the set — by search, by a link, or from the data
+view — brings the rest of the story back rather than refusing to show it.
 
 ### Linking to an event
 

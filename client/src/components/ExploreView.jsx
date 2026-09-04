@@ -87,14 +87,23 @@ export default function ExploreView({
   const [activeFilters, setActiveFilters] = useState(
     new Set(['battle', 'political', 'diplomatic', 'military'])
   );
+  // Turning points are a judgement, not a type: the events after which the
+  // war's direction, its aims, or the balance of forces measurably changed.
+  // The preset used to be `battle + diplomatic`, which is every engagement
+  // plus the four treaties — 28 of 47 events, and a strict superset of the
+  // battles preset beside it. `turningPoint` on the event carries the
+  // judgement, and the reason it was made, so the set can be argued with.
+  const [turningPointsOnly, setTurningPointsOnly] = useState(false);
 
   // Filters drive the story, not only the map. Hiding a marker while the
   // reader steps through every card regardless is a filter that does not
   // filter: with "Major Battles" chosen the story walked straight on into the
   // next political and diplomatic events, and the counter went on reading /51.
   const filteredEvents = useMemo(
-    () => events.filter(event => activeFilters.has(event.type)),
-    [events, activeFilters]
+    () => events.filter(event => (
+      activeFilters.has(event.type) && (!turningPointsOnly || Boolean(event.turningPoint))
+    )),
+    [events, activeFilters, turningPointsOnly]
   );
   const storyItems = useMemo(() => buildStoryItems(filteredEvents), [filteredEvents]);
 
@@ -176,7 +185,8 @@ export default function ExploreView({
       if (currentEvent?.id !== initialEventId) {
         const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === initialEventId);
         const excluded = idx === -1
-          && events.find(event => event.id === initialEventId && !activeFilters.has(event.type));
+          && events.find(event => event.id === initialEventId
+            && (!activeFilters.has(event.type) || (turningPointsOnly && !event.turningPoint)));
         if (idx !== -1) {
           setCurrentIndex(idx);
           setIsPlaying(false);
@@ -188,6 +198,7 @@ export default function ExploreView({
           anchorIdRef.current = initialEventId;
           setIsPlaying(false);
           setActiveFilters(prev => new Set(prev).add(excluded.type));
+          if (!excluded.turningPoint) setTurningPointsOnly(false);
           return; // not consumed: the jump happens once it is in the story
         } else if (currentEvent) {
           // A well-formed id that names no event — #/explore/99999. The story
@@ -204,7 +215,7 @@ export default function ExploreView({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [currentEvent, initialEventId, onConsumeInitialEvent, onEventChange, storyItems, events, activeFilters]);
+  }, [currentEvent, initialEventId, onConsumeInitialEvent, onEventChange, storyItems, events, activeFilters, turningPointsOnly]);
 
   const viewRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -301,6 +312,9 @@ export default function ExploreView({
 
   // --- Filter toggle ---
   const toggleFilter = useCallback((type) => {
+    // Reaching for a type chip is a different question from "show me the
+    // turning points", so it drops back to filtering by type.
+    setTurningPointsOnly(false);
     setActiveFilters(prev => {
       const next = new Set(prev);
       if (next.has(type)) {
@@ -313,15 +327,20 @@ export default function ExploreView({
   }, []);
 
   // --- Preset filters ---
+  const ALL_TYPES = ['battle', 'political', 'diplomatic', 'military'];
   const FILTER_PRESETS = [
-    { label: 'All Events', filters: ['battle', 'political', 'diplomatic', 'military'] },
+    { label: 'All Events', filters: ALL_TYPES },
     { label: 'Major Battles', filters: ['battle'] },
     { label: 'Political Milestones', filters: ['political'] },
-    { label: 'Turning Points', filters: ['battle', 'diplomatic'] },
+    // Every type, narrowed to the flagged events — the set spans battles,
+    // a declaration, a treaty and a vote in the Commons, so no union of
+    // types describes it.
+    { label: 'Turning Points', filters: ALL_TYPES, turningPoints: true },
   ];
 
-  const applyPreset = useCallback((filterIds) => {
+  const applyPreset = useCallback((filterIds, turningPoints = false) => {
     setActiveFilters(new Set(filterIds));
+    setTurningPointsOnly(turningPoints);
   }, []);
 
   // --- Wheel navigation ---
@@ -501,6 +520,7 @@ export default function ExploreView({
     if (!target) return;
     anchorIdRef.current = id;
     setActiveFilters(prev => (prev.has(target.type) ? prev : new Set(prev).add(target.type)));
+    if (!target.turningPoint) setTurningPointsOnly(false);
   }, [storyItems, events]);
 
   const handleMapEventClick = jumpToEvent;
@@ -597,12 +617,13 @@ export default function ExploreView({
       <div className="filter-presets">
         {FILTER_PRESETS.map((preset) => {
           const isActive = preset.filters.length === activeFilters.size &&
-            preset.filters.every(f => activeFilters.has(f));
+            preset.filters.every(f => activeFilters.has(f)) &&
+            Boolean(preset.turningPoints) === turningPointsOnly;
           return (
             <button
               key={preset.label}
               className={`filter-preset-chip ${isActive ? 'active' : ''}`}
-              onClick={() => applyPreset(preset.filters)}
+              onClick={() => applyPreset(preset.filters, preset.turningPoints)}
             >
               {preset.label}
             </button>
@@ -680,7 +701,9 @@ export default function ExploreView({
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
       Filter
-      {activeFilterCount < 4 && (
+      {turningPointsOnly ? (
+        <span className="filter-count-badge">TP</span>
+      ) : activeFilterCount < 4 && (
         <span className="filter-count-badge">{activeFilterCount}</span>
       )}
     </button>
