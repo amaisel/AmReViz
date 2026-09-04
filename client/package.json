@@ -8,7 +8,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "fetch:images": "node scripts/fetch-event-images.mjs"
+    "fetch:images": "node scripts/fetch-event-images.mjs",
+    "test": "playwright test",
+    "walkthrough": "playwright test walkthrough.spec.js",
+    "walkthrough:shots": "WALKTHROUGH_SHOTS=1 playwright test walkthrough.spec.js",
+    "walkthrough:headed": "playwright test walkthrough.spec.js --headed"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",

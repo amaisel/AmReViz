@@ -26,18 +26,31 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 123 tests; boots its own server on 5174
+npm test               # 151 tests; boots its own server on 5174
+npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
-There is no `npm test` script — Playwright runs through `npx`. The suite starts
-its own dev server on port 5174 so a `npm run dev` on 5173 can keep running
-alongside it. Set `AMREVIZ_TEST_URL` to point the suite at a server you are
-already running instead.
+The suite starts its own dev server on port 5174 so a `npm run dev` on 5173 can
+keep running alongside it. Set `AMREVIZ_TEST_URL` to point the suite at a
+server you are already running instead.
 
-It is in three files. `ux-audit.spec.js` is the older set, largely about map
-framing and the mobile sheet's geometry. `ux-improvements.spec.js` covers
-keyboard and assistive technology, touch-target sizes, motion preference,
-routing, and the data view's click-through. `a11y-colour.spec.js` is the
+It is in five files. `walkthrough.spec.js` is the one to run after a change
+that was not aimed at any of the others: one pass over the whole app — in from
+the welcome screen, through all 47 events and 4 interludes in order, every
+control in the explore view, every chart and its table in the data view, deep
+links and Back/Forward, then the same story on a phone. It asserts breadth
+rather than detail, and every test in it fails on an uncaught exception or a
+console error — nothing else in the suite watches the console, which is how the
+`inert=""` warning on every entry to cards focus went unnoticed for as long as
+it did. The expected story sequence is derived from `src/data` rather than
+written out, so adding an event extends the walk instead of breaking it.
+`audit-fixes.spec.js` pins the explore and data bugs from the last audit pass —
+filters against the current event, the keyboard chords, returning to the
+reader's place, the end card, the casualty scale, search, and the phone
+layouts. `ux-audit.spec.js` is the older set, largely about map framing and the
+mobile sheet's geometry. `ux-improvements.spec.js` covers keyboard and
+assistive technology, touch-target sizes, motion preference, routing, and the
+data view's click-through. `a11y-colour.spec.js` is the
 colour and accessibility floor: axe over every view in both themes at both
 widths, a contrast sweep across every rendered text node, chart series and
 legend legibility, focus-ring visibility, and the checks that no meaning rests
@@ -47,8 +60,15 @@ Every test in the latter two was checked against the code from before its fix
 and observed to fail — a colour or geometry test that passes either way is
 worse than none, and several did exactly that until the checks were tightened.
 
-Five notes for anyone extending it, each of which cost a false pass or a false
+Seven notes for anyone extending it, each of which cost a false pass or a false
 failure to learn.
+
+- A `page.goto` that changes only the hash does not reload the document, so the
+  app never re-reads the address bar and boot-time routing goes untested. The
+  walkthrough goes by way of `about:blank` between deep links.
+- Keys typed while a text field holds focus belong to the field: both global
+  shortcut handlers bail out on `INPUT`, `TEXTAREA` and `SELECT`. Blur before
+  pressing `c` or `d` after touching the search box.
 
 - `test.use({ reducedMotion })` does not reach the page in this runner;
   `page.emulateMedia({ reducedMotion })` does, and the reduced-motion block

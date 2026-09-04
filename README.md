@@ -89,12 +89,20 @@ npm run dev        # http://localhost:5173
 ```bash
 npm run lint       # eslint, must be clean
 npm run build      # must be clean
-npx playwright test   # 123 tests; boots its own server on 5174
+npm test           # 151 tests; boots its own server on 5174
+npm run walkthrough   # the end-to-end walk through the whole app
 ```
 
 The suite starts its own dev server on port 5174, so `npm run dev` can keep
 running on 5173 alongside it. Set `AMREVIZ_TEST_URL` to point it at a server
 you are already running instead.
+
+`npm run walkthrough` is the repeatable pass over the whole thing: in from the
+welcome screen, through all 47 events and 4 interludes in order, every control
+in the explore view, every chart and its table in the data view, deep links and
+Back/Forward, then the same story on a phone — failing on any uncaught
+exception or console error it meets. `npm run walkthrough:shots` leaves a
+screenshot of each stop in `client/test-results/walkthrough/`.
 
 Map geometry under `client/src/data/geo/` is generated, not hand-edited:
 
