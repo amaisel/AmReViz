@@ -1,36 +1,10 @@
-import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
-
-const baseUrl = globalThis.process?.env.AMREVIZ_TEST_URL || 'http://localhost:5174/';
-
-// Wait out the card's entry transition before scanning. Framer Motion animates
-// opacity inline, and axe blends a half-faded badge against the parchment
-// behind it and reports a contrast failure that no user ever sees. Without
-// this the explore scans fail intermittently, on timing alone.
-async function settleCardAnimation(page, selector) {
-  await expect
-    .poll(
-      () =>
-        page.locator(selector).evaluate((el) => {
-          const own = Number(getComputedStyle(el).opacity);
-          const running = el
-            .getAnimations({ subtree: true })
-            // The active marker's pulse ring loops forever by design.
-            .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity);
-          return own === 1 && running.length === 0;
-        }),
-      { timeout: 10_000, message: `${selector} never finished animating` },
-    )
-    .toBe(true);
-}
-
-// Serious/critical axe violations, formatted for a readable assertion message.
-async function seriousA11yViolations(page) {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  return violations
-    .filter(({ impact }) => impact === 'serious' || impact === 'critical')
-    .map(({ id, impact, nodes }) => `${id} (${impact}) on ${nodes[0].target.join(' ')}`);
-}
+import {
+  test,
+  expect,
+  baseUrl,
+  seriousA11yViolations,
+  settleAnimations as settleCardAnimation,
+} from './helpers.js';
 
 test.describe('AmReViz UX & Accessibility Audit', () => {
   test.beforeEach(async ({ page }) => {
@@ -93,11 +67,16 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
 
   // The treaty is signed in Paris, outside the seaboard frame the map is
   // normally locked to; maxBounds used to clamp the pan and strand the marker.
+  //
+  // The `(,|$)` in these matchers rather than a bare `$`: a marker's accessible
+  // name now ends with which side held the place, because the fill colour was
+  // the only thing carrying that and a screen reader cannot see a fill. The
+  // anchor still pins one marker — it is the year that disambiguates.
   test('the story flies to Paris for the treaty', async ({ page }) => {
     await page.goto(`${baseUrl}#/explore/125`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Treaty of Paris Signed' })).toBeVisible();
 
-    const parisMarker = page.getByRole('button', { name: /^Treaty of Paris Signed, 1783$/ });
+    const parisMarker = page.getByRole('button', { name: /^Treaty of Paris Signed, 1783(,|$)/ });
     await expect(parisMarker).toBeVisible();
 
     await expect
@@ -106,7 +85,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
           page.evaluate(() => {
             const map = document.querySelector('.leaflet-container')?.getBoundingClientRect();
             const marker = [...document.querySelectorAll('.custom-marker [role="button"]')]
-              .find((el) => el.getAttribute('aria-label') === 'Treaty of Paris Signed, 1783')
+              .find((el) => /^Treaty of Paris Signed, 1783(,|$)/.test(el.getAttribute('aria-label') || ''))
               ?.getBoundingClientRect();
             if (!map || !marker) return false;
             return marker.left >= map.left && marker.right <= map.right &&
@@ -140,7 +119,155 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
       .toBe(true);
 
     // The American seaboard has to stay in frame alongside it.
-    await expect(page.getByRole('button', { name: /^Siege of Yorktown, 1781$/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Siege of Yorktown, 1781(,|$)/ })).toBeVisible();
+  });
+
+  // flyToBounds CSS-scales the start-zoom SVG, then on zoomend swaps in the
+  // destination-zoom redraw — and Leaflet's maxBounds handler may start a
+  // second pan into the clamped centre. Either one is the hitch at the end
+  // of the Atlantic hop.
+  test('the Atlantic flight does not hitch after it lands', async ({ page }) => {
+    await page.goto(`${baseUrl}#/explore/siege-of-yorktown`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Siege of Yorktown' })).toBeVisible();
+    await expect(page.locator('.leaflet-container')).toBeVisible();
+
+    const frames = await page.evaluate(() => new Promise((resolve) => {
+      window.location.hash = '#/explore/the-commons-votes-against-the-war';
+      const samples = [];
+      const start = performance.now();
+      const tick = () => {
+        const svg = document.querySelector('.leaflet-base-land-pane svg');
+        const path = svg?.querySelector('path');
+        const r = path?.getBoundingClientRect();
+        const transform = svg?.style?.transform || '';
+        const scaleMatch = /scale\(([^)]+)\)/.exec(transform);
+        const europe = document.querySelector('.europe-coast');
+        samples.push({
+          t: performance.now() - start,
+          left: r?.left ?? null,
+          top: r?.top ?? null,
+          width: r?.width ?? null,
+          euWidth: europe?.getBoundingClientRect()?.width ?? null,
+          landD: path?.getAttribute('d')?.length ?? 0,
+          euD: europe?.getAttribute('d')?.length ?? 0,
+          flying: document.querySelector('.leaflet-container')?.dataset?.amrevizFlying === '1',
+          scale: scaleMatch ? Number(scaleMatch[1]) : 1,
+        });
+        if (performance.now() - start < 3200) requestAnimationFrame(tick);
+        else resolve(samples);
+      };
+      requestAnimationFrame(tick);
+    }));
+
+    await expect(page.getByRole('heading', { name: 'The Commons Votes Against the War' })).toBeVisible();
+
+    const drawn = frames.filter((f) => f.left != null && f.width > 0);
+    expect(drawn.length, 'land chart never mounted during the flight').toBeGreaterThan(10);
+
+    const maxScale = Math.max(...drawn.map((f) => f.scale));
+    const minScale = Math.min(...drawn.map((f) => f.scale));
+    expect(
+      maxScale - minScale,
+      `land SVG was CSS-scaled during flyTo (scale ${minScale.toFixed(3)}–${maxScale.toFixed(3)})`,
+    ).toBeLessThan(0.05);
+
+    const rest = drawn[drawn.length - 1];
+    const lastFly = [...drawn].reverse().find((f) => f.flying);
+    const firstRest = lastFly && drawn.find((f) => f.t > lastFly.t && !f.flying);
+    expect(lastFly, 'flight flag never appeared on the map').toBeTruthy();
+    expect(firstRest, 'flight never cleared after landing').toBeTruthy();
+
+    const hitch = Math.hypot(rest.left - firstRest.left, rest.top - firstRest.top);
+    expect(
+      hitch,
+      `chart shifted ${hitch.toFixed(1)}px after the fly landed (${JSON.stringify({ firstRest, rest })})`,
+    ).toBeLessThan(3);
+
+    // The last flyTo `_move` used to snap 3.02 → 3.00 and re-simplify every
+    // coast at a dead stop: land width jumped ~3px and the Europe path `d`
+    // gained a few dozen vertices. Compare the last in-flight frame to the
+    // first settled one — not a wall-clock cut, which can fall mid-ease.
+    expect(
+      Math.abs((firstRest.width ?? 0) - (lastFly.width ?? 0)),
+      `land width jumped at landing (${lastFly.width} → ${firstRest.width})`,
+    ).toBeLessThan(2);
+    expect(
+      Math.abs((firstRest.euD ?? 0) - (lastFly.euD ?? 0)),
+      `Europe coast path re-simplified at landing (${lastFly.euD} → ${firstRest.euD})`,
+    ).toBeLessThan(40);
+  });
+
+  test('the return flight from Europe does not hitch after it lands', async ({ page }) => {
+    await page.goto(`${baseUrl}#/explore/the-commons-votes-against-the-war`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'The Commons Votes Against the War' })).toBeVisible();
+    await expect(page.locator('.europe-coast')).toHaveCount(1);
+
+    const frames = await page.evaluate(() => new Promise((resolve) => {
+      window.location.hash = '#/explore/siege-of-yorktown';
+      const samples = [];
+      const start = performance.now();
+      const tick = () => {
+        const svg = document.querySelector('.leaflet-base-land-pane svg');
+        const path = svg?.querySelector('path');
+        const r = path?.getBoundingClientRect();
+        const transform = svg?.style?.transform || '';
+        const scaleMatch = /scale\(([^)]+)\)/.exec(transform);
+        samples.push({
+          t: performance.now() - start,
+          left: r?.left ?? null,
+          top: r?.top ?? null,
+          width: r?.width ?? null,
+          landD: path?.getAttribute('d')?.length ?? 0,
+          flying: document.querySelector('.leaflet-container')?.dataset?.amrevizFlying === '1',
+          scale: scaleMatch ? Number(scaleMatch[1]) : 1,
+          lakes: document.querySelectorAll('.leaflet-base-water-pane path').length,
+        });
+        if (performance.now() - start < 3200) requestAnimationFrame(tick);
+        else resolve(samples);
+      };
+      requestAnimationFrame(tick);
+    }));
+
+    await expect(page.getByRole('heading', { name: 'Siege of Yorktown' })).toBeVisible();
+
+    const drawn = frames.filter((f) => f.left != null && f.width > 0);
+    expect(drawn.length, 'land chart never mounted during the return').toBeGreaterThan(10);
+
+    const maxScale = Math.max(...drawn.map((f) => f.scale));
+    const minScale = Math.min(...drawn.map((f) => f.scale));
+    expect(
+      maxScale - minScale,
+      `land SVG was CSS-scaled during the return flyTo (scale ${minScale.toFixed(3)}–${maxScale.toFixed(3)})`,
+    ).toBeLessThan(0.05);
+
+    const rest = drawn[drawn.length - 1];
+    const lastFly = [...drawn].reverse().find((f) => f.flying);
+    const firstRest = lastFly && drawn.find((f) => f.t > lastFly.t && !f.flying);
+    expect(lastFly, 'return flight flag never appeared on the map').toBeTruthy();
+    expect(firstRest, 'return flight never cleared after landing').toBeTruthy();
+
+    const hitch = Math.hypot(rest.left - firstRest.left, rest.top - firstRest.top);
+    expect(
+      hitch,
+      `chart shifted ${hitch.toFixed(1)}px after the return fly landed (${JSON.stringify({ firstRest, rest })})`,
+    ).toBeLessThan(3);
+    expect(
+      Math.abs((firstRest.width ?? 0) - (lastFly.width ?? 0)),
+      `land width jumped at the return landing (${lastFly.width} → ${firstRest.width})`,
+    ).toBeLessThan(2);
+    expect(
+      Math.abs((firstRest.landD ?? 0) - (lastFly.landD ?? 0)),
+      `land path re-simplified at the return landing (${lastFly.landD} → ${firstRest.landD})`,
+    ).toBeLessThan(80);
+
+    // Inland detail used to mount on zoomend, so lakes popped in as the
+    // camera stopped. They should already be on the chart before the last 400ms.
+    const withLakes = drawn.find((f) => f.lakes > 0);
+    expect(withLakes, 'lakes never returned on the inbound flight').toBeTruthy();
+    expect(
+      withLakes.t,
+      'lakes mounted at the landing instead of during the zoom',
+    ).toBeLessThan(2400);
   });
 
   // Events are not a march: nobody travelled Savannah → Charleston → Camden in
@@ -164,7 +291,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await page.goto(`${baseUrl}#/explore/121`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /Pensacola/ })).toBeVisible();
 
-    const marker = page.getByRole('button', { name: /Pensacola, 1781$/ });
+    const marker = page.getByRole('button', { name: /Pensacola, 1781(,|$)/ });
     await expect(marker).toBeVisible();
 
     await expect
@@ -172,7 +299,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
         page.evaluate(() => {
           const map = document.querySelector('.leaflet-container')?.getBoundingClientRect();
           const el = [...document.querySelectorAll('.custom-marker [role="button"]')]
-            .find((n) => /Pensacola, 1781$/.test(n.getAttribute('aria-label') || ''));
+            .find((n) => /Pensacola, 1781(,|$)/.test(n.getAttribute('aria-label') || ''));
           const r = el?.getBoundingClientRect();
           if (!map || !r) return false;
           return r.left >= map.left && r.right <= map.right &&
@@ -206,7 +333,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
   // the right edge with no land on screen at all.
   test('the overseas frame keeps its target on screen on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    for (const [id, label] of [[125, /Treaty of Paris Signed, 1783$/], [129, /Commons Votes Against the War, 1782$/]]) {
+    for (const [id, label] of [[125, /Treaty of Paris Signed, 1783(,|$)/], [129, /Commons Votes Against the War, 1782(,|$)/]]) {
       await page.goto(`${baseUrl}#/explore/${id}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('.leaflet-container')).toBeVisible();
 
@@ -402,7 +529,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
     await searchInput.press('ArrowDown');
     await searchInput.press('Enter');
 
-    await expect(page).toHaveURL(/#\/explore\/109$/);
+    await expect(page).toHaveURL(/#\/explore\/fall-of-fort-ticonderoga$/);
     await expect(page.getByRole('heading', { name: 'Fall of Fort Ticonderoga' })).toBeVisible();
     await expect(page.getByText('July 2, 1777 – July 6, 1777')).toBeVisible();
   });
@@ -637,7 +764,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
 
     await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Search historical events' })).toBeVisible();
-    // Exact, or this also matches the "Major Battles" preset chip beside it.
+    // Exact: the type chips and the presets share words.
     await expect(page.getByRole('button', { name: 'Battles', exact: true })).toBeVisible();
   });
 

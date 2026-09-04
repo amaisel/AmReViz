@@ -3,7 +3,9 @@ import { MapContainer, Marker, Polyline, useMap, GeoJSON, Pane } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
-import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
+import { MOBILE_SHEET_PEEK_MAX, MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
+import { SIDES } from '../constants/palette';
+import useReducedMotion from '../hooks/useReducedMotion';
 
 // One renderer per pane, not one for the whole chart.
 //
@@ -21,6 +23,49 @@ const LAND_SVG = chartRenderer('base-land');
 const COLONY_SVG = chartRenderer('colonies');
 const WATER_SVG = chartRenderer('base-water');
 
+// flyTo fires `zoom` with `{flyTo: true}` each frame, not `zoomanim` —
+// except the last `_move`, which has no flag and would CSS-scale then
+// swap. `_amrevizFlying` covers that landing frame too.
+const origRendererOnZoom = L.Renderer.prototype._onZoom;
+L.Renderer.prototype._onZoom = function onZoom(ev) {
+  if (this._map && (ev?.flyTo || this._map._amrevizFlying)) {
+    const held = this._map._animatingZoom;
+    this._map._animatingZoom = false;
+    this._update();
+    for (const id in this._layers) {
+      this._layers[id]._reset();
+    }
+    this._map._animatingZoom = held;
+    stampFlyState(this._map);
+    return;
+  }
+  origRendererOnZoom.call(this, ev);
+};
+
+function stampFlyState(map) {
+  const el = map?._container;
+  if (el) el.dataset.amrevizFlying = map._amrevizFlying ? '1' : '0';
+}
+
+// The last flyTo `_move` omits `{flyTo:true}` and snaps to the exact target
+// zoom. That is often 3.02 → 3.00 — small, but smoothFactor re-simplifies
+// every coast at a dead stop, which reads as a hitch. Lock onto the
+// destination zoom for the last ~0.08 of the interpolation so the paths
+// are already drawn at the landing zoom while the camera is still moving.
+// `pinch` forces a `zoom` event even after the zoom value stops changing,
+// so the renderer keeps following the remaining pan.
+const origMapMove = L.Map.prototype._move;
+L.Map.prototype._move = function amrevizMove(center, zoom, data, suppressEvent) {
+  if (this._amrevizFlying && zoom != null) {
+    const target = this._amrevizFlyTargetZoom;
+    if (target != null && Math.abs(zoom - target) < 0.08) {
+      zoom = target;
+    }
+    data = { ...data, flyTo: true, pinch: true };
+  }
+  return origMapMove.call(this, center, zoom, data, suppressEvent);
+};
+
 const getSymbolSvg = (type, color) => {
   switch (type) {
     case 'battle':
@@ -36,19 +81,25 @@ const getSymbolSvg = (type, color) => {
   }
 };
 
+// Which side prevailed is drawn on the map as a fill colour and nothing else.
+// Navy against crimson survives most colour vision, but it sits at 64 in RGB
+// distance under protanopia, and a reader using a screen reader has no access
+// to it at all. Saying it in the marker's accessible name costs nothing and
+// removes the dependence on colour outright.
+const SIDE_LABELS = {
+  american: 'American-held',
+  british: 'British-held',
+};
+
 const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => {
   const { type, side } = event;
-  const colors = {
-    american: '#1e3a5f',
-    british: '#8b2323'
-  };
 
   // Depth-of-field: markers far from active shrink and fade
   const depthScale = isActive ? 1 : (0.65 + 0.35 * proximity);
   const baseSize = isActive ? 44 : 34;
   const size = Math.round(baseSize * depthScale);
   const depthOpacity = isFuture ? 0.2 : (isActive ? 1 : (0.45 + 0.55 * proximity));
-  const borderColor = colors[side] || '#1e3a5f';
+  const borderColor = SIDES[side] || SIDES.american;
   const bgColor = isActive ? borderColor : '#fffef5';
   const textColor = isActive ? '#fffef5' : borderColor;
   const shadowOpacity = isFuture ? 0.08 : (isActive ? 0.45 : 0.12 * proximity);
@@ -59,6 +110,14 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
   const pulseRing = isActive ? `
     <div class="marker-pulse-ring" style="
       position: absolute;
+      /* Decorative, and 8px wider than the marker on every side, so its
+         overhang is the topmost thing in that band and takes the click.
+         Measured at event 5: three neighbours — Lexington and Concord, Bunker
+         Hill, and Boston — returned the ring from elementFromPoint at their
+         own centres, so they simply could not be selected. The markers cluster
+         hardest around Boston and New York, which is where the story spends
+         most of its time. */
+      pointer-events: none;
       top: ${-(pulseSize - size) / 2}px;
       left: ${-(pulseSize - size) / 2}px;
       width: ${pulseSize}px;
@@ -81,7 +140,7 @@ const createEventIcon = (event, isActive, isFuture = false, proximity = 1.0) => 
         <div
           role="button"
           tabindex="0"
-          aria-label="${event.title}${event.date ? `, ${new Date(event.date).getUTCFullYear()}` : ''}"
+          aria-label="${event.title}${event.date ? `, ${new Date(event.date).getUTCFullYear()}` : ''}${SIDE_LABELS[side] ? `, ${SIDE_LABELS[side]}` : ''}"
           style="
           width: ${size}px;
           height: ${size}px;
@@ -232,6 +291,10 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
   const prevCenterRef = useRef(null);
   const prevZoomRef = useRef(null);
   const [resizeTick, setResizeTick] = useState(0);
+  // A 2.4s flight across the Atlantic is exactly the kind of large-area motion
+  // the preference exists to suppress; the destination is what carries the
+  // meaning, so reduced motion cuts to it rather than slowing it down.
+  const reduceMotion = useReducedMotion();
 
   // The container is usually still laying out when the first positioning runs,
   // so `getSize()` under-reports and the offset that lifts the target clear of
@@ -239,6 +302,10 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
   // marker straddling the sheet edge. Re-aim once the real size is known.
   useEffect(() => {
     const reaim = () => {
+      // Nulling the target mid-flight makes the next run treat this as a
+      // first positioning and `fitBounds` instantly — a snap at whatever
+      // moment the story card finished laying out.
+      if (map._amrevizFlying) return;
       prevCenterRef.current = null;
       setResizeTick((t) => t + 1);
     };
@@ -246,12 +313,31 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
     return () => { map.off('resize', reaim); };
   }, [map]);
 
+  const boundsHoldRef = useRef(null);
+
   // MapContainer props are only read at mount, so the frame has to be
   // resized imperatively when the story crosses the Atlantic. This must
   // happen before the camera moves, or maxBounds clamps the flight.
+  //
+  // Write the options rather than calling setMinZoom/setMaxBounds: setMinZoom
+  // animates a clamp (Atlantic zoom 3 → seaboard floor 5) before flyTo can
+  // run, and setMaxBounds starts an animated panInsideBounds that then
+  // finishes as a hitch after the flight.
   useEffect(() => {
-    map.setMinZoom(minZoom);
-    map.setMaxBounds(maxBounds);
+    if (map.options.minZoom !== minZoom) {
+      // Leaflet's map is a mutable imperative handle, not React state, and
+      // `useMap()` returns the same instance for the life of the container.
+      // The rule cannot tell those apart, and the setters are unusable here
+      // for the reason given above.
+      // eslint-disable-next-line react-hooks/immutability
+      map.options.minZoom = minZoom;
+      map.fire('zoomlevelschange');
+    }
+    const bounds = L.latLngBounds(maxBounds);
+    map.options.maxBounds = bounds;
+    if (!map.listens('moveend', map._panInsideMaxBounds)) {
+      map.on('moveend', map._panInsideMaxBounds);
+    }
   }, [map, maxBounds, minZoom]);
 
   useEffect(() => {
@@ -272,8 +358,11 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
     // (interlude height jumps must not yank the camera).
     if (!centerChanged && !zoomChanged) return;
 
-    // Aim at the visible strip above the bottom card/sheet.
-    const offsetPx = (map.getSize().y * coveredRatio) / 2;
+    // Aim at the visible strip above the bottom card/sheet. Capped in pixels
+    // the way the sheet's own height is: read from the map's live size rather
+    // than from the viewport, so a re-aim after a resize uses what is there.
+    const covered = Math.min(map.getSize().y * coveredRatio, MOBILE_SHEET_PEEK_MAX);
+    const offsetPx = coveredRatio ? covered / 2 : 0;
     const target = map.unproject(
       map.project(center, zoom).add([0, offsetPx]),
       zoom
@@ -283,15 +372,61 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
       ? Math.hypot(prevCenter[0] - center[0], prevCenter[1] - center[1])
       : 0;
 
-    map.stop();
+    // Public stop() also setZoom(_limitZoom), which snaps a fractional
+    // crossing zoom and can start a CSS zoom animation under the flight.
+    map._stop();
 
     const bottomPadding = [0, Math.round(map.getSize().y * coveredRatio)];
 
-    if (prevCenter == null) {
-      // First positioning — a deep link, or the first render. Land on the
-      // target immediately: a 2.4s flight in from the default centre is
-      // wasted motion, and `panTo` cannot change zoom, which a deep link
-      // straight to an overseas event needs it to.
+    const willFly = prevCenter != null && !reduceMotion && (Boolean(fitBounds) || zoomChanged);
+    if (willFly) {
+      // Same imperative Leaflet handle as above; these flags are read by the
+      // renderer hooks at the top of the file, not by React.
+      // eslint-disable-next-line react-hooks/immutability
+      map._amrevizFlying = true;
+      if (fitBounds) {
+        map._amrevizFlyTargetZoom = map._getBoundsCenterZoom(
+          L.latLngBounds(fitBounds),
+          { paddingBottomRight: bottomPadding },
+        ).zoom;
+      } else {
+        map._amrevizFlyTargetZoom = zoom;
+      }
+      // Clear after moveend, not zoomend: zoomend runs before the landing
+      // `_update`, and a trailing move still needs the fly renderer path.
+      map.once('moveend', () => {
+        map._amrevizFlying = false;
+        map._amrevizFlyTargetZoom = null;
+        stampFlyState(map);
+      });
+      stampFlyState(map);
+    }
+
+    // Keep Leaflet's moveend bounds clamp from starting a second pan after
+    // flyTo. The flag is what panInsideBounds uses to avoid recursing; hold
+    // it through this moveend, then release.
+    if (boundsHoldRef.current) {
+      map.off('moveend', boundsHoldRef.current);
+    }
+    // Leaflet's own internal flag, and setting it is how panInsideBounds is
+    // kept from recursing. (The lint rule reports one mutation per hook value,
+    // so the directive above covers this write too.)
+    map._enforcingBounds = true;
+    const releaseBounds = () => {
+      queueMicrotask(() => {
+        map._enforcingBounds = false;
+        boundsHoldRef.current = null;
+      });
+    };
+    boundsHoldRef.current = releaseBounds;
+    map.once('moveend', releaseBounds);
+
+    if (prevCenter == null || reduceMotion) {
+      // First positioning — a deep link, or the first render — or a reader who
+      // asked for reduced motion. Land on the target immediately: a 2.4s
+      // flight in from the default centre is wasted motion, and `panTo`
+      // cannot change zoom, which a deep link straight to an overseas event
+      // needs it to.
       if (fitBounds) {
         map.fitBounds(fitBounds, { paddingBottomRight: bottomPadding, animate: false });
       } else {
@@ -305,9 +440,9 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
         paddingBottomRight: bottomPadding,
       });
     } else if (zoomChanged) {
-      // Coming back from overseas. flyTo has to reproject every path per
-      // frame, which is why it is reserved for the handful of steps a
-      // same-zoom pan cannot reach at all.
+      // Coming back from overseas. The flyTo renderer hook reprojects every
+      // path per frame so the landing isn't a CSS-scale swap — reserved for
+      // the handful of steps a same-zoom pan cannot reach at all.
       map.flyTo(target, zoom, { duration: 2.4, easeLinearity: 0.25 });
     } else {
       // Short same-zoom pan. Geo is simplified and zoom is fixed, so mid-pan
@@ -321,7 +456,15 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
 
     prevCenterRef.current = center;
     prevZoomRef.current = zoom;
-  }, [center, zoom, map, autoFly, coveredRatio, fitBounds, resizeTick]);
+
+    return () => {
+      if (boundsHoldRef.current) {
+        map.off('moveend', boundsHoldRef.current);
+        map._enforcingBounds = false;
+        boundsHoldRef.current = null;
+      }
+    };
+  }, [center, zoom, map, autoFly, coveredRatio, fitBounds, resizeTick, reduceMotion]);
 
   return null;
 }
@@ -336,10 +479,16 @@ function useIsWideFrame() {
   const [wide, setWide] = useState(() => map.getZoom() < INLAND_DETAIL_ZOOM);
 
   useEffect(() => {
-    const update = () => setWide(map.getZoom() < INLAND_DETAIL_ZOOM);
-    map.on('zoomend', update);
+    // Follow zoom during flyTo, not only zoomend. Waiting until the flight
+    // lands mounted lakes, rivers, and colony labels in one frame — that was
+    // the hitch at the end of the return from Europe.
+    const update = () => {
+      const next = map.getZoom() < INLAND_DETAIL_ZOOM;
+      setWide((prev) => (prev === next ? prev : next));
+    };
+    map.on('zoom zoomend', update);
     update();
-    return () => { map.off('zoomend', update); };
+    return () => { map.off('zoom zoomend', update); };
   }, [map]);
 
   return wide;
@@ -566,6 +715,11 @@ function ColonyLabels({ boundaries, darkMode }) {
             position={[props.labelLat, props.labelLng]}
             icon={createColonyLabel(props.abbrev, darkMode)}
             interactive={false}
+            // `interactive: false` only stops mouse handlers. Leaflet still
+            // stamps role="button" and tabindex="0" on the icon while
+            // `keyboard` is on, which put every decorative label in the tab
+            // order ahead of the markers that actually do something.
+            keyboard={false}
           />
         );
       })}
@@ -603,6 +757,7 @@ const PeriodLabels = memo(({ darkMode, atlantic }) => (
         key={label.text}
         position={[label.lat, label.lng]}
         interactive={false}
+        keyboard={false}
         icon={L.divIcon({
           className: 'period-map-label',
           html: `<span class="period-label-text ${label.kind} ${darkMode ? 'dark' : ''}" style="transform: translate(-50%, -50%) rotate(${label.rotate}deg)">${label.text}</span>`,
@@ -652,6 +807,7 @@ const TrailYearMarkers = memo(({ events, activeEventId, darkMode }) => {
               iconAnchor: [18, -6],
             })}
             interactive={false}
+            keyboard={false}
           />
         );
       }
@@ -661,86 +817,29 @@ const TrailYearMarkers = memo(({ events, activeEventId, darkMode }) => {
   }, [visibleEvents, darkMode]);
 });
 
-function MapLegend({ darkMode, timelineOpen }) {
-  const items = [
-    { type: 'battle', label: 'Battle', border: '#7A1212' },
-    { type: 'political', label: 'Political', border: '#0A244A' },
-    { type: 'diplomatic', label: 'Diplomatic', border: '#C5A02F' },
-    { type: 'military', label: 'Military', border: '#228B22' },
-  ];
-
-  const sides = [
-    { color: '#1e3a5f', label: 'American' },
-    { color: '#8b2323', label: 'British' },
-  ];
-
-  const getLegendSymbol = (type, color) => {
-    switch (type) {
-      case 'battle':
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <line x1="4" y1="4" x2="12" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
-            <line x1="12" y1="4" x2="4" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
-          </svg>
-        );
-      case 'political':
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <rect x="3.5" y="2" width="9" height="12" rx="1" stroke={color} strokeWidth="1.6" fill="none"/>
-            <line x1="5.5" y1="5.5" x2="10.5" y2="5.5" stroke={color} strokeWidth="1.2"/>
-            <line x1="5.5" y1="8" x2="10.5" y2="8" stroke={color} strokeWidth="1.2"/>
-            <line x1="5.5" y1="10.5" x2="8.5" y2="10.5" stroke={color} strokeWidth="1.2"/>
-          </svg>
-        );
-      case 'diplomatic':
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <circle cx="8" cy="8" r="5" stroke={color} strokeWidth="1.6" fill="none"/>
-            <circle cx="8" cy="8" r="2" fill={color}/>
-          </svg>
-        );
-      case 'military':
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <path d="M8 2L13 5V10C13 12.5 10.5 14.5 8 15C5.5 14.5 3 12.5 3 10V5L8 2Z" stroke={color} strokeWidth="1.6" fill="none" strokeLinejoin="round"/>
-          </svg>
-        );
-      default:
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <circle cx="8" cy="8" r="4" fill={color}/>
-          </svg>
-        );
-    }
-  };
-
-  return (
-    <div className={`map-legend ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}>
-      <h4>Legend</h4>
-      {items.map((item, i) => (
-        <div key={i} className="legend-item">
-          <span className="legend-symbol" style={{ borderColor: item.border }}>
-            {getLegendSymbol(item.type, item.border)}
-          </span>
-          <span className="legend-label">{item.label}</span>
-        </div>
-      ))}
-      <div className="legend-divider" />
-      {sides.map((s, i) => (
-        <div key={i} className="legend-item">
-          <span className="legend-dot" style={{ background: s.color }} />
-          <span className="legend-label">{s.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // West edge reaches -91 so the Gulf campaign at Pensacola (-87.2) is inside
 // the frame. The land data runs to -95, so the silhouette still has no
 // visible edge at minZoom.
 const easternSeaboardBounds = [
   [27.0, -91.0],
+  [48.0, -60.0]
+];
+
+// The phone needs slack to the south that the desktop does not.
+//
+// Lifting the active marker clear of the bottom sheet moves the map *centre*
+// southward — 219px of it on a 390x844 — so the view's south edge runs well
+// below the marker. For anything on the southern seaboard that edge fell
+// outside the 27°N floor and maxBounds refused the pan: Savannah came to rest
+// 198px below the top of the sheet, Charleston 161px, Pensacola 286px. Each of
+// them was hidden behind the card that was describing it.
+//
+// 20°N, matching where the land silhouette is clipped, is as far as the slack
+// can go without showing the clipper's straight cut across Cuba's south coast.
+// It is enough for the phone widths this layout is for; below the coast there
+// is only open sea, which is what a reader panning down there would expect.
+const seaboardBoundsMobile = [
+  [20.0, -91.0],
   [48.0, -60.0]
 ];
 
@@ -834,7 +933,9 @@ export default function Map({
   const zoom = isOverseas
     ? (isMobile ? OVERSEAS_MOBILE_ZOOM : ATLANTIC_MIN_ZOOM)
     : SEABOARD_ZOOM;
-  const maxBounds = isOverseas ? atlanticBounds : easternSeaboardBounds;
+  const maxBounds = isOverseas
+    ? atlanticBounds
+    : (isMobile ? seaboardBoundsMobile : easternSeaboardBounds);
   const minZoom = isOverseas ? ATLANTIC_MIN_ZOOM : 5;
   const fitBounds = isOverseas && !isMobile ? atlanticCrossingBounds : null;
 
@@ -928,6 +1029,13 @@ export default function Map({
         dragging={true}
         doubleClickZoom={true}
         touchZoom={true}
+        // The arrow keys belong to the story. Leaflet's keyboard handler
+        // makes the container focusable, and once a click on the sea has
+        // focused it, it pans on ← → and stops the event before the story's
+        // window listener sees it — so the keys that are meant to be the
+        // default way through the story went dead after touching the map.
+        // The markers stay reachable on their own tab stops.
+        keyboard={false}
         preferCanvas={false}
         // No map-wide renderer: every vector layer names the renderer bound to
         // its own pane, so ordering is decided by z-index rather than by which

@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { motion as Motion, AnimatePresence, useAnimation, useDragControls } from 'framer-motion';
-import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
+import { mobileSheetPeek } from '../constants/layout';
+import useReducedMotion from '../hooks/useReducedMotion';
 
 const SNAP_FULL_RATIO = 0.9;
 
@@ -8,10 +9,14 @@ const SWIPE_OFFSET = 56;
 const SWIPE_VELOCITY = 350;
 
 const snapSpring = { type: 'spring', stiffness: 300, damping: 30 };
+// The sheet still has to travel — it is a position, not an embellishment — so
+// reduced motion shortens the trip and drops the overshoot rather than
+// teleporting the panel under the reader's thumb.
+const snapDirect = { type: 'tween', duration: 0.12, ease: 'easeOut' };
 
 function getSnapPoints(vh) {
   return {
-    peek: vh * (1 - MOBILE_SHEET_PEEK_RATIO),
+    peek: vh - mobileSheetPeek(vh),
     full: vh * (1 - SNAP_FULL_RATIO),
   };
 }
@@ -34,7 +39,11 @@ export default function MobileBottomSheet({
   onNext,
   hasPrev,
   hasNext,
+  isPlaying = false,
+  onTogglePlayback,
 }) {
+  const reduceMotion = useReducedMotion();
+  const snapTransition = reduceMotion ? snapDirect : snapSpring;
   const [snapName, setSnapName] = useState('peek');
   const [panelOpen, setPanelOpen] = useState(false);
   const [vh, setVh] = useState(window.innerHeight);
@@ -67,7 +76,9 @@ export default function MobileBottomSheet({
     } catch {
       hasSeenBounce = false;
     }
-    if (!hasSeenBounce) {
+    // The bounce is pure advertisement: it exists to say "this drags". That is
+    // exactly the sort of unrequested movement the preference turns off.
+    if (!hasSeenBounce && !reduceMotion) {
       const bounce = async () => {
         await new Promise(r => setTimeout(r, 1000));
         // The hint has nothing to teach someone who already worked it out.
@@ -83,7 +94,7 @@ export default function MobileBottomSheet({
       };
       bounce();
     }
-  }, [sheetControls, snaps.peek]);
+  }, [sheetControls, snaps.peek, reduceMotion]);
 
   // Collapse back to peek when the event changes so the map stays in view
   const [lastEventId, setLastEventId] = useState(eventId);
@@ -99,14 +110,14 @@ export default function MobileBottomSheet({
   }, [snapName, eventId]);
 
   useEffect(() => {
-    sheetControls.start({ y: snaps[snapName], transition: snapSpring });
-  }, [vh, snaps, snapName, sheetControls]);
+    sheetControls.start({ y: snaps[snapName], transition: snapTransition });
+  }, [vh, snaps, snapName, sheetControls, snapTransition]);
 
   const snapTo = useCallback((name) => {
     userMovedSheet.current = true;
     setSnapName(name);
-    sheetControls.start({ y: snaps[name], transition: snapSpring });
-  }, [snaps, sheetControls]);
+    sheetControls.start({ y: snaps[name], transition: snapTransition });
+  }, [snaps, sheetControls, snapTransition]);
 
   const handleDragStart = useCallback(() => {
     userMovedSheet.current = true;
@@ -118,8 +129,8 @@ export default function MobileBottomSheet({
     const finalY = (dragStartY.current ?? snaps[snapName]) + info.offset.y;
     const [name, snapY] = closestSnap(finalY, snaps);
     setSnapName(name);
-    sheetControls.start({ y: snapY, transition: snapSpring });
-  }, [snaps, snapName, sheetControls]);
+    sheetControls.start({ y: snapY, transition: snapTransition });
+  }, [snaps, snapName, sheetControls, snapTransition]);
 
   const isFullOpen = snapName === 'full';
 
@@ -167,7 +178,7 @@ export default function MobileBottomSheet({
         const rest = snaps[snapName];
         sheetControls
           .start({ x: dx < 0 ? -14 : 14, y: rest, transition: { duration: 0.12 } })
-          .then(() => sheetControls.start({ x: 0, y: rest, transition: snapSpring }));
+          .then(() => sheetControls.start({ x: 0, y: rest, transition: snapTransition }));
       }
     };
 
@@ -177,7 +188,7 @@ export default function MobileBottomSheet({
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [hasNext, hasPrev, onNext, onPrev, snaps, snapName, sheetControls]);
+  }, [hasNext, hasPrev, onNext, onPrev, snaps, snapName, sheetControls, snapTransition]);
 
   return (
     <Motion.div
@@ -206,6 +217,23 @@ export default function MobileBottomSheet({
       }}
     >
       <div className="bottom-sheet-header">
+        {/* Step controls live in the header rather than at the foot of the
+            card. At peek the card cannot scroll, so the Prev/Next pair at its
+            bottom sat permanently below the fold — leaving a swipe, taught by
+            a hint that dismisses itself after six seconds, as the only way to
+            move. These stay put at both snap points. */}
+        <button
+          type="button"
+          className="sheet-step-btn"
+          onClick={onPrev}
+          disabled={!hasPrev}
+          aria-label="Previous event"
+        >
+          <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="10 12 6 8 10 4" />
+          </svg>
+        </button>
+
         <button
           type="button"
           className="bottom-sheet-handle"
@@ -224,18 +252,49 @@ export default function MobileBottomSheet({
 
         <button
           type="button"
-          className={`sheet-panel-toggle ${panelOpen ? 'active' : ''}`}
-          onClick={() => setPanelOpen(prev => !prev)}
-          aria-expanded={panelOpen}
-          aria-label="Story controls"
+          className="sheet-step-btn"
+          onClick={onNext}
+          disabled={!hasNext}
+          aria-label="Next event"
         >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <line x1="4" y1="9" x2="20" y2="9"/>
-            <line x1="4" y1="16" x2="20" y2="16"/>
-            <circle cx="9" cy="9" r="2.2" fill="currentColor" stroke="none"/>
-            <circle cx="15" cy="16" r="2.2" fill="currentColor" stroke="none"/>
+          <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="6 4 10 8 6 12" />
           </svg>
         </button>
+
+        {/* While the story plays, the controls panel — where Play lives —
+            closes at every event change to keep the map in view, which took
+            Pause with it: stopping meant reopening the panel and tapping
+            within the four-second window before it closed again. Pause takes
+            the panel toggle's slot for as long as playback runs. */}
+        {isPlaying ? (
+          <button
+            type="button"
+            className="sheet-panel-toggle sheet-pause-btn active"
+            onClick={onTogglePlayback}
+            aria-label="Pause playback"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="5" width="4" height="14" rx="1" />
+              <rect x="14" y="5" width="4" height="14" rx="1" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`sheet-panel-toggle ${panelOpen ? 'active' : ''}`}
+            onClick={() => setPanelOpen(prev => !prev)}
+            aria-expanded={panelOpen}
+            aria-label="Story controls"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <line x1="4" y1="9" x2="20" y2="9"/>
+              <line x1="4" y1="16" x2="20" y2="16"/>
+              <circle cx="9" cy="9" r="2.2" fill="currentColor" stroke="none"/>
+              <circle cx="15" cy="16" r="2.2" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       <AnimatePresence>

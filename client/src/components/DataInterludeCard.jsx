@@ -62,7 +62,8 @@ export default function DataInterludeCard({
 
       <p className="event-card-description">{interlude.takeaway}</p>
 
-      <div className="interlude-chart-wrap">
+      {/* Two stacked charts share the vertical room one would have had. */}
+      <div className={`interlude-chart-wrap ${interlude.chart === 'fullLedger' ? 'interlude-chart-wrap--pair' : ''}`}>
         <InterludeChart interlude={interlude} darkMode={darkMode} onBattleClick={onBattleClick} />
       </div>
 

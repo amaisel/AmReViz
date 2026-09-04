@@ -1,3 +1,4 @@
+import { useCallback, useRef, useState } from 'react';
 import { ArmyChart, TradeChart, CasualtiesChart, CampaignTimeline } from './Charts';
 import BattleComparison from './BattleComparison';
 import AnimatedCounter from './AnimatedCounter';
@@ -10,14 +11,37 @@ import {
   aggregateSources,
 } from '../data/metrics';
 import { events } from '../data/events';
+import useReducedMotion from '../hooks/useReducedMotion';
 
 export default function DataView({ darkMode, onNavigateToEvent }) {
   const battles = events.filter(event => event.casualties && event.forces);
   const battleCount = events.filter(event => event.type === 'battle').length;
+  const [focusedBattleId, setFocusedBattleId] = useState(battles[0]?.id);
+  const comparisonRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
-  const handleBattleClick = (eventId) => {
-    onNavigateToEvent?.(eventId);
-  };
+  // A row in the casualties chart answers below the chart — and the chart is
+  // ~1300px tall, taller than any viewport it is read in, so the answer landed
+  // 253px under the fold on a 1280x900 and 332px under on a phone. The click
+  // worked; nothing moved where the reader was looking, which reads exactly
+  // like a control that does nothing.
+  //
+  // Only when it is off screen: a reader who can already see the panel is
+  // comparing rows against it, and pulling the page around under them would
+  // be its own defect. The select inside the panel is not routed through here
+  // for the same reason.
+  const handleBattleSelect = useCallback((id) => {
+    setFocusedBattleId(id);
+    const panel = comparisonRef.current;
+    if (!panel) return;
+    const { top, bottom } = panel.getBoundingClientRect();
+    const offScreen = top >= window.innerHeight || bottom <= 0;
+    if (!offScreen) return;
+    panel.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'nearest',
+    });
+  }, [reduceMotion]);
 
   const handleYearClick = (year) => {
     const match = events.find(event => event.year === year);
@@ -33,9 +57,11 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
         </p>
       </header>
 
+      {/* h3, not h4: these sit directly under the h2 above, and jumping a
+          level leaves a screen reader's heading outline with a hole in it. */}
       <div className="data-insights">
         <div className="insight-card">
-          <h4>U.S. Servicemembers</h4>
+          <h3>U.S. Servicemembers</h3>
           <AnimatedCounter value={warSummaryData.servicemembers} className="insight-value" />
           <p>
             median of an estimated {warSummaryData.serviceEstimateRange[0].toLocaleString()}–
@@ -43,12 +69,12 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
           </p>
         </div>
         <div className="insight-card">
-          <h4>Recorded Battle Deaths</h4>
+          <h3>Recorded Battle Deaths</h3>
           <AnimatedCounter value={warSummaryData.battleDeaths} className="insight-value" />
           <p>official U.S. series based on incomplete returns</p>
         </div>
         <div className="insight-card">
-          <h4>Non-mortal Woundings</h4>
+          <h3>Non-mortal Woundings</h3>
           <AnimatedCounter value={warSummaryData.nonMortalWoundings} className="insight-value" />
           <p>U.S. servicemembers in the same official series</p>
         </div>
@@ -95,14 +121,15 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
 
       <section className="data-group">
         <h3 className="data-group-title">Military Strength & Theater</h3>
-        <div className="data-grid">
+        <div className="data-stack data-stack--shared-time">
           <ArmyChart
             data={armyData}
             darkMode={darkMode}
             onYearClick={handleYearClick}
             source={aggregateSources.americanManpower}
+            sharedTimeAxis
           />
-          <CampaignTimeline data={campaignData} darkMode={darkMode} />
+          <CampaignTimeline data={campaignData} darkMode={darkMode} sharedTimeAxis />
         </div>
       </section>
 
@@ -117,13 +144,22 @@ export default function DataView({ darkMode, onNavigateToEvent }) {
 
       <section className="data-group">
         <h3 className="data-group-title">Battle Analysis</h3>
-        <div className="data-grid">
+        <div className="data-stack">
           <CasualtiesChart
             data={battleData}
             darkMode={darkMode}
-            onBattleClick={handleBattleClick}
+            selectedBattleId={focusedBattleId}
+            onBattleSelect={handleBattleSelect}
           />
-          <BattleComparison battles={battles} darkMode={darkMode} />
+          <div ref={comparisonRef}>
+            <BattleComparison
+              battles={battles}
+              darkMode={darkMode}
+              selectedId={focusedBattleId}
+              onSelect={setFocusedBattleId}
+              onOpenStory={onNavigateToEvent}
+            />
+          </div>
         </div>
       </section>
     </div>

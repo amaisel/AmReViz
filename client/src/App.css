@@ -23,6 +23,10 @@
   /* Highlight Gold */
 
   /* Backgrounds & Surfaces */
+  /* Referenced by eight rules and never defined, so every one of them —
+     including the end-of-timeline card — was painting a transparent box
+     with a shadow around it. */
+  --color-white: #FFFFFF;
   --color-bg-light: #F2F0E9;
   /* Alabaster / Premium Paper */
   --color-bg-dark: #0D1117;
@@ -36,9 +40,16 @@
   /* Soft Black */
   --color-ink-light: #4A5568;
   /* Warm Grey */
+  /* Secondary text. `#888` was pasted into fourteen rules and measures 3.54:1
+     on white and 3.11:1 on the parchment — under AA everywhere it appeared,
+     including the story's own progress counter. This clears 4.5:1 on white,
+     on the parchment card and on the sheet. */
+  --color-ink-muted: #5C6472;
   --color-text-dark: #E6EDF5;
   /* Off-white Blue */
   --color-text-muted-dark: #8B949E;
+  /* Its dark-theme counterpart, 7.16:1 on the dark card. */
+  --color-ink-muted-dark: #9BA6B4;
 
   /* Depth & Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -78,6 +89,9 @@
 .chart-source,
 .comparison-source,
 .event-card-source {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
   color: var(--color-american);
   font-weight: 700;
   text-decoration: none;
@@ -104,6 +118,32 @@
   scrollbar-color: rgba(10, 36, 74, 0.28) transparent;
 }
 
+.chart-scroll-frame--y {
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: var(--compact-chart-height, 240px);
+  padding-bottom: 0;
+}
+
+/* Sticky to the frame's lower edge, so it rides over whichever rows are
+   last in view; ScrollFrame removes the class once the reader reaches the
+   end. Drawn as a fade to the card's surface rather than a hard line. */
+.chart-scroll-frame--y.has-more::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 32px;
+  margin-top: -32px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.97));
+  pointer-events: none;
+}
+
+.dark .chart-scroll-frame--y.has-more::after,
+.event-card-fixed.dark .chart-scroll-frame--y.has-more::after {
+  background: linear-gradient(to bottom, rgba(18, 22, 30, 0), rgba(18, 22, 30, 0.97));
+}
+
 .chart-scroll-frame:focus-visible {
   outline: 2px solid var(--color-gold);
   outline-offset: 3px;
@@ -112,6 +152,11 @@
 
 .chart-scroll-frame::-webkit-scrollbar {
   height: 8px;
+}
+
+.chart-scroll-frame--y::-webkit-scrollbar {
+  width: 8px;
+  height: auto;
 }
 
 .chart-scroll-frame::-webkit-scrollbar-thumb {
@@ -169,13 +214,19 @@
 .data-method-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.85rem;
-  margin-top: 0.65rem;
+  gap: 0.2rem 1.1rem;
+  margin-top: 0.5rem;
 }
 
 .data-method-links a {
+  /* These are the citations the whole view rests on, and on a phone they were
+     19px-tall targets sitting 14px apart. The link keeps its typographic
+     size; only the box a finger has to hit grows. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   color: var(--color-american);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
   text-decoration: none;
 }
@@ -207,10 +258,6 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.event-card-outcome {
-  color: #fff;
 }
 
 .event-card-campaign {
@@ -340,9 +387,40 @@
   color: #aeb6c2;
 }
 
+.comparison-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1.1rem;
+  margin-top: 0.85rem;
+}
+
+.comparison-open-story {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid rgba(10, 36, 74, 0.22);
+  border-radius: 8px;
+  background: var(--color-american);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.comparison-open-story:hover {
+  filter: brightness(1.08);
+}
+
+.dark .comparison-open-story {
+  background: #2C4B7A;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 .comparison-source {
   display: inline-flex;
-  margin-top: 0.5rem;
   font-size: 0.72rem;
 }
 
@@ -369,8 +447,17 @@
 }
 
 *:focus-visible {
-  outline: 2px solid var(--color-gold);
-  outline-offset: 4px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The masthead is deep navy in both themes, so the light-theme focus ring —
+   navy, chosen against the parchment page — measured 1.44:1 on the view
+   toggle and 1.13:1 on the theme button. The ring follows the surface it is
+   drawn on, not the page's theme. */
+.app-header {
+  --focus-ring: #F3EAD5;
+  --focus-ring-halo: #0A244A;
 }
 
 body {
@@ -883,6 +970,21 @@ body.dark-mode {
   border-bottom: none;
 }
 
+/* A zoom button at the end of its range. Leaflet's own `.leaflet-disabled`
+   fades it to #bbb on #f4f4f4 — 1.75:1, which reads as broken rather than
+   unavailable. Inactive controls are exempt from the contrast rule, but a
+   reader still has to be able to see that the control is there. */
+.map-container .leaflet-control-zoom a.leaflet-disabled {
+  color: #8A7B6B;
+  background: rgba(238, 232, 218, 0.92);
+  cursor: default;
+}
+
+.map-container.dark .leaflet-control-zoom a.leaflet-disabled {
+  color: #7C7259;
+  background: rgba(16, 21, 34, 0.9);
+}
+
 .map-container.dark .leaflet-control-zoom {
   border-color: rgba(197, 160, 47, 0.15);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -1015,7 +1117,7 @@ body.dark-mode {
 .event-date .full-date {
   display: block;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--color-ink-muted);
 }
 
 .event-line {
@@ -1124,7 +1226,7 @@ body.dark-mode {
 .timeline-footer {
   text-align: center;
   padding: 2rem 0;
-  color: #888;
+  color: var(--color-ink-muted);
   font-size: 0.85rem;
 }
 
@@ -1257,7 +1359,7 @@ body.dark-mode {
 .h-event-month {
   display: block;
   font-size: 0.7rem;
-  color: #888;
+  color: var(--color-ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.35rem;
@@ -1360,7 +1462,7 @@ body.dark-mode {
 }
 
 .nav-arrow {
-  color: #888;
+  color: var(--color-ink-muted);
   font-size: 0.75rem;
   letter-spacing: 0.1em;
 }
@@ -1475,7 +1577,9 @@ body.dark-mode {
   border-radius: 20px;
   font-size: 0.7rem;
   font-weight: 600;
-  color: white;
+  /* Foreground comes from the palette alongside the background — see
+     src/constants/palette.js. A blanket `color: white` here is what let the
+     gold and green badges ship at 2.49:1 and 4.39:1. */
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
@@ -1919,13 +2023,149 @@ body.dark-mode {
   color: #e5e5e5;
 }
 
+/* The scroll lives on the full-width container and the column is centred
+   inside it. Capping the scroller itself at 900px put its scrollbar 150px in
+   from the right edge of a 1215px window — a bar floating in the middle of the
+   parchment, scrolling a box that was not the page.
+
+   The column then grows with the viewport rather than stopping at 900px
+   whatever the screen, the same way the story panel does above 1600px. Charts
+   are the reason: they are the whole point of this view and they were reading
+   in a third of a wide display. Running text is capped in `ch` further down so
+   the prose does not stretch with them. */
 .data-view-container {
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
   padding: 2rem;
   overflow-y: auto;
   height: 100%;
+  --data-column: 900px;
+}
+
+.data-view-container > .data-view {
+  width: 100%;
+  max-width: var(--data-column);
+  margin: 0 auto;
+}
+
+@media (min-width: 1200px) {
+  .data-view-container {
+    --data-column: clamp(900px, 84vw, 1120px);
+    padding: 2rem 2.5rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  .data-view-container {
+    --data-column: clamp(1120px, 78vw, 1400px);
+    padding: 2.25rem 3rem;
+  }
+}
+
+@media (min-width: 2200px) {
+  .data-view-container {
+    --data-column: clamp(1400px, 72vw, 1760px);
+    padding: 2.5rem 3.5rem;
+  }
+}
+
+/* An ultrawide left the column at half the screen, which is the complaint this
+   whole block answers. The cap keeps climbing, slower than the viewport. */
+@media (min-width: 3000px) {
+  .data-view-container {
+    --data-column: clamp(1760px, 66vw, 2200px);
+    padding: 3rem 4rem;
+  }
+}
+
+/* The type climbs with the column, on the same reasoning as the story panel's
+   above 1600px: a wider card at the same 12.8px is a longer line of the same
+   small text. What Recharts draws inside the plot is scaled in Charts.jsx,
+   where those sizes are set as props; this is the half that lives in the DOM.
+
+   Running text is not here — the measure caps above keep the paragraphs
+   where they are, and growing them would only lengthen the line. */
+.data-view-container {
+  --data-title: 1.1rem;
+  --data-takeaway: 0.82rem;
+  --data-insight: 2.5rem;
+  --data-insight-label: 0.85rem;
+  --data-group-title: 1.4rem;
+}
+
+.data-view-container .chart-title { font-size: var(--data-title); }
+.data-view-container .chart-takeaway { font-size: var(--data-takeaway); }
+.data-view-container .insight-value { font-size: var(--data-insight); }
+.data-view-container .insight-card h3,
+.data-view-container .insight-card p { font-size: var(--data-insight-label); }
+.data-view-container .data-group-title { font-size: var(--data-group-title); }
+
+@media (min-width: 1600px) {
+  .data-view-container {
+    --data-title: 1.3rem;
+    --data-takeaway: 0.92rem;
+    --data-insight: 3rem;
+    --data-insight-label: 0.95rem;
+    --data-group-title: 1.7rem;
+  }
+}
+
+@media (min-width: 2200px) {
+  .data-view-container {
+    --data-title: 1.5rem;
+    --data-takeaway: 1.02rem;
+    --data-insight: 3.6rem;
+    --data-insight-label: 1.05rem;
+    --data-group-title: 2rem;
+  }
+}
+
+@media (min-width: 3000px) {
+  .data-view-container {
+    --data-title: 1.7rem;
+    --data-takeaway: 1.12rem;
+    --data-insight: 4.2rem;
+    --data-insight-label: 1.15rem;
+    --data-group-title: 2.3rem;
+  }
+}
+
+/* A measure is a property of a paragraph, not of the view: the charts take the
+   width, the prose stops where it stays readable. */
+@media (min-width: 1200px) {
+  .data-subtitle {
+    max-width: 64ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .data-method-note p {
+    max-width: 90ch;
+  }
+}
+
+/* Wider than that, one capped paragraph per column rather than one column of
+   text against half a card of nothing. The heading and the source links span
+   both, so the note still reads top to bottom. */
+@media (min-width: 1400px) {
+  .data-method-note {
+    display: grid;
+    /* Columns sized by the measure, not by the card: two 1fr columns put the
+       slack between the paragraphs, which read as two texts either side of a
+       void. Centred, the slack splits evenly to the outer edges instead. */
+    grid-template-columns: repeat(2, minmax(0, 62ch));
+    justify-content: center;
+    column-gap: 2.5rem;
+    align-items: start;
+  }
+
+  .data-method-note > strong,
+  .data-method-note .data-method-links {
+    grid-column: 1 / -1;
+  }
+
+  .data-method-note p + p {
+    margin-top: 0;
+  }
 }
 
 .view-loading {
@@ -2004,8 +2244,37 @@ body.dark-mode {
 }
 
 .data-grid > *,
+.data-stack > *,
 .chart-container {
   min-width: 0;
+}
+
+.data-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.data-stack--shared-time {
+  gap: 1rem;
+}
+
+/* Recharts still paints a cursor/active rect on some ticks even with
+   cursor={false}. Those boxes were the extra squares on a few rows. */
+.casualties-chart .recharts-tooltip-cursor,
+.casualties-chart .recharts-activeBar,
+.casualties-chart .recharts-rectangle.recharts-tooltip-cursor {
+  display: none;
+}
+
+/* A bar click focuses Recharts' z-index <g tabindex="-1">. Chromium then
+   draws its UA :focus ring around that group's plot-sized box. The app
+   only styles :focus-visible, so the ring survived every earlier pass. */
+.chart-container .recharts-surface:focus,
+.chart-container .recharts-surface *:focus,
+.chart-container .recharts-surface:focus-visible,
+.chart-container .recharts-surface *:focus-visible {
+  outline: none;
 }
 
 .chart-scroll-frame {
@@ -2014,6 +2283,11 @@ body.dark-mode {
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+.chart-scroll-frame--y {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 @media (min-width: 1024px) {
@@ -2104,7 +2378,7 @@ body.dark-mode {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.insight-card h4 {
+.insight-card h3 {
   font-size: 0.85rem;
   color: #666;
   margin-bottom: 0.5rem;
@@ -2112,7 +2386,7 @@ body.dark-mode {
   letter-spacing: 0.05em;
 }
 
-.dark .insight-card h4 {
+.dark .insight-card h3 {
   color: #a0a0a0;
 }
 
@@ -2667,8 +2941,30 @@ body.dark-mode {
   .welcome-screen {
     height: 100%;
     min-height: 100%;
+    /* The middle row may not shrink below its content: on a short phone
+       (an SE at 375x667) it was squeezed to fit and its overflow hidden, so
+       the three figures were cut off behind the footer and the screen,
+       exactly one viewport tall, had nothing to scroll. */
+    grid-template-rows: auto minmax(max-content, 1fr) auto;
     overflow-y: auto;
     background-size: 48px 48px, 48px 48px, auto, auto;
+  }
+
+  .welcome-atlas-layout {
+    overflow: visible;
+  }
+
+  .welcome-atlas-masthead {
+    gap: 1rem;
+  }
+
+  .welcome-atlas-eyebrow {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .welcome-atlas-theme {
+    flex-shrink: 0;
   }
 
   .welcome-atlas-frame {
@@ -2750,7 +3046,7 @@ body.dark-mode {
 
 @media (max-width: 560px) {
   .welcome-atlas-masthead {
-    min-height: 4rem;
+    min-height: 3.5rem;
   }
 
   .welcome-atlas-eyebrow {
@@ -2775,8 +3071,11 @@ body.dark-mode {
     font-size: 0.65rem;
   }
 
+  /* Tightened so the whole sheet — masthead to footer — fits a 390x664
+     viewport without scrolling. */
   .welcome-atlas-hero {
-    padding-top: clamp(2.2rem, 6vh, 3.2rem);
+    padding-top: clamp(1.5rem, 4vh, 3.2rem);
+    padding-bottom: 1.5rem;
   }
 
   .welcome-title {
@@ -2786,7 +3085,7 @@ body.dark-mode {
 
   .welcome-atlas-rule {
     width: 8.5rem;
-    margin-block: 1.35rem;
+    margin-block: 1.1rem;
   }
 
   .welcome-atlas-rule span {
@@ -2802,7 +3101,7 @@ body.dark-mode {
     align-items: stretch;
     flex-direction: column;
     gap: 0.75rem;
-    margin-top: 1.5rem;
+    margin-top: 1.25rem;
   }
 
   .welcome-atlas-action {
@@ -2823,6 +3122,7 @@ body.dark-mode {
 
   .welcome-atlas-legend {
     margin-inline: 1.5rem;
+    margin-bottom: 1.25rem;
   }
 
   .welcome-atlas-stat {
@@ -2850,8 +3150,14 @@ body.dark-mode {
     letter-spacing: 0.08em;
   }
 
+  /* Label hidden, glyph kept: the span inherits font-size, so the ring was
+     drawn around nothing. */
   .welcome-atlas-help {
     font-size: 0;
+  }
+
+  .welcome-atlas-help span {
+    font-size: 0.7rem;
   }
 }
 
@@ -3099,18 +3405,53 @@ body.dark-mode {
   margin-top: 0;
 }
 
+/* Four controls in one 60px strip: step back, the drag handle, step forward,
+   and the controls disclosure. A grid rather than absolute positioning, so
+   adding the step buttons could not push the toggle on top of them. */
 .bottom-sheet-header {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px 44px;
   align-items: center;
   flex-shrink: 0;
+  padding-right: 4px;
 }
 
-/* Absolute, so the handle stays optically centred in the row regardless of
-   this button's width, and so a press here never starts the sheet drag. */
+/* Prev / next, always reachable at both snap points. */
+.sheet-step-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  /* The sheet's own drag is claimed on the handle; a press here is a tap. */
+  touch-action: manipulation;
+}
+
+.sheet-step-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.sheet-step-btn:not(:disabled):active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.bottom-sheet.dark .sheet-step-btn {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.bottom-sheet.dark .sheet-step-btn:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .sheet-panel-toggle {
-  position: absolute;
-  right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3136,6 +3477,15 @@ body.dark-mode {
 .bottom-sheet.dark .sheet-panel-toggle.active {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
+}
+
+/* The card carries its own Prev/Next for the desktop panel. Inside the sheet
+   the header now owns stepping, so this pair is a second control with the
+   same accessible name — ambiguous to a screen reader, and it never earned
+   its keep here anyway: at peek the card cannot scroll, so it sat below the
+   fold on every event. */
+.bottom-sheet-content .event-card-nav {
+  display: none;
 }
 
 .sheet-controls-panel {
@@ -3315,12 +3665,12 @@ body.dark-mode {
 
 .status-chip-counter {
   font-size: 0.65rem;
-  color: #888;
+  color: var(--color-ink-muted);
   text-align: right;
 }
 
 .scrollytelling-view.dark .status-chip-counter {
-  color: #a0a0a0;
+  color: var(--color-ink-muted-dark);
 }
 
 /* Legend inside filters panel */
@@ -3338,7 +3688,7 @@ body.dark-mode {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: var(--color-ink-muted);
   margin-bottom: 0.35rem;
 }
 
@@ -3463,9 +3813,14 @@ body.dark-mode {
   white-space: nowrap;
 }
 
-.explore-btn:hover {
+.explore-btn:hover:not(:disabled) {
   background: var(--color-american);
   color: white;
+}
+
+.explore-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .explore-btn.active {
@@ -3494,12 +3849,19 @@ body.dark-mode {
 }
 
 .speed-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* It was 35x26 on desktop and 30x22 on a phone — a two-character label with
+     nothing but its own text box around it. */
+  min-width: 44px;
+  min-height: 40px;
   background: none;
   border: 1px solid rgba(0, 0, 0, 0.15);
   color: var(--color-ink-light);
   padding: 0.3rem 0.6rem;
   font-family: var(--font-body);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   border-radius: 6px;
   cursor: pointer;
@@ -3708,18 +4070,20 @@ body.dark-mode {
   background: rgba(139, 163, 196, 0.1);
 }
 
+/* Opaque, not frosted. This panel opens on top of the story card, and at
+   0.75 alpha the card's own prose read straight through it — a blur softens
+   text but does not hide it, and the panel's own labels then competed with
+   whatever paragraph happened to be behind them. */
 .filters-panel {
   position: absolute;
   bottom: 64px;
   left: 20px;
   z-index: 700;
-  background: var(--color-surface-light);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--color-bg-light);
   border-radius: 10px;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   box-shadow: var(--shadow-lg);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   transition: bottom 0.3s ease;
 }
 
@@ -3728,8 +4092,8 @@ body.dark-mode {
 }
 
 .scrollytelling-view.dark .filters-panel {
-  background: var(--color-surface-dark);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: #161b22;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .explore-timeline-container {
@@ -3848,9 +4212,16 @@ body.dark-mode {
   border: none;
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
-  padding: 2px;
+  /* The glyph stays 14px; the hit box around it becomes something a thumb can
+     actually land on. It was 18x18 in total. */
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: -8px -10px -8px 0;
   display: flex;
   align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }
 
 .hint-dismiss:hover {
@@ -3937,7 +4308,54 @@ body.dark-mode {
   justify-content: center;
 }
 
+/* Dark-theme counterparts for the muted ink above.
+   These selectors set `--color-ink-muted` in light mode; without a dark rule
+   the same near-grey ends up on a near-black card. Grouped here rather than
+   beside each rule so the set stays visible as a set — the original `#888`
+   spread to fourteen places precisely because nothing held them together. */
+.dark .filters-legend-title,
+.dark .search-icon,
+.dark .search-clear-btn,
+.dark .search-result-location,
+.dark .search-no-results,
+.dark .comparison-label,
+.dark .comparison-vs span,
+.dark .map-legend h4,
+.dark .event-date .full-date,
+.scrollytelling-view.dark .filters-legend-title,
+.scrollytelling-view.dark .search-icon,
+.scrollytelling-view.dark .search-clear-btn,
+.scrollytelling-view.dark .search-result-location,
+.scrollytelling-view.dark .search-no-results,
+.bottom-sheet.dark .search-icon,
+.bottom-sheet.dark .search-clear-btn,
+.bottom-sheet.dark .search-result-location,
+.bottom-sheet.dark .search-no-results {
+  color: var(--color-ink-muted-dark);
+}
+
 /* ===== MARKER PULSE ANIMATION ===== */
+/* The marker's pulse ring and the animated troop dashes loop for as long as
+   the page is open. `animation: none` is not enough for the ring: it is set
+   inline on a div Leaflet builds as an HTML string, so it needs the weight to
+   win. The active marker keeps its size and colour, so nothing that carried
+   meaning is lost — only the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .marker-pulse-ring {
+    animation: none !important;
+    opacity: 0.55;
+  }
+
+  .troop-line-animated {
+    animation: none;
+  }
+
+  .leaflet-fade-anim .leaflet-tile,
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+    transition: none !important;
+  }
+}
+
 @keyframes markerPulse {
   0% { transform: scale(1); opacity: 0.6; }
   50% { transform: scale(1.5); opacity: 0; }
@@ -3945,6 +4363,30 @@ body.dark-mode {
 }
 
 .custom-marker { background: none !important; border: none !important; }
+
+/* Touch hit area for the event markers.
+   The dot is sized by the depth-of-field rule in Map.jsx — an inactive marker
+   comes out around 31px, which reads correctly on a chart but is under the
+   touch minimum, and these dots are the primary way into an event from the
+   map. A centred pseudo-element grows the area a finger has to land in
+   without touching the drawn size, so the chart's sense of depth survives.
+   Pointer-events only; it is not painted and not in the accessibility tree. */
+@media (hover: none) and (pointer: coarse) {
+  .custom-marker [role='button'] {
+    position: relative;
+  }
+
+  .custom-marker [role='button']::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+}
 
 /* ===== TROOP MOVEMENT LINES ===== */
 .troop-line-animated {
@@ -4011,7 +4453,7 @@ body.dark-mode {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 0.5rem;
-  color: #888;
+  color: var(--color-ink-muted);
 }
 
 .legend-item {
@@ -4091,8 +4533,14 @@ body.dark-mode {
 }
 
 .filter-preset-chip {
-  padding: 0.25rem 0.65rem;
-  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  /* 22px tall was half a finger. The pill keeps its shape; only the box the
+     finger has to land in grows. 40px to match every other control the story
+     offers a thumb — a test walks that whole set and asserts the floor. */
+  min-height: 40px;
+  padding: 0.25rem 0.8rem;
+  border-radius: 18px;
   font-size: 0.72rem;
   font-weight: 600;
   font-family: var(--font-body);
@@ -4150,7 +4598,10 @@ body.dark-mode {
   background: var(--color-surface-light);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  color: var(--filter-color);
+  /* The label sits on the surface here, not on the hue, so it takes the
+     on-surface ink. Painting it in `--filter-color` put #C5A02F on near-white
+     at 2.18:1 in light mode and #2C4B7A on the dark surface at 1.97:1. */
+  color: var(--filter-ink, var(--filter-color));
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -4161,7 +4612,7 @@ body.dark-mode {
 
 .filter-btn.active {
   background: var(--filter-color);
-  color: white;
+  color: var(--filter-fg, #fff);
 }
 
 .filter-btn:hover:not(.active) {
@@ -4190,7 +4641,7 @@ body.dark-mode {
 .search-icon {
   position: absolute;
   left: 10px;
-  color: #888;
+  color: var(--color-ink-muted);
   pointer-events: none;
 }
 
@@ -4226,7 +4677,7 @@ body.dark-mode {
   right: 10px;
   background: none;
   border: none;
-  color: #888;
+  color: var(--color-ink-muted);
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -4262,14 +4713,14 @@ body.dark-mode {
 
 .search-result-location {
   font-size: 0.7rem;
-  color: #888;
+  color: var(--color-ink-muted);
 }
 
 .search-no-results {
   padding: 1rem;
   text-align: center;
   font-size: 0.82rem;
-  color: #888;
+  color: var(--color-ink-muted);
 }
 
 .search-highlight {
@@ -4350,7 +4801,8 @@ body.dark-mode {
 /* ===== BATTLE COMPARISON ===== */
 .battle-select {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: var(--color-bg-light);
@@ -4386,10 +4838,12 @@ body.dark-mode {
   margin-bottom: 0.75rem;
 }
 
+/* These four are text on a card, not fills, so they take the on-surface ink
+   rather than the identity hue. #A33030 on the dark card measured 2.55:1. */
 .comparison-side.american h4 { color: #0A244A; }
 .comparison-side.british h4 { color: #7A1212; }
-.dark .comparison-side.american h4 { color: #8ba3c4; }
-.dark .comparison-side.british h4 { color: #A33030; }
+.dark .comparison-side.american h4 { color: #8BA3C4; }
+.dark .comparison-side.british h4 { color: #E8798C; }
 
 .comparison-stat {
   margin-bottom: 0.5rem;
@@ -4400,7 +4854,7 @@ body.dark-mode {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #888;
+  color: var(--color-ink-muted);
   margin-bottom: 0.15rem;
 }
 
@@ -4420,7 +4874,7 @@ body.dark-mode {
 }
 
 .dark .comparison-value.casualty {
-  color: #A33030;
+  color: #E8798C;
 }
 
 .comparison-bar {
@@ -4450,7 +4904,7 @@ body.dark-mode {
   font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 700;
-  color: #888;
+  color: var(--color-ink-muted);
   padding: 0.5rem;
 }
 
@@ -4468,6 +4922,7 @@ body.dark-mode {
 /* ===== CAMPAIGN LEGEND ===== */
 .campaign-legend {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 0.75rem;
   font-size: 0.8rem;
@@ -4516,11 +4971,52 @@ body.dark-mode {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.shortcuts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
 .shortcuts-panel h3 {
   font-family: var(--font-display);
   font-size: 1.25rem;
-  margin-bottom: 1.25rem;
   color: var(--color-american);
+}
+
+/* A visible way out. The dialog previously closed on Esc or a backdrop click
+   only — neither of which is discoverable, and neither of which exists on a
+   phone, where `?` cannot be typed at all. */
+.shortcuts-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: -8px -8px -8px 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-ink-light);
+  cursor: pointer;
+}
+
+.shortcuts-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--color-ink);
+}
+
+.dark .shortcuts-close {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted-dark);
+}
+
+.dark .shortcuts-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--color-text-dark);
 }
 
 .dark .shortcuts-panel h3 {
@@ -4591,9 +5087,12 @@ body.dark-mode {
     display: none;
   }
 
+  /* Right-aligned on touch. The zoom buttons own the top-left corner and are
+     now 44px, which overlapped a chip anchored at left: 50px. */
   .explore-status-chip {
     top: 10px;
-    left: 10px;
+    left: auto;
+    right: 10px;
     padding: 0.35rem 0.65rem;
     gap: 0.4rem;
   }
@@ -4637,6 +5136,24 @@ body.dark-mode {
     display: none;
   }
 
+  /* The zoom buttons measured 30x30 on a phone — the one map control a touch
+     reader has, and smaller than the markers beside them. The `.leaflet-touch`
+     prefix is not decoration: Leaflet's own `.leaflet-touch .leaflet-bar a`
+     rule has the same specificity as a bare `.map-container ...` selector and
+     loads after App.css, so it won on source order. */
+  .map-container .leaflet-touch .leaflet-control-zoom a,
+  .map-container .leaflet-control-zoom a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+    font-size: 20px;
+  }
+
+  .map-container .leaflet-control-zoom {
+    margin-top: 16px !important;
+    margin-left: 12px !important;
+  }
+
   /* Keep the hint visible above the bottom sheet */
   .explore-onboarding-hint {
     bottom: calc(55vh + 12px);
@@ -4656,8 +5173,17 @@ body.dark-mode {
     padding: 1rem 1.5rem;
   }
 
+  /* The toggle measured 60x22 and 42x22 on a 390px phone. The row is the
+     primary way between the two views, so it gets a real target: the height
+     comes from min-height rather than padding so the two buttons stay the
+     same size whatever their label length. */
   .view-toggle button {
-    padding: 0.3rem 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    min-width: 56px;
+    padding: 0.3rem 0.7rem;
     font-size: 0.8rem;
   }
 
@@ -4678,8 +5204,9 @@ body.dark-mode {
   }
 
   .filter-btn {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.75rem;
+    min-height: 40px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
   }
 
   .filter-icon {
@@ -4714,8 +5241,10 @@ body.dark-mode {
   }
 
   .speed-indicator {
+    min-width: 44px;
+    min-height: 40px;
     padding: 0.25rem 0.5rem;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
 
   .controls-divider {
@@ -4754,8 +5283,13 @@ body.dark-mode {
     margin: 0.75rem 0;
   }
 
+  .data-stack--shared-time > .chart-container {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
   .comparison-grid {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
 
@@ -4815,7 +5349,8 @@ body.dark-mode {
 
   .explore-status-chip {
     top: 10px;
-    left: 50px;
+    left: auto;
+    right: 10px;
     padding: 0.35rem 0.75rem;
     gap: 0.5rem;
   }
@@ -4855,8 +5390,12 @@ body.dark-mode {
     height: 48px;
   }
 
+  /* Sized to the room the controls leave. At 1.1rem the title needs 214px
+     and had 173 on a 375px phone, 158 on a 360: it read "The American
+     Revolu…" on every phone narrower than 430px. */
   .header-content h1 {
-    font-size: 1.1rem;
+    font-size: clamp(0.75rem, 3.6vw, 1.1rem);
+    letter-spacing: 0;
   }
 
   .view-toggle {
@@ -4864,13 +5403,15 @@ body.dark-mode {
   }
 
   .view-toggle button {
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.6rem;
     font-size: 0.75rem;
   }
 
+  /* 32px was below every touch-target guideline. 40px is the largest circle
+     that clears the 56px mobile header with breathing room. */
   .mode-toggle {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
   }
 
   .filter-btn .filter-icon {
@@ -4935,6 +5476,11 @@ body.dark-mode {
   .scrollytelling-view {
     --desktop-story-panel-width: clamp(390px, 40vw, 640px);
     --desktop-controls-height: 120px;
+    /* One knob per breakpoint. `--story-text` scales the card's prose and
+       everything sized against it; `--story-measure` caps the text column so
+       widening the panel adds margin rather than line length. */
+    --story-text: 0.8rem;
+    --story-measure: none;
   }
 
   .scrollytelling-view:not(.view-mode-cards) .scrolly-map-container {
@@ -5093,7 +5639,10 @@ body.dark-mode {
     bottom: calc(var(--desktop-controls-height) + 0.5rem);
     left: auto;
     width: calc(var(--desktop-story-panel-width) - 2rem);
-    max-height: min(55vh, 520px);
+    /* Fit the content, and only scroll when the window is genuinely too short
+       for it. The old min(55vh, 520px) put a scrollbar on a six-row panel at
+       every ordinary window height. */
+    max-height: calc(100vh - var(--desktop-controls-height) - 2rem);
     overflow-y: auto;
   }
 
@@ -5102,16 +5651,20 @@ body.dark-mode {
     bottom: 1.25rem;
   }
 
+  /* Over the map, not the story panel: centred over the card it covered the
+     last event's "Why This Matters" and its source link half a second after
+     the reader arrived. Above the onboarding hint's row, should it still be
+     showing. */
   .scrollytelling-view:not(.view-mode-cards) .story-end {
-    right: calc(var(--desktop-story-panel-width) / 2);
-    bottom: calc(var(--desktop-controls-height) + 1.5rem);
-    left: auto;
-    width: min(320px, calc(var(--desktop-story-panel-width) - 3rem));
+    left: calc((100% - var(--desktop-story-panel-width)) / 2);
+    right: auto;
+    bottom: 4.5rem;
+    width: min(320px, calc(100% - var(--desktop-story-panel-width) - 3rem));
     padding: 1.25rem 1.5rem;
-    transform: translateX(50%);
+    transform: translateX(-50%);
   }
 
-  /* Focus mode becomes a spacious reading canvas instead of a shallow strip. */
+/* Focus mode becomes a spacious reading canvas instead of a shallow strip. */
   .scrollytelling-view.view-mode-cards {
     --desktop-focus-controls-height: 70px;
   }
@@ -5331,4 +5884,135 @@ body.dark-mode {
     .event-card-nav {
     grid-row: 11;
   }
+}
+
+/* ===== LARGE SCREENS =====
+ Past about 1600px the story panel stopped growing: `clamp(…, 40vw, 640px)`
+ caps out, so on a 2560 display the panel was 25% of the width and on a 3440
+ it was 19% — a strip of 12.8px text beside an enormous map, with 362px of
+ dead parchment under the card.
+
+ Three things move together, and they have to. Widening the panel alone makes
+ the line length worse: the measure was already 80 characters at 1440 and 90
+ at 1920, against a comfortable 45-75. So the type grows, the panel grows, and
+ the text column is capped in `ch` — a unit defined in terms of the font's own
+ character width, which is the only way to state "keep the measure" that stays
+ true when the font size changes underneath it. The cap applies to the
+ paragraphs, not the card: the image, the stats table and the badges use the
+ full panel width, and only the running text stops at a readable measure.
+
+ Everything below 1600px is deliberately untouched. */
+@media (min-width: 1600px) {
+.scrollytelling-view {
+  --desktop-story-panel-width: clamp(640px, 36vw, 940px);
+  --desktop-controls-height: 132px;
+  --story-text: 0.95rem;
+  --story-measure: 64ch;
+}
+}
+
+@media (min-width: 2200px) {
+.scrollytelling-view {
+  --desktop-story-panel-width: clamp(800px, 33vw, 1120px);
+  --desktop-controls-height: 148px;
+  --story-text: 1.0625rem;
+  --story-measure: 62ch;
+}
+}
+
+@media (min-width: 3000px) {
+.scrollytelling-view {
+  --desktop-story-panel-width: clamp(1000px, 31vw, 1320px);
+  --story-text: 1.1875rem;
+  --story-measure: 60ch;
+}
+}
+
+@media (min-width: 1600px) {
+/* The card fills the panel; only running text is capped. Capping the whole
+   card and centring it left the image, the stats table and the badges
+   floating in a narrow column with parchment on both sides — the panel was
+   wider but nothing used the width. A measure is a property of a paragraph,
+   so the cap goes on the paragraphs, flush with the title above them. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-description,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance p,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-stat-note {
+  max-width: var(--story-measure);
+}
+
+/* A short entry on a tall screen was pinned to the top with a third of the
+   panel empty beneath it. Centring is only safe with `align-content`: a
+   flex/grid centre on a scroll container puts overflow above the scrollport
+   where it cannot be reached. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card {
+  display: block;
+  align-content: safe center;
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-description,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance p,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-stat-note {
+  font-size: var(--story-text);
+  line-height: 1.62;
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-title {
+  font-size: calc(var(--story-text) * 2.15);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-date-inline,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-location,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-source,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-campaign,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-nav-btn {
+  font-size: calc(var(--story-text) * 0.92);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-type-badge,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-outcome,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance strong {
+  font-size: calc(var(--story-text) * 0.82);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-stats-row,
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-fact span {
+  font-size: calc(var(--story-text) * 0.86);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-fact strong {
+  font-size: calc(var(--story-text) * 1.35);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-significance {
+  padding: calc(var(--story-text) * 0.95);
+}
+
+/* The hero image is capped at 240px, which reads as a postage stamp once the
+   panel is 900px wide. Let it keep the card's proportions instead. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .event-card-image {
+  max-height: none;
+}
+
+/* The controls row grows with the panel it sits under. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-controls .explore-btn,
+.scrollytelling-view:not(.view-mode-cards) .desktop-controls .speed-indicator,
+.scrollytelling-view:not(.view-mode-cards) .desktop-controls .search-input {
+  font-size: calc(var(--story-text) * 0.92);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-controls .explore-btn {
+  min-height: 46px;
+}
+
+/* An interlude is mostly chart, and a chart fixed at 200px in a panel 1200px
+   tall is a strip with the rest of the panel empty around it. The chart takes
+   a share of the viewport's height instead, capped so a line chart does not
+   turn square. The pair variant stacks two charts and splits the room. */
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .interlude-chart-wrap {
+  --compact-chart-height: clamp(220px, 38vh, 560px);
+}
+
+.scrollytelling-view:not(.view-mode-cards) .desktop-event-card .interlude-chart-wrap--pair {
+  --compact-chart-height: clamp(200px, 26vh, 380px);
+}
 }

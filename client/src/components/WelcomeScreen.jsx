@@ -47,6 +47,7 @@ export default function WelcomeScreen({
         && target.closest('button, a, input, textarea, select, [contenteditable="true"]');
 
       if (hasTriggered.current || isInteractive) return;
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
 
       // ArrowRight matches how the story itself now advances; ArrowDown stays
       // because there is no card to scroll on this screen and it reads as
@@ -165,8 +166,13 @@ export default function WelcomeScreen({
           </div>
         </div>
 
-        <Motion.aside
+        {/* A div, not an <aside>. A complementary landmark nested inside the
+            section landmark above it is reported by assistive tech as
+            misplaced, and this is a stat list rather than an aside from the
+            page's main content — the heading below names it either way. */}
+        <Motion.div
           className="welcome-atlas-legend"
+          role="group"
           aria-label="Project overview"
           initial={reduceMotion ? false : { opacity: 0, x: 18 }}
           animate={{ opacity: 1, x: 0 }}
@@ -178,7 +184,7 @@ export default function WelcomeScreen({
               <span>{stat.label}</span>
             </div>
           ))}
-        </Motion.aside>
+        </Motion.div>
       </div>
 
       <footer className="welcome-atlas-footer">

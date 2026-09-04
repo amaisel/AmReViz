@@ -1,9 +1,18 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import WelcomeScreen from './components/WelcomeScreen';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
-import useHashRouter from './hooks/useHashRouter';
+import useHashRouter, { readRoute } from './hooks/useHashRouter';
+import useReducedMotion from './hooks/useReducedMotion';
+import { eventSlug, resolveEventKey } from './data/events';
 import './App.css';
+
+// The URL names an event by slug; the story and the data view speak in ids.
+// A key that names nothing — a retired number, a misspelt slug — is passed
+// down as an id no event has, so the story can see that a jump was asked for
+// and answer by writing back the event it is actually showing.
+const NO_SUCH_EVENT = -1;
+const eventIdForKey = (key) => (key == null ? null : resolveEventKey(key) ?? NO_SUCH_EVENT);
 
 const ExploreRoute = lazy(() => import('./components/ExploreRoute'));
 const DataView = lazy(() => import('./components/DataView'));
@@ -97,13 +106,28 @@ export default function App() {
     } catch { return false; }
   });
   
-  const [view, setView, subId] = useHashRouter('welcome');
+  const [view, setView, subKey, subKeyFromStory] = useHashRouter('welcome');
   const [direction, setDirection] = useState(1);
+  const reduceMotion = useReducedMotion();
 
-  const navigateToView = useCallback((nextView, nextSubId = null) => {
+  const navigateToView = useCallback((nextView, nextSubKey = null) => {
     setDirection(VIEW_ORDER[nextView] >= VIEW_ORDER[view] ? 1 : -1);
-    setView(nextView, nextSubId);
+    setView(nextView, nextSubKey);
   }, [setView, view]);
+
+  // The last event the story was on, so the Explore tab and the `1` key go
+  // back to it rather than to the Stamp Act Congress. Data → Explore used to
+  // drop the reader at step 1 (Back kept their place; the tab did not), and
+  // pressing Explore while already there pushed a bare `#/explore` that the
+  // story then corrected — one dead history entry per click.
+  const lastExploreKey = useRef(null);
+  useEffect(() => {
+    if (view === 'explore' && subKey != null) lastExploreKey.current = subKey;
+  }, [view, subKey]);
+
+  const openView = useCallback((nextView) => {
+    navigateToView(nextView, nextView === 'explore' ? lastExploreKey.current : null);
+  }, [navigateToView]);
 
   useEffect(() => {
     try {
@@ -121,44 +145,65 @@ export default function App() {
   useEffect(() => {
     const handleKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-      if (e.key === 'd' || e.key === 'D') {
-        if (!e.ctrlKey && !e.metaKey) setDarkMode(prev => !prev);
-      }
-      if (e.key === '1') navigateToView('explore');
-      if (e.key === '2') navigateToView('data');
+      // Cmd+1 / Cmd+2 are the browser's own tab switches; Cmd+D bookmarks.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'd' || e.key === 'D') setDarkMode(prev => !prev);
+      if (e.key === '1') openView('explore');
+      if (e.key === '2') openView('data');
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [navigateToView]);
+  }, [openView]);
 
   const handleBeginJourney = () => {
     navigateToView('explore');
   };
 
   const handleExitToWelcome = () => {
+    // "Start Over" means it: the next Begin starts from the first event.
+    lastExploreKey.current = null;
     navigateToView('welcome');
   };
 
-  // Seed from the URL so a deep link like #/explore/5 survives the first render
-  const [pendingEventId, setPendingEventId] = useState(subId);
+  // Seed from the URL so a deep link like #/explore/battle-of-bunker-hill
+  // survives the first render.
+  const [pendingEventId, setPendingEventId] = useState(() => eventIdForKey(subKey));
 
-  // Sync subId from URL to pendingEventId
+  // Forward the URL's event down to the story only when it came from outside
+  // it — a pasted link, Back/Forward, or a jump from the data view.
+  //
+  // The story writes `subKey` itself on every step, and that key used to come
+  // straight back down as an instruction to go there a frame or two later.
+  // A reversal inside that window lost: press right then left within ~150ms
+  // and the echo of the right press landed after the left one and pulled the
+  // story forward again. Measured before the fix: 5 of 5 wrong at a 100ms
+  // gap, and it is the reason two tests in the suite carry an explicit
+  // settle. `fromStory` comes from the router with the key it belongs to, so
+  // two steps in one batch cannot be misread for each other.
   useEffect(() => {
-    if (view !== 'explore' || subId == null) return undefined;
+    if (view !== 'explore' || subKey == null || subKeyFromStory) return undefined;
 
     const frame = window.requestAnimationFrame(() => {
-      setPendingEventId(subId);
+      setPendingEventId(eventIdForKey(subKey));
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [view, subId]);
+  }, [view, subKey, subKeyFromStory]);
 
   const handleNavigateToEvent = useCallback((eventId) => {
-    navigateToView('explore', eventId);
+    navigateToView('explore', eventSlug(eventId));
   }, [navigateToView]);
 
   const handleStoryEventChange = useCallback((eventId) => {
-    setView('explore', eventId);
+    // A step names a different event than the address bar does, and is
+    // pushed so Back and Forward retrace it. Anything else is the story
+    // correcting the address — a pre-slug number for this same event, a key
+    // that named nothing, no key at all — and is replaced, so the junk never
+    // becomes a place Back can land. Read from the address bar itself rather
+    // than from route state: this is a judgement about what the bar says now.
+    const named = resolveEventKey(readRoute().subKey);
+    const replace = named == null || named === eventId;
+    setView('explore', eventSlug(eventId), { fromStory: true, replace });
   }, [setView]);
 
   const handleConsumeInitialEvent = useCallback(() => {
@@ -167,30 +212,53 @@ export default function App() {
 
   const showHeader = view !== 'welcome';
 
-  const pageVariants = {
-    initial: { opacity: 0, y: direction * 30, scale: 0.98 },
-    animate: { opacity: 1, y: 0, scale: 1 },
-    exit: { opacity: 0, y: direction * -30, scale: 0.98 },
-    transition: { duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }
-  };
+  const mainRef = useRef(null);
+  const focusMain = useCallback(() => {
+    mainRef.current?.focus();
+  }, []);
+
+  // A crossfade still signals that the view changed; the slide and the scale
+  // are the parts a reader who asked for reduced motion does not want.
+  const pageVariants = reduceMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.15 }
+      }
+    : {
+        initial: { opacity: 0, y: direction * 30, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: direction * -30, scale: 0.98 },
+        transition: { duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }
+      };
 
   return (
     <div className={`app ${darkMode ? 'dark' : 'light'}`}>
+      {/* A button, not an `<a href="#main-content">`: routing here lives in the
+          hash, and following that link would rewrite it to #main-content,
+          which parses as an unknown view and drops the reader back on the
+          welcome screen. */}
+      {showHeader && (
+        <button type="button" className="skip-link" onClick={focusMain}>
+          Skip to the story
+        </button>
+      )}
       <AnimatePresence>
         {showHeader && (
           <Motion.header
             className="app-header"
-            initial={{ y: -64, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -64, opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            initial={reduceMotion ? { opacity: 0 } : { y: -64, opacity: 0 }}
+            animate={reduceMotion ? { opacity: 1 } : { y: 0, opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { y: -64, opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0.15 : 0.3 }}
           >
             <div className="header-content">
               <h1>The American Revolution</h1>
               <p>An Interactive Journey Through Independence</p>
             </div>
             <div className="header-controls">
-              <ViewToggle view={view} onViewChange={navigateToView} />
+              <ViewToggle view={view} onViewChange={openView} />
               <HelpToggle />
               <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(!darkMode)} />
             </div>
@@ -198,7 +266,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <main className={`app-main ${view === 'welcome' ? 'no-header' : ''}`}>
+      <main ref={mainRef} id="main-content" tabIndex={-1} className={`app-main ${view === 'welcome' ? 'no-header' : ''}`}>
         <AnimatePresence mode="wait">
           {view === 'welcome' && (
             <WelcomeScreen
@@ -223,6 +291,7 @@ export default function App() {
                   initialEventId={pendingEventId}
                   onConsumeInitialEvent={handleConsumeInitialEvent}
                   onEventChange={handleStoryEventChange}
+                  routeEventId={eventIdForKey(subKey)}
                 />
               </Suspense>
             </Motion.div>

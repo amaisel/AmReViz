@@ -1,10 +1,18 @@
 # State of play
 
-Last updated: 2026-07-28
+Last updated: 2026-08-21
 
 A living note on where AmReViz stands and what is worth doing next. Every claim
 here was measured rather than estimated; where a number appears, the method is
 given so it can be re-checked when it goes stale.
+
+## Public docs
+
+`README.md`, `docs/DATA.md` and `docs/ACCESSIBILITY.md` are written for someone
+arriving from outside. This file is the opposite: an internal record of what was
+measured, what was tried and reverted, and why. Keep the numbers in the public
+docs consistent with the ones here — the test count in particular appears in
+three places.
 
 ## How to work here
 
@@ -18,13 +26,80 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npx playwright test    # 29 tests; boots its own server on 5174
+npm test               # 191 tests; boots its own server on 5174
+npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
-There is no `npm test` script — Playwright runs through `npx`. The suite starts
-its own dev server on port 5174 so a `npm run dev` on 5173 can keep running
-alongside it. Set `AMREVIZ_TEST_URL` to point the suite at a server you are
-already running instead.
+The suite starts its own dev server on port 5174 so a `npm run dev` on 5173 can
+keep running alongside it. Set `AMREVIZ_TEST_URL` to point the suite at a
+server you are already running instead.
+
+It is in five files. `walkthrough.spec.js` is the one to run after a change
+that was not aimed at any of the others: one pass over the whole app — in from
+the welcome screen, through all 47 events and 4 interludes in order, every
+control in the explore view, every chart and its table in the data view, deep
+links and Back/Forward, then the same story on a phone. It asserts breadth
+rather than detail, and every test in it fails on an uncaught exception or a
+console error — nothing else in the suite watches the console, which is how the
+`inert=""` warning on every entry to cards focus went unnoticed for as long as
+it did. The expected story sequence is derived from `src/data` rather than
+written out, so adding an event extends the walk instead of breaking it.
+`audit-fixes.spec.js` pins the explore and data bugs from the last audit pass —
+filters against the current event, the keyboard chords, returning to the
+reader's place, the end card, the casualty scale, search, and the phone
+layouts. `ux-audit.spec.js` is the older set, largely about map framing and the
+mobile sheet's geometry. `ux-improvements.spec.js` covers keyboard and
+assistive technology, touch-target sizes, motion preference, routing, and the
+data view's click-through. `a11y-colour.spec.js` is the
+colour and accessibility floor: axe over every view in both themes at both
+widths, a contrast sweep across every rendered text node, chart series and
+legend legibility, focus-ring visibility, and the checks that no meaning rests
+on colour alone.
+
+Every test in the latter two was checked against the code from before its fix
+and observed to fail — a colour or geometry test that passes either way is
+worse than none, and several did exactly that until the checks were tightened.
+
+`tests/helpers.js` is the one copy of what the specs share — `baseUrl`, the
+viewports, `openApp`/`openStory`/`openEvent`, the two animation waits,
+`contrastRatio`, the effective-background compositor, the axe filter, and the
+`test` every suite imports. They each grew their own copies first, and the
+copies had already drifted: two compositors with different floors, and two
+contrast functions where only one parsed the bare hex SVG attributes carry —
+the other mangled `#6FA8E8` into [6, 8, 8] and read it as near-black.
+
+That shared `test` fails on an uncaught exception or an unexpected console
+error, so every suite carries the check the walkthrough introduced, not just
+the walkthrough.
+
+Seven notes for anyone extending it, each of which cost a false pass or a false
+failure to learn.
+
+- A `page.goto` that changes only the hash does not reload the document, so the
+  app never re-reads the address bar and boot-time routing goes untested. The
+  walkthrough goes by way of `about:blank` between deep links.
+- Keys typed while a text field holds focus belong to the field: both global
+  shortcut handlers bail out on `INPUT`, `TEXTAREA` and `SELECT`. Blur before
+  pressing `c` or `d` after touching the search box.
+
+- `test.use({ reducedMotion })` does not reach the page in this runner;
+  `page.emulateMedia({ reducedMotion })` does, and the reduced-motion block
+  asserts the media query took effect before testing anything else.
+- Several controls transition `all` over 0.2s, so a colour read straight after
+  a click belongs to neither state. `settleTransitions` waits out every
+  matching element, not just the first.
+- **Read the composited background, never `backgroundColor`.** Almost nothing
+  here sits on a flat opaque surface. An inactive filter chip under the pointer
+  carries a `rgba(0, 0, 0, 0.05)` hover wash, which as a flat colour is nearly
+  black and as a wash over parchment is barely a tint.
+- **Contrast over a gradient or image is not computable from declared
+  colours.** The sweep flags those separately and they are excluded; they were
+  checked instead by sampling rendered pixels, using true min/max luminance
+  rather than percentiles — a thin glyph is under 8% of the pixels in its box,
+  so a percentile clips the ink away and compares background against
+  background.
+- SVG attributes carry bare hex. A `[\d.]+` regex parses `rgb()` strings and
+  quietly mangles `#6FA8E8` into [6, 8, 8], which reads as near-black.
 
 Map geometry under `client/src/data/geo/` is generated, not hand-edited:
 
@@ -107,29 +182,32 @@ logic including the horizontal swipe. A redesign, not an afternoon.
 
 What not to do: fall back to static map images on mobile. The map is the piece.
 
-### 2. Four of the eight type-badge colours fail WCAG contrast
+### 2. Type-badge contrast — fixed
 
-`EventCard.jsx` paints the type badge white-on-colour. Measured ratios against
-white, both themes:
+Resolved 2026-08-21. White on the gold measured 2.49:1 and white on the green
+4.39:1, against a 4.5:1 threshold. The second option in the old note won: the
+gold keeps its hue and takes dark ink, because it is the colour of the
+parchment palette and darkening it into a mustard would have cost more than it
+bought. The green was darkened instead (#228B22 → #1A701A, #2E8B57 → #256F45).
 
-| type | light | dark |
-|---|---|---|
-| battle | 10.92 | 6.95 |
-| political | 15.39 | 8.77 |
-| **diplomatic** | **2.49** | **1.77** |
-| **military** | **4.39** | **4.25** |
+The colours now live in `src/constants/palette.js`, which was the real problem
+underneath: the same four hues were declared independently in `EventCard`,
+`ExploreView`'s filter bar, `Map`'s legend and `HorizontalTimeline`, and had
+already drifted — `military` was `#228B22` in three files and `#44A06A` in the
+fourth. Fixing one would have missed the rest.
 
-The threshold is 4.5:1. Confirmed independently by axe against a live page
-(`ratio=2.48 need=4.5:1` on a diplomatic event).
+Each entry carries three values, because the colour does three jobs: `hue` for
+a fill on the chart, `bg`/`fg` for text on the colour, and `ink` for the colour
+as text on a page surface. That third one exposed a second failure nobody had
+recorded — an inactive filter chip painted its label in the hue, which put
+#C5A02F on near-white at 2.18:1, and in dark mode #2C4B7A on the dark surface
+at 1.97:1.
 
-This is long-standing, but it got more visible in July 2026: adding the London
-and Paris events took the diplomatic count from 2 to 5, so the worst-failing
-badge now appears on roughly one event in nine. The a11y suite does not catch it
-because those scans start on event 101, which is `political`.
-
-Cheapest real fix is darkening the two colours until they pass; the alternative
-is dark text on the existing gold, which suits the parchment palette better.
-Small change, and worth pairing with a scan that visits one event of each type.
+The old note was right that the scans missed it: they all start on event 101,
+which is `political`, the one type that already passed. There is now a
+per-type axe sweep, plus a test that walks the palette table and fails on any
+pairing under 4.5:1 in either theme. Item 10 covers the second pass, which
+found what this one had missed.
 
 ### 3. Holding an arrow key still drops steps
 
@@ -167,28 +245,502 @@ past it. It is the only surviving copy of that work.
 Either rebase it deliberately or delete it — leaving it to rot at an ever-growing
 distance from `main` is the one outcome with no upside.
 
-### 6. Reversing direction inside ~300ms drops the second step
+### 6. Reversing direction inside ~300ms drops the second step — fixed
 
-Press right then left in quick succession and the story ends up one step
-forward instead of back. Measured on the current code: four rapid
-right-then-left pairs all landed on +1, while the same pair with a 400ms gap
-is correct every time. Vertical keys, which no longer navigate, are stable at
-1→1 across every run.
+Resolved 2026-08-21. The old note's suspect was right in outline and wrong in
+detail. It is not the `hashchange` round trip: `setView` sets React state
+synchronously as well as writing the hash, and that state came straight back
+down as `initialEventId`. Every step therefore re-issued its own id as an
+instruction to go there a frame or two later, and a reversal inside that
+window lost to the echo of the step before it.
 
-It is not specific to the keyboard — the mobile swipe handler goes through the
-same path — and it predates the left/right switch, since up and left were
-already both "previous". The suspect is the round trip between `setCurrentIndex`
-and the hash sync in `useHashRouter`: the second press is applied and then
-clobbered by the URL-driven update from the first.
+Measured before the fix, right-then-left over five trials at each gap:
+0ms 2/5 wrong, 50ms 3/5, 100ms 5/5, 200ms 0/5, 400ms 0/5. After: 0/5 at every
+gap.
 
-Two tests currently work around it with an explicit settle, and say so.
+The origin now travels with the route rather than beside it — `useHashRouter`
+returns a `fromStory` flag, and the consumer forwards an id only when it came
+from outside the story. A `useRef` was tried first and is not sufficient: two
+steps can land in one batch, the ref holds only the newer of the two, and the
+effect for the older one then reads it and concludes the id was external. That
+attempt made the 0ms case worse, 5/5 wrong.
 
-### 7. Nits
+`hashchange` needed handling too, since every write comes back as an event
+naming the route already held. The handler bails when the parsed route equals
+the current one, which drops echoes without counting them — two writes in one
+batch produce two events that both read the second hash, and nothing in the
+event distinguishes them.
 
-- `#/explore/99999` displays the first event but leaves the bogus id in the
-  address bar, so the URL misreports what is on screen. `#/explore/abc` handles
-  the same situation correctly by rewriting the hash, so the fix is to make the
-  out-of-range path behave like the unparseable one.
+The two tests that worked around this with an explicit settle no longer need
+to, and `ux-improvements.spec.js` pins the behaviour at 0, 60 and 120ms.
+
+### 7. Nits — the deep-link one is fixed
+
+Resolved 2026-08-21, and it was broader than recorded. Both `#/explore/99999`
+and `#/explore/abc` rewrite correctly on a *cold* load — the story's
+mount-time sync writes the real id because nothing has been announced yet.
+Neither did on a *live* navigation, which is the case a reader actually hits:
+paste a bad id into a running page and the address bar kept it while the screen
+carried on showing the previous event.
+
+Split by who can answer the question. Ids are positive integers, so `abc`,
+`-3` and `0` are syntax the router rejects on its own, stripping the sub-part.
+Whether a well-formed id names a real event only the story knows, so
+`ExploreView` re-announces the event on screen when a deep link matches
+nothing. A third path was needed for the result — `#/explore` with no id at
+all — so the story now re-asserts whenever the route names no event, which
+also covers arriving from the data view.
+
+All four bogus routes are tested cold and live.
+
+### 8. Accessibility and touch — fixed, and worth not regressing
+
+Resolved 2026-08-21. Eight things, none of which were on this list before.
+
+**Thirty phantom tab stops.** Leaflet stamps `role="button"` and
+`tabindex="0"` on every marker icon while its `keyboard` option is on, and
+`interactive: false` does not stop it — that option governs mouse handlers.
+So a keyboard reader tabbed through `MA`, `NY`, `1776`, `ATLANTIC OCEAN` and
+26 more decorative labels before reaching a marker that does anything. Total
+focusable elements on event 16 went 90 → 60. Any new decorative `Marker`
+needs `keyboard={false}`; a test counts them.
+
+**No skip link.** Added, as a `<button>` rather than an `<a href="#…">`:
+routing lives in the hash here, and following such a link rewrites it to
+`#main-content`, which parses as an unknown view and drops the reader on the
+welcome screen.
+
+**Steps were silent.** Moving through the story repaints the map and swaps the
+card with nothing announced. There is now a polite live region naming the
+event, its position and its year.
+
+**`prefers-reduced-motion` was honoured on the welcome screen only.**
+Everything else moved: a 2.4s Leaflet flight between events, a 3D card swing,
+the sheet's spring and its one-off bounce, the view crossfade, and the active
+marker's endless pulse. `src/hooks/useReducedMotion.js` is the shared answer —
+Framer ships its own, but the two cases that matter most are imperative
+(Leaflet, the sheet's animation controls) and are not Framer's to answer.
+Measured on a step: 7 distinct map transforms → 1.
+
+**Touch targets.** On a 390px phone the view toggle was 60x22 and 42x22, the
+theme toggle 32x32, the speed control 30x22, the preset chips 22px tall, the
+hint dismiss 18x18, the map's only zoom buttons 30x30, and the data view's
+source citations 19px. All are now at least 40px. Two notes: the zoom rule
+needs a `.leaflet-touch` prefix, because Leaflet's own selector has equal
+specificity and loads after `App.css`; and the enlarged buttons collided with
+the progress chip, which is why the chip is right-aligned on touch. Event
+markers keep their drawn size — the depth-of-field effect is doing real work —
+and get a 44px hit area from a pseudo-element on coarse pointers only.
+
+**Stepping the story on a phone needed a swipe or nothing.** At peek the card
+cannot scroll, so the Prev/Next pair at its foot sat permanently below the
+fold on every event, leaving the swipe — taught by a hint that dismisses
+itself after six seconds — as the only way forward. The sheet header is now a
+four-column grid carrying prev, the drag handle, next, and the controls
+disclosure, all reachable at both snap points. The card's own pair is hidden
+inside the sheet: two controls with the same accessible name is worse than
+one, and that pair never earned its keep there.
+
+**The desktop filters panel was translucent.** It opens on top of the story
+card, and at 0.75 alpha the card's prose read straight through it — a blur
+softens text but does not hide it. Now opaque, and sized to its content
+rather than capped at 55vh, which had put a scrollbar on a six-row panel at
+every ordinary window height.
+
+**The shortcuts overlay was a dialog in appearance only** — no `role`, no
+accessible name, no close button, no focus trap, no focus restore. It closed
+on Escape or a backdrop click, neither discoverable, and neither available on
+a phone, where `?` cannot be typed. It is now a real modal with a visible
+close control that hands focus back to whatever opened it.
+
+### 9. Two dead affordances in the data view — fixed
+
+Resolved 2026-08-21, found while checking that navigation still worked after
+the routing change. Both are Recharts 3 upgrade fallout.
+
+`CasualtiesChart` read `state.activePayload[0].payload.id` in its chart-level
+`onClick`. Recharts 3 no longer passes `activePayload` there — it reports
+`activeIndex` and `activeLabel` — so the guard never matched and the chart's
+own instruction, "Click a bar to inspect its definition", pointed at nothing.
+
+`ArmyChart` put `onClick` on its two `<Area>`s and advertised it with
+`cursor: pointer` on the dots. Recharts 3 fires an Area's `onClick` for the
+filled shape only, so the dots were dead. The handler moved to the chart,
+where the whole column is the target rather than an 11px circle, and the
+takeaway line now says the year is clickable.
+
+Worth knowing when driving these in a test: scroll the chart, not the mark.
+Recharts re-renders on the resize that scrolling triggers, and a bar resolved
+beforehand detaches mid-action.
+
+### 10. Colour and the rest of the accessibility floor — fixed
+
+Resolved 2026-08-21, in a second pass that went looking for what the badge fix
+in item 2 had missed. axe reports **0 violations across 32 page states** (every
+view, both themes, both widths, all impact levels — it was 2 moderate), and a
+sweep of every rendered text node found 13 contrast failures axe does not see.
+
+**The charts were theme-blind.** `Charts.jsx` painted every series in its
+light-theme hue whatever the theme, so in dark mode the navy area sat on
+near-black. This is not a nit: the series was invisible and the chart
+unreadable. The legend labels, which Recharts paints in the series colour,
+measured 1.15:1 for "In Continental pay" and 1.62:1 for "Imports from
+England"; in light mode the gold label was 2.41:1 while the same gold was
+perfectly legible as a line.
+
+Two separate fixes, because they are two separate problems. Series colours got
+a `CHART_SERIES` table in the palette with a dark variant, each value clearing
+3:1 against the card it is drawn on (WCAG 1.4.11). And legend labels and
+tooltip rows now render in body ink with the colour carried by a swatch beside
+them — which is what lets the series colours be chosen for the graphic
+threshold rather than the much stricter text one.
+
+**`#888` was pasted into fourteen rules.** 3.54:1 on white, 3.11:1 on the
+parchment — under AA everywhere it appeared, including the story's own
+progress counter, the map legend title and the battle comparison labels. One
+instance had already been fixed in place, with a comment recording the ratio;
+the other thirteen had not. They are now one token with a dark counterpart.
+
+**Nothing rests on colour alone any more.** Simulating deuteranopia and
+protanopia over the palette put `battle` and `military` 35–40 apart in RGB —
+effectively the same colour — and the dark chart trio's gold and red 57 apart.
+The event types were already safe, because every one carries a distinct SVG
+symbol as well as a hue. The charts were not: the stacked areas and the trade
+lines were told apart by colour and nothing else. They now carry stroke
+patterns, and the Crown bars a diagonal hatch. On the map, which side held a
+place was a fill colour and nothing else, so it is now said in the marker's
+accessible name — `Siege of Yorktown, 1781, American-held`.
+
+**The focus ring was `2px solid currentColor`** — the button's own text
+colour, chosen to contrast with the button, which says nothing about the page
+behind it where the ring is drawn. On an active filter chip in light mode that
+was white on parchment, 1.14:1; on the dark view toggle, navy on the dark
+header, 1.23:1. A keyboard user simply lost the cursor. It is now a two-tone
+ring with its own token, and `.app-header` overrides that token because the
+masthead is deep navy in *both* themes — the ring follows the surface it lands
+on, not the page's theme.
+
+**The charts had no text alternative.** An SVG inside a labelled region tells a
+screen reader that a chart exists and then offers nothing. Each one now
+carries a visually hidden table of the same numbers. Note `pointer-events:
+none` on `.sr-only`: a `display: table` ignores the `width: 1px`, so those
+tables are full-size boxes positioned over the chart, and without it they
+swallow clicks meant for a bar.
+
+Also fixed here: the two axe findings (a heading level skipped in the data
+view, a complementary landmark nested inside another on the welcome screen),
+`BattleComparison`'s dark-mode reds at 2.55:1, and Leaflet's disabled zoom
+button at 1.75:1.
+
+Four contrast readings are deliberately left alone. Leaflet's zoom control at
+the end of its range is an inactive control, exempt under 1.4.3 and raised
+from 1.75:1 to 3.37:1 so it reads as unavailable rather than broken; and the
+welcome screen's decorative `◇` clears the 3:1 graphic threshold. The sweep
+also flags anything sitting over a gradient, where declared colours do not
+describe what is rendered — those were checked by sampling pixels instead and
+measure 10.7:1 to 13.0:1.
+
+### 11. Large screens — fixed
+
+Resolved 2026-09-03. The story panel was `clamp(390px, 40vw, 640px)`, so it
+stopped growing at about 1600px: 33% of a 1920 display, **25% of a 2560, 19% of
+a 3440**. Past that point the app was a strip of text beside an ever-larger map,
+with 362px of dead parchment under the card.
+
+The trap here is that widening the panel alone makes the reading worse. Measured
+before the change, the line length was already **80 characters at 1440 and 90 at
+1920**, against a comfortable 45–75 — and the body text was **12.8px at every
+size**, from a 1366 laptop to a 4K display. It was simultaneously too small and
+too long per line, and more width would only have lengthened the line.
+
+So three things move together, and they have to:
+
+- the panel grows,
+- the type grows with it,
+- the prose column is capped in `ch`, which is defined in terms of the font's
+  own character width and so stays true when the font size changes underneath
+  it. The extra panel width becomes margin, not line length.
+
+| | panel share | body | measure | dead space |
+|---|---|---|---|---|
+| 1920 before | 33% | 12.8px | 90 | 2px |
+| 1920 after | **36%** | **15.2px** | **77** | — |
+| 2560 before | 25% | 12.8px | 90 | 362px |
+| 2560 after | **33%** | **17px** | **66** | **85px** |
+| 3440 before | 19% | 12.8px | 90 | 362px |
+| 3440 after | **31%** | **19px** | **57** | **65px** |
+
+Breakpoints at 1600, 2200 and 3000, each setting `--story-text`,
+`--story-measure` and the panel width; the card's type is sized against
+`--story-text` so one knob moves the whole scale. A short entry is also
+vertically centred now, with `align-content: safe center` — a flex or grid
+centre on a scroll container puts overflow above the scrollport where it cannot
+be reached, and `safe` is what prevents that.
+
+**Everything below 1600px is deliberately untouched.** At 1440x900 the fullest
+card already overflows its panel, so a larger font there buys legibility by
+pushing more content below the fold. That trade only pays where there is
+vertical room to spend, which is what the breakpoint is choosing.
+
+Cards focus mode keeps its own wide layout and is excluded from the prose cap;
+a test guards that, since it was the obvious thing for this change to break.
+
+### 12. A decoration was taking the markers' clicks — fixed
+
+The active marker's pulse ring is decorative and 8px wider than the marker on
+every side, and it had no `pointer-events: none`. Its overhang was therefore the
+topmost thing in that band and took the click.
+
+Measured across seven events before the fix: it was covering the centre of
+**17 other markers, 8 of which nothing else was covering** — Lexington and
+Concord and Bunker Hill among them, which is to say some of the most-wanted
+events in the story could not be selected from the map at all. After: zero.
+
+Worth being precise about what this does *not* fix. 45 marker centres are still
+covered, by other markers. Around Boston and New York they genuinely overlap and
+the active one is drawn on top by design; that is z-ordering between two real
+controls, and clicking the visible part still works. A decoration taking a click
+is always a bug; two controls overlapping is a density problem, and if it is
+ever worth solving the answer is spiderfying or a zoom threshold, not
+`pointer-events`. The test asserts only the first.
+
+**Two lint errors are also fixed here**, deliberately by silencing rather than
+rewriting. `react-hooks/immutability` flagged `map.options.minZoom = …` and
+`map._enforcingBounds = true`, both of which are intentional — the comment above
+them explains that `setMinZoom` animates a clamp before `flyTo` can run and
+`setMaxBounds` starts a pan that lands as a hitch after the flight. Leaflet's
+map is a mutable imperative handle rather than React state, so the rule is a
+false positive here. Narrow `eslint-disable-next-line` directives with the
+reason, no behaviour change. `npm run lint` is a gate and the branch was red.
+
+### 13. The phone map could not reach the southern events — fixed
+
+Savannah, Charleston, Eutaw Springs and Pensacola all came to rest *behind*
+the bottom sheet on a phone: 198px, 161px, 126px and 286px below the top of
+the card describing them. Nothing on the northern seaboard was affected, which
+is why it survived a mobile layout pass and an accessibility pass.
+
+Lifting the active marker clear of the sheet moves the map *centre* southward —
+219px of it on a 390x844 — so the view's south edge ends up far below the
+marker. For a southern event that edge fell outside `easternSeaboardBounds`'
+27°N floor, and `maxBounds` refused the pan: the same failure the Atlantic
+frame hit and solved by loosening its south edge, in the frame nobody thought
+to check.
+
+The phone now gets its own seaboard box, `seaboardBoundsMobile`, reaching 20°N.
+Desktop keeps 27°N, where it needs no lift and the slack would only let a
+reader pan into blank sea. 20°N rather than lower because that is where
+`LAND_BOUNDS` clips the land silhouette: below it, Cuba's south coast would
+show the clipper's straight cut.
+
+Verified at 360x740, 390x844, 412x915 and 430x932 — every event clears the
+sheet, and the northern events land where they always did. Five tests in
+`audit-fixes.spec.js`, each observed to fail against the code before the fix.
+
+### 14. The year axis ran together on a phone — fixed
+
+Seven year labels, `interval={0}` so Recharts drops none of them, and about
+200px of plot to put them in: 1775 through 1781 rendered as one unbroken
+string of digits on the troop curve, the campaign bars and the Full Ledger.
+They overlapped by up to 9.6px at 360.
+
+`interval={0}` is not a mistake — the two charts share a scale, and a tick
+Recharts dropped from one but not the other would break the alignment the
+shared axis exists for. So they thin together instead: `useSharedAxisTicks`
+measures the chart and, under 380px, both fall back to every other year.
+Stacked in one column they are always the same width, so both reach the same
+answer, and 1775 and 1781 survive either way.
+
+The alignment test that guards this pair passed throughout. It compares the
+two charts to each other, and they were illegible in exactly the same way —
+which is the shape of the gap, not an oversight: a test that asks whether two
+things agree cannot notice that both are wrong. Four tests now measure the
+gaps between the labels themselves.
+
+### 15. Tapping a battle did nothing on a phone — fixed
+
+The casualties chart read its target from Recharts' `activeIndex`, which is
+set by whatever the pointer has moved over. A mouse always moves before it
+clicks, so every desktop check passed and the one input with no hover phase
+went untested: on iOS the first tap on a row raises the tooltip and the
+selection never happens. Reported from a phone, with the tooltip open on
+Yorktown and the panel below still showing Lexington and Concord.
+
+The row under a point is now found from geometry — the y-axis draws one tick
+per battle, evenly spaced, so the nearest tick centre is the row — on
+`pointerup`, which mouse and touch both raise. A drag of more than 10px is a
+scroll rather than a choice, so the compact chart still scrolls inside its
+frame without selecting anything.
+
+Two things it uncovered on the way:
+
+**The answer was below the fold.** The chart is ~1300px tall, taller than any
+viewport it is read in, so the comparison a row updates sat 253px under the
+fold on a 1280x900 and 332px under on a phone. The click worked and nothing
+moved where the reader was looking, which reads exactly like a control that
+does nothing. Choosing a row now brings the panel into view when it is off
+screen — and only then, since a reader who can already see it is comparing
+rows against it.
+
+**The clicks were fine all along on a desktop.** An earlier reading of this
+suggested only the painted bars responded; that was a probe setting
+`select.value` directly without dispatching an event, so React's state never
+moved and the read came back stale. The whole row has always worked under a
+mouse. Worth recording because the wrong diagnosis nearly bought a fix for a
+bug that did not exist.
+
+### 16. The filters did not filter the story — fixed
+
+They hid map markers and nothing else. With "Major Battles" chosen the story
+still stepped into the next political and diplomatic events, and the counter
+still read /51: 43 markers became 24 and the reading experience did not change
+at all. Reported as "the filters don't seem to be working", which is the right
+reading of a control labelled "Filter events by type".
+
+The story is now built from the filtered events, so the counter, Prev/Next,
+the arrow keys and Play all follow the filter. Three things had to come with
+it:
+
+**The reader keeps their place, by event rather than by index.** A filter
+change renumbers every step. Narrowing to a filter the current event belongs
+to keeps it on screen; narrowing to one it does not lands on the nearest event
+that survived, rather than back at 1765.
+
+**The anchor is not recorded on the render after a filter change.** The story
+is renumbered by then, so `currentEvent` is whatever now sits at the old
+index. Recording that stranger and restoring to it moved the reader from
+Washington's resignation to the British evacuation of Boston — the same class
+of bug as the URL echo in item 6, and found the same way, by stepping through
+the change in a browser rather than by reading the code.
+
+**Search and deep links reach outside the filters.** Naming an event the
+filter excludes turns its type back on and goes there. Silence would be the
+worst answer: the reader asked for Cowpens by name.
+
+`ExploreView` deliberately still draws every marker up to the current event
+from the filtered set, so the map and the story agree on what is in view.
+
+### 17. "Turning Points" named a judgement the data never made — fixed
+
+The preset was `battle + diplomatic`: every engagement plus the four treaties,
+28 of the 47 events, and a strict superset of the "Major Battles" preset beside
+it. Nothing was selected for being a turning point. It went unnoticed while the
+filters only thinned markers; once they drove the story it was a label making a
+promise the app could not keep.
+
+`turningPoint` on the event now carries both the judgement and the reason for
+it, and 12 events hold it. The test for membership is one line — the war's
+direction, its aims, or the balance of forces measurably changed here — and it
+is written down in `docs/DATA.md` beside the reasons, so the selection can be
+argued with rather than merely counted. The set spans battles, a declaration, a
+treaty and a Commons vote, which is why it cannot be a union of types.
+
+Reaching outside the set by search or by link brings the whole story back, the
+same way reaching outside a type filter does.
+
+**The first pass left out Boston and Valley Forge**, and the omission is the
+more useful half of this item. Read as "which events destroyed an army or took
+ground", the test drifts to the end of the war, where the chain to Yorktown is
+easiest to trace; it dropped the years when the question was whether there
+would be an army at all. The NPS calls Dorchester Heights the Continental
+Army's first strategic and political victory and one of the war's pivotal
+events, and Valley Forge a turning point because the army that marched out of
+it stood against British regulars at Monmouth nine days later. Both are in, and
+`docs/DATA.md` records why they were missed.
+
+"Major Battles" had the same shape of problem in miniature — every event of
+type `battle`, with no notion of major, Kettle Creek weighing the same as
+Yorktown. It is gone. The Battles chip in the row below did exactly what it
+did, without the claim, so the preset was a label over a duplicate. A preset
+earns its place by expressing something the chips cannot: a curated set, or a
+combination of types.
+
+### 18. The data view used half the screen, and scrolled the wrong box — fixed
+
+`.data-view-container` was capped at 900px *and* carried `overflow-y: auto`,
+so the scrolling element was the column itself. Its scrollbar sat 150px in
+from the right edge of a 1215px window — a bar floating in the middle of the
+parchment, scrolling a box that was not the page. And the column stopped at
+900px whatever the display: 836px of content on a 1215px screen, and a third
+of a 2560px one, with the charts — the whole point of this view — reading in a
+strip while the parchment either side did nothing.
+
+The scroll now lives on the full-width container, with the column centred
+inside it, so the scrollbar is where a scrollbar belongs. The column grows in
+steps that mirror the story panel's above: `clamp(900px, 84vw, 1120px)` from
+1200, then 1400 from 1600, 1760 from 2200, 2200 from 3000. Measured share of
+the viewport: 84% at 1215, 78% at 1440, 73% at 1920, 64% at 3440 — against 69%
+and 26% before.
+
+Running text does not grow with it. The subtitle keeps 64ch, the method note
+90ch, both in `ch` for the reason item 11 gives. Above 1400px the note lays its
+two paragraphs in columns sized by the measure and centred, rather than one
+column of text against half a card of nothing.
+
+Seven tests: the scroller reaching the window edge and the column's share of it
+at five widths, the charts actually taking the width the column gains, and the
+measure holding at 2560.
+
+**The type had to climb with it.** A wider column at the same 11px axis and
+280px plot is a letterbox of tiny labels across a very wide card — the same
+trap item 11 records for the story panel, where widening alone would only have
+lengthened the line. Everything inside a chart is set in pixels through
+Recharts props, so it cannot be scaled from the stylesheet: `useChartMetrics`
+measures the chart and returns a step (1.2 at 1200px of chart, 1.35 at 1600,
+1.5 at 2000), and the tick type, the label gutter, the row height, the bar
+size and the plot height all take it. Below 1200px nothing moves, which leaves
+every layout at or under a 1600px viewport exactly where it was. Titles,
+takeaways and the headline figures scale in CSS on the viewport breakpoints,
+since those are ordinary DOM text.
+
+The steps are keyed to the chart's own width rather than the viewport's: a
+chart in a narrow panel on a wide screen is still a narrow chart.
+
+It also turned up a pre-existing inconsistency. The troop curve drew the shared
+year axis at 11px and the campaign bars at 12px — a pair meant to read as one
+axis rendering the same years at two sizes, invisible until the scale
+multiplied the gap. One constant now.
+
+### 19. The tablet still hid Pensacola — fixed
+
+Left open under item 13: on a 768x1024 tablet the southernmost event came to
+rest 36px behind the sheet, and the answer looked like regenerating the land
+data so the frame could reach further south.
+
+It did not need new geometry. The sheet's peek is 55% of the viewport, which is
+the right rule for a phone and the wrong one for a tablet: 563px of card on a
+1024px screen, more than the card has to say, and it is half that height the
+map has to lift the marker past. The peek is now capped at 480px. Every phone
+is already under the cap — a 932px iPhone asks for 513px and gets 480, the
+tallest that changes at all — so the phone layout the mobile work tuned is
+untouched below 873px of viewport.
+
+The clamp is what makes this work: when the southern floor binds, the marker's
+position is fixed by the frame rather than by the lift, so shortening the sheet
+moves the fold down and leaves the marker where it is. 24px of clearance on
+every tablet height, 40px at 390x844.
+
+**And the test had been measuring the wrong thing.** It checked the marker's
+centre, which is why a 430x932 phone passed while 8px of its 44px touch target
+sat behind the sheet. It now checks the whole box, at three viewports, and
+polls until the flight lands rather than reading after a fixed wait — a single
+sample failed under four workers on the tall tablet, in mid-air.
+
+### 20. Still open, unchanged
+
+- The mobile sticky-map redesign (route 2 under item 1).
+- Holding an arrow key still drops steps (item 3) — the marker layer, untouched
+  here.
+- The `metrics` chunk (item 4), now 385.86 kB after the chart work.
+- Line length below 1600px: about 80 characters at 1440. See item 11 for why
+  the fix stops where it does.
+- `@reduxjs/toolkit` is a declared dependency that nothing imports.
+- `cursor/fix-review-findings-39f3` (item 5).
+- `HorizontalTimeline.jsx` and `Map.jsx`'s `MapLegend` are both dead — defined,
+  never rendered. `MapLegend` now reads from the palette so it cannot drift
+  again; `HorizontalTimeline` still carries its own copy of the four colours,
+  including the `#44A06A` that no other file uses. Deleting both is the honest
+  fix and was left alone as out of scope.
 
 ## Decisions already taken
 

@@ -6,6 +6,7 @@ import DataInterludeCard from './DataInterludeCard';
 import SearchBar from './SearchBar';
 import MobileBottomSheet from './MobileBottomSheet';
 import { interludes } from '../data/interludes';
+import { EVENT_TYPES, typeTheme, SIDES } from '../constants/palette';
 
 // Interleave data interludes into the event sequence after their anchor events
 function buildStoryItems(events) {
@@ -36,27 +37,33 @@ function FilterIcon({ type }) {
   }
 }
 
-function FilterBar({ activeFilters, onToggle }) {
-  const types = [
-    { id: 'battle', label: 'Battles', color: '#7A1212' },
-    { id: 'political', label: 'Political', color: '#0A244A' },
-    { id: 'diplomatic', label: 'Diplomatic', color: '#C5A02F' },
-    { id: 'military', label: 'Military', color: '#228B22' },
-  ];
-
+function FilterBar({ activeFilters, onToggle, darkMode }) {
   return (
-    <div className="filter-bar">
-      {types.map(t => (
-        <button
-          key={t.id}
-          className={`filter-btn ${activeFilters.has(t.id) ? 'active' : ''}`}
-          onClick={() => onToggle(t.id)}
-          style={{ '--filter-color': t.color }}
-        >
-          <span className="filter-icon"><FilterIcon type={t.id} /></span>
-          {t.label}
-        </button>
-      ))}
+    <div className="filter-bar" role="group" aria-label="Filter events by type">
+      {Object.entries(EVENT_TYPES).map(([id, meta]) => {
+        const theme = typeTheme(id, darkMode);
+        const isActive = activeFilters.has(id);
+        return (
+          <button
+            key={id}
+            type="button"
+            className={`filter-btn ${isActive ? 'active' : ''}`}
+            onClick={() => onToggle(id)}
+            // Three custom properties, not one: the border and the active fill
+            // want the hue, the active label wants the foreground that passes
+            // against it, and the inactive label wants the on-surface ink.
+            style={{
+              '--filter-color': theme.bg,
+              '--filter-fg': theme.fg,
+              '--filter-ink': theme.ink,
+            }}
+            aria-pressed={isActive}
+          >
+            <span className="filter-icon"><FilterIcon type={id} /></span>
+            {meta.plural}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -75,8 +82,34 @@ export default function ExploreView({
   initialEventId,
   onConsumeInitialEvent,
   onEventChange, // New prop to sync URL
+  routeEventId, // the event the address bar currently names, or null
 }) {
-  const storyItems = useMemo(() => buildStoryItems(events), [events]);
+  const [activeFilters, setActiveFilters] = useState(
+    new Set(['battle', 'political', 'diplomatic', 'military'])
+  );
+  // Turning points are a judgement, not a type: the events after which the
+  // war's direction, its aims, or the balance of forces measurably changed.
+  // The preset used to be `battle + diplomatic`, which is every engagement
+  // plus the four treaties — 28 of 47 events, and a strict superset of the
+  // battles preset beside it. `turningPoint` on the event carries the
+  // judgement, and the reason it was made, so the set can be argued with.
+  const [turningPointsOnly, setTurningPointsOnly] = useState(false);
+
+  // Filters drive the story, not only the map. Hiding a marker while the
+  // reader steps through every card regardless is a filter that does not
+  // filter: with the battles alone chosen the story walked straight on into the
+  // next political and diplomatic events, and the counter went on reading /51.
+  const filteredEvents = useMemo(
+    () => events.filter(event => (
+      activeFilters.has(event.type) && (!turningPointsOnly || Boolean(event.turningPoint))
+    )),
+    [events, activeFilters, turningPointsOnly]
+  );
+  const storyItems = useMemo(() => buildStoryItems(filteredEvents), [filteredEvents]);
+
+  // Where the reader is, by event rather than by position: a filter change
+  // renumbers every step, so the index alone means nothing across one.
+  const anchorIdRef = useRef(null);
 
   // Seed from the deep-linked event so the mount-time URL sync doesn't
   // clobber the requested event with event 0
@@ -93,9 +126,6 @@ export default function ExploreView({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(4000);
   const [fillColonies, setFillColonies] = useState(false);
-  const [activeFilters, setActiveFilters] = useState(
-    new Set(['battle', 'political', 'diplomatic', 'military'])
-  );
   const [isMobile, setIsMobile] = useState(
     () => window.matchMedia('(max-width: 768px)').matches
   );
@@ -111,6 +141,20 @@ export default function ExploreView({
   const isInterlude = currentItem?.kind === 'interlude';
   const currentEvent = isInterlude ? currentItem.anchor : currentItem?.event;
 
+  // Record where the reader is — but not on the render that follows a filter
+  // change. The story is renumbered by then, so `currentEvent` is whatever now
+  // sits at the old index: narrowing to political events and widening again
+  // recorded that stranger and restored to it, landing the reader on the
+  // British evacuation of Boston instead of the resignation they were reading.
+  const knownStoryRef = useRef(storyItems);
+  useEffect(() => {
+    if (knownStoryRef.current !== storyItems) {
+      knownStoryRef.current = storyItems;
+      return; // the restore below owns this pass
+    }
+    if (currentEvent?.id != null) anchorIdRef.current = currentEvent.id;
+  }, [currentEvent, storyItems]);
+
   // Sync current event to URL when the selected event changes
   const lastSyncedEventId = useRef(null);
   useEffect(() => {
@@ -118,6 +162,18 @@ export default function ExploreView({
     lastSyncedEventId.current = currentEvent.id;
     onEventChange?.(currentEvent.id);
   }, [currentEvent, onEventChange]);
+
+  // The explore route should always name the event on screen. It can end up
+  // naming nothing — the router strips a malformed sub-part like
+  // `#/explore/abc`, and arriving from the Data view sets no id at all —
+  // while the effect above stays quiet, because the event itself did not
+  // change. Safe to re-announce here: a URL that names no event has no jump
+  // in flight to clobber, which is why this is gated on `initialEventId` too.
+  useEffect(() => {
+    if (routeEventId != null || initialEventId != null || !currentEvent) return;
+    lastSyncedEventId.current = currentEvent.id;
+    onEventChange?.(currentEvent.id);
+  }, [routeEventId, initialEventId, currentEvent, onEventChange]);
 
   useEffect(() => {
     if (initialEventId == null) return undefined;
@@ -128,16 +184,38 @@ export default function ExploreView({
       // would yank us off the interlude.
       if (currentEvent?.id !== initialEventId) {
         const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === initialEventId);
+        const excluded = idx === -1
+          && events.find(event => event.id === initialEventId
+            && (!activeFilters.has(event.type) || (turningPointsOnly && !event.turningPoint)));
         if (idx !== -1) {
           setCurrentIndex(idx);
           setIsPlaying(false);
+        } else if (excluded) {
+          // A link to an event the current filters exclude — a shared URL, or
+          // Back into one after narrowing the story. Turn its type back on and
+          // let the next pass land on it, rather than answering a link to
+          // Yorktown with wherever the reader happened to be.
+          anchorIdRef.current = initialEventId;
+          setIsPlaying(false);
+          setActiveFilters(prev => new Set(prev).add(excluded.type));
+          if (!excluded.turningPoint) setTurningPointsOnly(false);
+          return; // not consumed: the jump happens once it is in the story
+        } else if (currentEvent) {
+          // A well-formed id that names no event — #/explore/99999. The story
+          // stays where it is, so the address bar has to come back to it:
+          // otherwise the URL claims one event while the screen shows another,
+          // and copying the link hands someone else the wrong thing. Clearing
+          // the sync marker is what lets the effect below re-announce an id it
+          // has already reported once.
+          lastSyncedEventId.current = null;
+          onEventChange?.(currentEvent.id);
         }
       }
       onConsumeInitialEvent?.();
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [currentEvent?.id, initialEventId, onConsumeInitialEvent, storyItems]);
+  }, [currentEvent, initialEventId, onConsumeInitialEvent, onEventChange, storyItems, events, activeFilters, turningPointsOnly]);
 
   const viewRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -156,11 +234,6 @@ export default function ExploreView({
   const currentYear = currentEvent?.year || 1773;
   const progress = ((currentIndex + 1) / storyItems.length) * 100;
 
-  const filteredEvents = useMemo(
-    () => events.filter(e => activeFilters.has(e.type)),
-    [events, activeFilters]
-  );
-
   // id -> position in the canonical order, so the "everything up to here"
   // slice below is a lookup instead of an indexOf scan per candidate.
   // (Plain object, not a Map — `Map` is the map component in this module.)
@@ -174,10 +247,19 @@ export default function ExploreView({
 
   // Memoized so the map isn't handed a new array identity on every render —
   // it redraws 30+ markers and 140 paths when this changes.
-  const mapEvents = useMemo(
-    () => filteredEvents.filter(event => (eventOrder[event.id] ?? 0) <= anchorEventIndex),
-    [filteredEvents, eventOrder, anchorEventIndex]
-  );
+  //
+  // The event on screen is always on the map, whatever the filters say. The
+  // filters thin the markers; they do not change which step the story is on.
+  // Without this, filtering to battles while the card showed the Declaration
+  // left the map with no active marker, flew it back to the default centre,
+  // and — because the map reads the active event from this list — flipped
+  // the cartouche back to "The British Colonies" and dropped the Atlantic
+  // frame under the Treaty of Paris.
+  const mapEvents = useMemo(() => {
+    const shown = filteredEvents.filter(event => (eventOrder[event.id] ?? 0) <= anchorEventIndex);
+    if (!currentEvent || shown.some(event => event.id === currentEvent.id)) return shown;
+    return [...shown, currentEvent].sort((a, b) => eventOrder[a.id] - eventOrder[b.id]);
+  }, [filteredEvents, eventOrder, anchorEventIndex, currentEvent]);
 
   const mapActiveId = currentEvent?.id;
 
@@ -230,6 +312,9 @@ export default function ExploreView({
 
   // --- Filter toggle ---
   const toggleFilter = useCallback((type) => {
+    // Reaching for a type chip is a different question from "show me the
+    // turning points", so it drops back to filtering by type.
+    setTurningPointsOnly(false);
     setActiveFilters(prev => {
       const next = new Set(prev);
       if (next.has(type)) {
@@ -242,15 +327,24 @@ export default function ExploreView({
   }, []);
 
   // --- Preset filters ---
+  const ALL_TYPES = ['battle', 'political', 'diplomatic', 'military'];
+  // No "Major Battles" preset. It selected every event of type `battle` and
+  // called them major — Kettle Creek weighing the same as Yorktown — and the
+  // Battles chip in the row below already does exactly what it did, without
+  // the claim. A preset earns its place by expressing something the chips
+  // cannot: a curated set, or a combination.
   const FILTER_PRESETS = [
-    { label: 'All Events', filters: ['battle', 'political', 'diplomatic', 'military'] },
-    { label: 'Major Battles', filters: ['battle'] },
+    { label: 'All Events', filters: ALL_TYPES },
     { label: 'Political Milestones', filters: ['political'] },
-    { label: 'Turning Points', filters: ['battle', 'diplomatic'] },
+    // Every type, narrowed to the flagged events — the set spans battles,
+    // a declaration, a treaty and a vote in the Commons, so no union of
+    // types describes it.
+    { label: 'Turning Points', filters: ALL_TYPES, turningPoints: true },
   ];
 
-  const applyPreset = useCallback((filterIds) => {
+  const applyPreset = useCallback((filterIds, turningPoints = false) => {
     setActiveFilters(new Set(filterIds));
+    setTurningPointsOnly(turningPoints);
   }, []);
 
   // --- Wheel navigation ---
@@ -327,6 +421,10 @@ export default function ExploreView({
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      // Chords belong to the browser and the OS. Cmd+C is how a reader copies
+      // a passage from the card; Cmd+1 switches tabs; Alt+→ and Cmd+← are
+      // Forward and Back. Every one of them used to be read as its bare key.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       if ((e.key === 'c' || e.key === 'C') && !isMobile) {
         e.preventDefault();
@@ -335,13 +433,19 @@ export default function ExploreView({
       }
 
       if (e.key === 'Escape' && viewMode === 'cards') {
-        if (document.querySelector('.shortcuts-overlay')) return;
         e.preventDefault();
         setViewMode('map');
         return;
       }
 
       if (e.key === ' ') {
+        // Space is how a button is pressed. With a button focused — Next,
+        // Filter, a map marker — it activates that button and nothing else;
+        // claiming it here meant no control in the story could be pressed
+        // with Space at all, and a focused marker both jumped and started
+        // playback. Shift+Space is the browser's page-up.
+        if (e.shiftKey) return;
+        if (e.target instanceof Element && e.target.closest('button, a[href], [role="button"], [role="option"], summary')) return;
         e.preventDefault();
         togglePlayback();
         return;
@@ -377,12 +481,51 @@ export default function ExploreView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [storyItems.length, togglePlayback, viewMode, toggleViewMode, isMobile]);
 
+  // Put them back after a filter change: on the same event if it survived,
+  // otherwise on the nearest one that did, so narrowing to battles from a
+  // political event lands on the fighting either side of it rather than at
+  // 1765 again.
+  useEffect(() => {
+    const id = anchorIdRef.current;
+    if (id == null) return;
+
+    const exact = storyItems.findIndex(item => item.kind === 'event' && item.event.id === id);
+    if (exact !== -1) {
+      setCurrentIndex(exact);
+      return;
+    }
+
+    const position = eventOrder[id] ?? 0;
+    let nearest = 0;
+    let distance = Infinity;
+    storyItems.forEach((item, index) => {
+      if (item.kind !== 'event') return;
+      const gap = Math.abs((eventOrder[item.event.id] ?? 0) - position);
+      if (gap < distance) { distance = gap; nearest = index; }
+    });
+    setCurrentIndex(nearest);
+    // Deliberately keyed on the shape of the story rather than on the anchor:
+    // the anchor changes with every step, and depending on it would pull the
+    // reader back to it. The ref is read, not subscribed to.
+  }, [storyItems, eventOrder]);
+
   // --- Jump to an event by id (map, timeline, search, interlude charts) ---
   const jumpToEvent = useCallback((id) => {
     setIsPlaying(false);
     const idx = storyItems.findIndex(it => it.kind === 'event' && it.event.id === id);
-    if (idx !== -1) setCurrentIndex(idx);
-  }, [storyItems]);
+    if (idx !== -1) {
+      setCurrentIndex(idx);
+      return;
+    }
+    // Search, the map and the data view can all name an event the current
+    // filters exclude. Answering with silence would be the worst of both:
+    // turn its type back on and let the effect above land on it.
+    const target = events.find(event => event.id === id);
+    if (!target) return;
+    anchorIdRef.current = id;
+    setActiveFilters(prev => (prev.has(target.type) ? prev : new Set(prev).add(target.type)));
+    if (!target.turningPoint) setTurningPointsOnly(false);
+  }, [storyItems, events]);
 
   const handleMapEventClick = jumpToEvent;
   const handleSearchSelect = jumpToEvent;
@@ -433,6 +576,18 @@ export default function ExploreView({
     }
   }, []);
 
+  // Rebuilt only when the step changes, so an unrelated re-render cannot make
+  // the region re-announce the same event.
+  const stepAnnouncement = useMemo(() => {
+    if (!currentItem) return '';
+    const position = `Step ${currentIndex + 1} of ${storyItems.length}`;
+    if (currentItem.kind === 'interlude') {
+      return `${position}. ${currentItem.interlude.title}, a data interlude.`;
+    }
+    const event = currentItem.event;
+    return `${position}. ${event.title}, ${event.year}. ${event.location.split('\n').join(', ')}.`;
+  }, [currentItem, currentIndex, storyItems.length]);
+
   const activeFilterCount = activeFilters.size;
   const isAtEnd = currentIndex === storyItems.length - 1;
   const hasPrev = currentIndex > 0;
@@ -466,19 +621,20 @@ export default function ExploreView({
       <div className="filter-presets">
         {FILTER_PRESETS.map((preset) => {
           const isActive = preset.filters.length === activeFilters.size &&
-            preset.filters.every(f => activeFilters.has(f));
+            preset.filters.every(f => activeFilters.has(f)) &&
+            Boolean(preset.turningPoints) === turningPointsOnly;
           return (
             <button
               key={preset.label}
               className={`filter-preset-chip ${isActive ? 'active' : ''}`}
-              onClick={() => applyPreset(preset.filters)}
+              onClick={() => applyPreset(preset.filters, preset.turningPoints)}
             >
               {preset.label}
             </button>
           );
         })}
       </div>
-      <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} />
+      <FilterBar activeFilters={activeFilters} onToggle={toggleFilter} darkMode={darkMode} />
       {viewMode === 'map' && (
         <label className="checkbox-label" style={{ marginTop: '0.5rem' }}>
           <input
@@ -494,11 +650,11 @@ export default function ExploreView({
           <h4 className="filters-legend-title">Map Legend</h4>
           <div className="filters-legend-rows">
             <span className="filters-legend-item">
-              <span className="legend-dot" style={{ background: '#1e3a5f' }} />
+              <span className="legend-dot" style={{ background: SIDES.american }} />
               American
             </span>
             <span className="filters-legend-item">
-              <span className="legend-dot" style={{ background: '#8b2323' }} />
+              <span className="legend-dot" style={{ background: SIDES.british }} />
               British
             </span>
           </div>
@@ -511,6 +667,8 @@ export default function ExploreView({
     <button
       className={`explore-btn playback-btn ${isPlaying ? 'active' : ''}`}
       onClick={togglePlayback}
+      // Nothing left to play at the last step; Replay lives in the end card.
+      disabled={isAtEnd}
     >
       {isPlaying ? (
         <>
@@ -547,7 +705,9 @@ export default function ExploreView({
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
       Filter
-      {activeFilterCount < 4 && (
+      {turningPointsOnly ? (
+        <span className="filter-count-badge">TP</span>
+      ) : activeFilterCount < 4 && (
         <span className="filter-count-badge">{activeFilterCount}</span>
       )}
     </button>
@@ -615,11 +775,13 @@ export default function ExploreView({
       {/* Full-screen Map — CSS-hidden in cards mode; never unmount */}
       {/* `inert` both hides this from assistive tech and pulls its contents
           out of the tab order; aria-hidden alone left Leaflet's controls
-          focusable inside a hidden subtree. */}
+          focusable inside a hidden subtree. A boolean, not `''`: React 19
+          treats an empty string as false, logs an error, and drops the
+          attribute — so it was never actually applied. */}
       <div
         className="scrolly-map-container"
         ref={mapContainerRef}
-        inert={viewMode === 'cards' ? '' : undefined}
+        inert={viewMode === 'cards'}
       >
         <Map
           events={mapEvents}
@@ -633,6 +795,13 @@ export default function ExploreView({
           scrollWheelZoom={false}
           mapVisible={viewMode === 'map'}
         />
+      </div>
+
+      {/* Moving through the story repaints the map and swaps the card with
+          nothing said out loud. Announce the step politely, so it lands after
+          whatever the reader was already listening to. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {stepAnnouncement}
       </div>
 
       {/* Compact status chip — year + progress merged */}
@@ -706,6 +875,8 @@ export default function ExploreView({
           onNext={handleNextEvent}
           hasPrev={hasPrev}
           hasNext={hasNext}
+          isPlaying={isPlaying}
+          onTogglePlayback={togglePlayback}
           panelContent={sheetPanelContent}
         >
           {cardContent}
