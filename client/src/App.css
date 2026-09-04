@@ -23,6 +23,10 @@
   /* Highlight Gold */
 
   /* Backgrounds & Surfaces */
+  /* Referenced by eight rules and never defined, so every one of them —
+     including the end-of-timeline card — was painting a transparent box
+     with a shadow around it. */
+  --color-white: #FFFFFF;
   --color-bg-light: #F2F0E9;
   /* Alabaster / Premium Paper */
   --color-bg-dark: #0D1117;
@@ -3622,9 +3626,14 @@ body.dark-mode {
   white-space: nowrap;
 }
 
-.explore-btn:hover {
+.explore-btn:hover:not(:disabled) {
   background: var(--color-american);
   color: white;
+}
+
+.explore-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .explore-btn.active {
@@ -5451,13 +5460,17 @@ body.dark-mode {
     bottom: 1.25rem;
   }
 
+  /* Over the map, not the story panel: centred over the card it covered the
+     last event's "Why This Matters" and its source link half a second after
+     the reader arrived. Above the onboarding hint's row, should it still be
+     showing. */
   .scrollytelling-view:not(.view-mode-cards) .story-end {
-    right: calc(var(--desktop-story-panel-width) / 2);
-    bottom: calc(var(--desktop-controls-height) + 1.5rem);
-    left: auto;
-    width: min(320px, calc(var(--desktop-story-panel-width) - 3rem));
+    left: calc((100% - var(--desktop-story-panel-width)) / 2);
+    right: auto;
+    bottom: 4.5rem;
+    width: min(320px, calc(100% - var(--desktop-story-panel-width) - 3rem));
     padding: 1.25rem 1.5rem;
-    transform: translateX(50%);
+    transform: translateX(-50%);
   }
 
 /* Focus mode becomes a spacious reading canvas instead of a shallow strip. */

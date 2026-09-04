@@ -571,6 +571,8 @@ export default function ExploreView({
     <button
       className={`explore-btn playback-btn ${isPlaying ? 'active' : ''}`}
       onClick={togglePlayback}
+      // Nothing left to play at the last step; Replay lives in the end card.
+      disabled={isAtEnd}
     >
       {isPlaying ? (
         <>
