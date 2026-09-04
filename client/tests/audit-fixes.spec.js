@@ -308,4 +308,50 @@ test.describe('Phones', () => {
     await expect(title(page)).toHaveText(held);
     await expect(page.getByRole('button', { name: 'Story controls' })).toBeVisible();
   });
+
+  // Lifting the active marker clear of the sheet moves the map centre south,
+  // and the seaboard frame's 27°N floor refused the pan for anything on the
+  // southern seaboard: Savannah came to rest 198px below the top of the sheet,
+  // Charleston 161px, Pensacola 286px — each hidden behind the card describing
+  // it. The phone frame now reaches 20°N, where the land silhouette is clipped.
+  for (const [slug, name] of [
+    ['siege-of-savannah', 'Siege of Savannah'],
+    ['siege-of-charleston', 'Siege of Charleston'],
+    ['battle-of-eutaw-springs', 'Battle of Eutaw Springs'],
+    ['spanish-gulf-campaign-culminates-at-pensacola', 'Spanish Gulf Campaign Culminates at Pensacola'],
+    // A northern control: the fix must not cost the events that already worked.
+    ['battle-of-bunker-hill', 'Battle of Bunker Hill'],
+  ]) {
+    test(`${name} rests on the visible strip, not behind the sheet`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await openEvent(page, slug);
+
+      const marker = page.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(,|$)`) });
+      await expect(marker).toBeVisible();
+
+      const placement = await page.evaluate((label) => {
+        const map = document.querySelector('.leaflet-container').getBoundingClientRect();
+        const sheet = document.querySelector('.bottom-sheet').getBoundingClientRect();
+        const el = [...document.querySelectorAll('.custom-marker [role="button"]')]
+          .find((node) => (node.getAttribute('aria-label') || '').startsWith(label));
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return {
+          y: Math.round(rect.top + rect.height / 2),
+          x: Math.round(rect.left + rect.width / 2),
+          top: Math.round(map.top),
+          bottom: Math.round(sheet.top),
+          left: Math.round(map.left),
+          right: Math.round(map.right),
+        };
+      }, name);
+
+      expect(placement, 'the active marker was never drawn').not.toBeNull();
+      const { x, y, top, bottom, left, right } = placement;
+      expect(y, `${y} is above the map's top edge (${top})`).toBeGreaterThan(top);
+      expect(y, `${y} is behind the sheet, which starts at ${bottom}`).toBeLessThan(bottom);
+      expect(x).toBeGreaterThan(left);
+      expect(x).toBeLessThan(right);
+    });
+  }
 });

@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npm test               # 151 tests; boots its own server on 5174
+npm test               # 156 tests; boots its own server on 5174
 npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
@@ -513,8 +513,38 @@ map is a mutable imperative handle rather than React state, so the rule is a
 false positive here. Narrow `eslint-disable-next-line` directives with the
 reason, no behaviour change. `npm run lint` is a gate and the branch was red.
 
-### 13. Still open, unchanged
+### 13. The phone map could not reach the southern events — fixed
 
+Savannah, Charleston, Eutaw Springs and Pensacola all came to rest *behind*
+the bottom sheet on a phone: 198px, 161px, 126px and 286px below the top of
+the card describing them. Nothing on the northern seaboard was affected, which
+is why it survived a mobile layout pass and an accessibility pass.
+
+Lifting the active marker clear of the sheet moves the map *centre* southward —
+219px of it on a 390x844 — so the view's south edge ends up far below the
+marker. For a southern event that edge fell outside `easternSeaboardBounds`'
+27°N floor, and `maxBounds` refused the pan: the same failure the Atlantic
+frame hit and solved by loosening its south edge, in the frame nobody thought
+to check.
+
+The phone now gets its own seaboard box, `seaboardBoundsMobile`, reaching 20°N.
+Desktop keeps 27°N, where it needs no lift and the slack would only let a
+reader pan into blank sea. 20°N rather than lower because that is where
+`LAND_BOUNDS` clips the land silhouette: below it, Cuba's south coast would
+show the clipper's straight cut.
+
+Verified at 360x740, 390x844, 412x915 and 430x932 — every event clears the
+sheet, and the northern events land where they always did. Five tests in
+`audit-fixes.spec.js`, each observed to fail against the code before the fix.
+
+### 14. Still open, unchanged
+
+- A 768x1024 tablet — the widest viewport the mobile layout covers — still
+  hides Pensacola, the southernmost event, 36px behind the sheet. The sheet
+  takes 563px of that viewport, and 20°N is as much slack as the land data
+  allows. The fix is to lower `LAND_BOUNDS.south` in `build-geo-data.mjs` and
+  regenerate, which adds only Cuba's southern coast; every phone width is
+  already clear.
 - The mobile sticky-map redesign (route 2 under item 1).
 - Holding an arrow key still drops steps (item 3) — the marker layer, untouched
   here.

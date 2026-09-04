@@ -822,6 +822,24 @@ const easternSeaboardBounds = [
   [48.0, -60.0]
 ];
 
+// The phone needs slack to the south that the desktop does not.
+//
+// Lifting the active marker clear of the bottom sheet moves the map *centre*
+// southward — 219px of it on a 390x844 — so the view's south edge runs well
+// below the marker. For anything on the southern seaboard that edge fell
+// outside the 27°N floor and maxBounds refused the pan: Savannah came to rest
+// 198px below the top of the sheet, Charleston 161px, Pensacola 286px. Each of
+// them was hidden behind the card that was describing it.
+//
+// 20°N, matching where the land silhouette is clipped, is as far as the slack
+// can go without showing the clipper's straight cut across Cuba's south coast.
+// It is enough for the phone widths this layout is for; below the coast there
+// is only open sea, which is what a reader panning down there would expect.
+const seaboardBoundsMobile = [
+  [20.0, -91.0],
+  [48.0, -60.0]
+];
+
 // Four events in the chronology happen in Europe — London twice, Paris twice.
 // Panning to them is impossible inside the seaboard frame, so the map
 // temporarily widens to an Atlantic view and flies across.
@@ -912,7 +930,9 @@ export default function Map({
   const zoom = isOverseas
     ? (isMobile ? OVERSEAS_MOBILE_ZOOM : ATLANTIC_MIN_ZOOM)
     : SEABOARD_ZOOM;
-  const maxBounds = isOverseas ? atlanticBounds : easternSeaboardBounds;
+  const maxBounds = isOverseas
+    ? atlanticBounds
+    : (isMobile ? seaboardBoundsMobile : easternSeaboardBounds);
   const minZoom = isOverseas ? ATLANTIC_MIN_ZOOM : 5;
   const fitBounds = isOverseas && !isMobile ? atlanticCrossingBounds : null;
 
