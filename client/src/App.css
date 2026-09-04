@@ -5254,8 +5254,12 @@ body.dark-mode {
     height: 48px;
   }
 
+  /* Sized to the room the controls leave. At 1.1rem the title needs 214px
+     and had 173 on a 375px phone, 158 on a 360: it read "The American
+     Revolu…" on every phone narrower than 430px. */
   .header-content h1 {
-    font-size: 1.1rem;
+    font-size: clamp(0.75rem, 3.6vw, 1.1rem);
+    letter-spacing: 0;
   }
 
   .view-toggle {
