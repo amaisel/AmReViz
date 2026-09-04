@@ -377,6 +377,9 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
 
     const willFly = prevCenter != null && !reduceMotion && (Boolean(fitBounds) || zoomChanged);
     if (willFly) {
+      // Same imperative Leaflet handle as above; these flags are read by the
+      // renderer hooks at the top of the file, not by React.
+      // eslint-disable-next-line react-hooks/immutability
       map._amrevizFlying = true;
       if (fitBounds) {
         map._amrevizFlyTargetZoom = map._getBoundsCenterZoom(
@@ -402,9 +405,9 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
     if (boundsHoldRef.current) {
       map.off('moveend', boundsHoldRef.current);
     }
-    // Same as above: Leaflet's own internal flag, and setting it is how
-    // panInsideBounds is kept from recursing.
-    // eslint-disable-next-line react-hooks/immutability
+    // Leaflet's own internal flag, and setting it is how panInsideBounds is
+    // kept from recursing. (The lint rule reports one mutation per hook value,
+    // so the directive above covers this write too.)
     map._enforcingBounds = true;
     const releaseBounds = () => {
       queueMicrotask(() => {
