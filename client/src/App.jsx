@@ -115,6 +115,20 @@ export default function App() {
     setView(nextView, nextSubKey);
   }, [setView, view]);
 
+  // The last event the story was on, so the Explore tab and the `1` key go
+  // back to it rather than to the Stamp Act Congress. Data → Explore used to
+  // drop the reader at step 1 (Back kept their place; the tab did not), and
+  // pressing Explore while already there pushed a bare `#/explore` that the
+  // story then corrected — one dead history entry per click.
+  const lastExploreKey = useRef(null);
+  useEffect(() => {
+    if (view === 'explore' && subKey != null) lastExploreKey.current = subKey;
+  }, [view, subKey]);
+
+  const openView = useCallback((nextView) => {
+    navigateToView(nextView, nextView === 'explore' ? lastExploreKey.current : null);
+  }, [navigateToView]);
+
   useEffect(() => {
     try {
       localStorage.setItem('amreviz-dark-mode', darkMode);
@@ -134,18 +148,20 @@ export default function App() {
       // Cmd+1 / Cmd+2 are the browser's own tab switches; Cmd+D bookmarks.
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'd' || e.key === 'D') setDarkMode(prev => !prev);
-      if (e.key === '1') navigateToView('explore');
-      if (e.key === '2') navigateToView('data');
+      if (e.key === '1') openView('explore');
+      if (e.key === '2') openView('data');
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [navigateToView]);
+  }, [openView]);
 
   const handleBeginJourney = () => {
     navigateToView('explore');
   };
 
   const handleExitToWelcome = () => {
+    // "Start Over" means it: the next Begin starts from the first event.
+    lastExploreKey.current = null;
     navigateToView('welcome');
   };
 
@@ -242,7 +258,7 @@ export default function App() {
               <p>An Interactive Journey Through Independence</p>
             </div>
             <div className="header-controls">
-              <ViewToggle view={view} onViewChange={navigateToView} />
+              <ViewToggle view={view} onViewChange={openView} />
               <HelpToggle />
               <ModeToggle darkMode={darkMode} onToggle={() => setDarkMode(!darkMode)} />
             </div>
