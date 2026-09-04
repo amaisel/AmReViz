@@ -539,7 +539,7 @@ test.describe('Data view on a phone', () => {
 });
 
 test.describe('The story follows the filters', () => {
-  // The filters used to hide markers and nothing else: with "Major Battles"
+  // The filters used to hide markers and nothing else: with the battles alone
   // chosen the story still walked into the next political and diplomatic
   // events and the counter still read /51, which is a filter that does not
   // filter. They now narrow the story itself.
@@ -554,7 +554,13 @@ test.describe('The story follows the filters', () => {
     await expect(counter(page)).toHaveText(/\/51$/);
 
     await openFilters(page);
-    await page.getByRole('button', { name: 'Major Battles', exact: true }).click();
+    // Battles are already on; turning the other three off is what leaves them
+    // alone. Clicking Battles first would switch them off instead.
+    for (const type of ['Political', 'Diplomatic', 'Military']) {
+      await page.getByRole('group', { name: 'Filter events by type' })
+        .getByRole('button', { name: new RegExp(type) })
+        .click();
+    }
 
     // 24 battles, plus the two interludes anchored to battles.
     await expect(counter(page)).toHaveText('25/26');
@@ -587,7 +593,11 @@ test.describe('The story follows the filters', () => {
   test('an event the filter excludes hands the reader the nearest one kept', async ({ page }) => {
     await openEvent(page, 'declaration-of-independence');
     await openFilters(page);
-    await page.getByRole('button', { name: 'Major Battles', exact: true }).click();
+    for (const type of ['Political', 'Diplomatic', 'Military']) {
+      await page.getByRole('group', { name: 'Filter events by type' })
+        .getByRole('button', { name: new RegExp(type) })
+        .click();
+    }
 
     // Not back to 1765: the fighting either side of where they were.
     await expect(counter(page)).not.toHaveText('1/26');
@@ -957,36 +967,67 @@ test.describe('Phones', () => {
     // A northern control: the fix must not cost the events that already worked.
     ['battle-of-bunker-hill', 'Battle of Bunker Hill'],
   ]) {
-    test(`${name} rests on the visible strip, not behind the sheet`, async ({ page }) => {
-      await page.setViewportSize({ width: 390, height: 844 });
-      await openEvent(page, slug);
-
-      const marker = page.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(,|$)`) });
-      await expect(marker).toBeVisible();
-
-      const placement = await page.evaluate((label) => {
-        const map = document.querySelector('.leaflet-container').getBoundingClientRect();
-        const sheet = document.querySelector('.bottom-sheet').getBoundingClientRect();
-        const el = [...document.querySelectorAll('.custom-marker [role="button"]')]
-          .find((node) => (node.getAttribute('aria-label') || '').startsWith(label));
-        if (!el) return null;
-        const rect = el.getBoundingClientRect();
-        return {
-          y: Math.round(rect.top + rect.height / 2),
-          x: Math.round(rect.left + rect.width / 2),
+    // The marker's box and the strip it has to sit in: the map above the sheet.
+    const measure = (page, label) => page.evaluate((name) => {
+      const map = document.querySelector('.leaflet-container')?.getBoundingClientRect();
+      const sheet = document.querySelector('.bottom-sheet')?.getBoundingClientRect();
+      const el = [...document.querySelectorAll('.custom-marker [role="button"]')]
+        .find((node) => (node.getAttribute('aria-label') || '').startsWith(name));
+      if (!el || !map || !sheet) return null;
+      const rect = el.getBoundingClientRect();
+      return {
+        box: {
+          top: Math.round(rect.top),
+          bottom: Math.round(rect.bottom),
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+        },
+        strip: {
           top: Math.round(map.top),
           bottom: Math.round(sheet.top),
           left: Math.round(map.left),
           right: Math.round(map.right),
-        };
-      }, name);
+        },
+      };
+    }, label);
 
-      expect(placement, 'the active marker was never drawn').not.toBeNull();
-      const { x, y, top, bottom, left, right } = placement;
-      expect(y, `${y} is above the map's top edge (${top})`).toBeGreaterThan(top);
-      expect(y, `${y} is behind the sheet, which starts at ${bottom}`).toBeLessThan(bottom);
-      expect(x).toBeGreaterThan(left);
-      expect(x).toBeLessThan(right);
-    });
+    // Every viewport the mobile layout covers, not just a phone: the tallest
+    // of them is where the lift is largest and the frame's southern floor
+    // binds hardest. And the whole marker, not its centre — checking the
+    // centre passed a 430x932 phone whose target was 8px behind the sheet.
+    for (const [width, height] of [[390, 844], [430, 932], [768, 1024]]) {
+      test(`${width}x${height}: ${name} rests clear of the sheet`, async ({ page }) => {
+        await page.setViewportSize({ width, height });
+        await openEvent(page, slug);
+
+        const marker = page.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(,|$)`) });
+        await expect(marker).toBeVisible();
+
+        const placement = await measure(page, name);
+
+        expect(placement, 'the active marker was never drawn').not.toBeNull();
+
+        // Polled, not sampled: the flight to a southern event takes longer on
+        // a tall viewport, and a single read after a fixed wait measures the
+        // marker in mid-air. The number is the worst overshoot past any edge
+        // of the strip, so nought or less means the whole marker is inside it.
+        await expect
+          .poll(async () => {
+            const now = await measure(page, name);
+            if (!now) return Number.POSITIVE_INFINITY;
+            const { box, strip } = now;
+            return Math.max(
+              strip.top - box.top,
+              box.bottom - strip.bottom,
+              strip.left - box.left,
+              box.right - strip.right,
+            );
+          }, {
+            timeout: 15_000,
+            message: `${name} never came to rest inside the strip at ${width}x${height}`,
+          })
+          .toBeLessThanOrEqual(0);
+      });
+    }
   }
 });

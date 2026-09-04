@@ -3,7 +3,7 @@ import { MapContainer, Marker, Polyline, useMap, GeoJSON, Pane } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
-import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
+import { MOBILE_SHEET_PEEK_MAX, MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
 import { SIDES } from '../constants/palette';
 import useReducedMotion from '../hooks/useReducedMotion';
 
@@ -358,8 +358,11 @@ function MapController({ center, zoom, autoFly, coveredRatio = 0, maxBounds, min
     // (interlude height jumps must not yank the camera).
     if (!centerChanged && !zoomChanged) return;
 
-    // Aim at the visible strip above the bottom card/sheet.
-    const offsetPx = (map.getSize().y * coveredRatio) / 2;
+    // Aim at the visible strip above the bottom card/sheet. Capped in pixels
+    // the way the sheet's own height is: read from the map's live size rather
+    // than from the viewport, so a re-aim after a resize uses what is there.
+    const covered = Math.min(map.getSize().y * coveredRatio, MOBILE_SHEET_PEEK_MAX);
+    const offsetPx = coveredRatio ? covered / 2 : 0;
     const target = map.unproject(
       map.project(center, zoom).add([0, offsetPx]),
       zoom

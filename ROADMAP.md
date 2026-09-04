@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npm test               # 181 tests; boots its own server on 5174
+npm test               # 191 tests; boots its own server on 5174
 npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
@@ -648,10 +648,12 @@ events, and Valley Forge a turning point because the army that marched out of
 it stood against British regulars at Monmouth nine days later. Both are in, and
 `docs/DATA.md` records why they were missed.
 
-Still open: "Major Battles" has the same shape of problem in miniature. It is
-every event of type `battle`, with no notion of major — Kettle Creek and
-Yorktown weigh the same to it. Either the word goes or the data needs a second
-judgement; left alone here because that is an editorial call, not a bug.
+"Major Battles" had the same shape of problem in miniature — every event of
+type `battle`, with no notion of major, Kettle Creek weighing the same as
+Yorktown. It is gone. The Battles chip in the row below did exactly what it
+did, without the claim, so the preset was a label over a duplicate. A preset
+earns its place by expressing something the chips cannot: a curated set, or a
+combination of types.
 
 ### 18. The data view used half the screen, and scrolled the wrong box — fixed
 
@@ -699,14 +701,33 @@ year axis at 11px and the campaign bars at 12px — a pair meant to read as one
 axis rendering the same years at two sizes, invisible until the scale
 multiplied the gap. One constant now.
 
-### 19. Still open, unchanged
+### 19. The tablet still hid Pensacola — fixed
 
-- A 768x1024 tablet — the widest viewport the mobile layout covers — still
-  hides Pensacola, the southernmost event, 36px behind the sheet. The sheet
-  takes 563px of that viewport, and 20°N is as much slack as the land data
-  allows. The fix is to lower `LAND_BOUNDS.south` in `build-geo-data.mjs` and
-  regenerate, which adds only Cuba's southern coast; every phone width is
-  already clear.
+Left open under item 13: on a 768x1024 tablet the southernmost event came to
+rest 36px behind the sheet, and the answer looked like regenerating the land
+data so the frame could reach further south.
+
+It did not need new geometry. The sheet's peek is 55% of the viewport, which is
+the right rule for a phone and the wrong one for a tablet: 563px of card on a
+1024px screen, more than the card has to say, and it is half that height the
+map has to lift the marker past. The peek is now capped at 480px. Every phone
+is already under the cap — a 932px iPhone asks for 513px and gets 480, the
+tallest that changes at all — so the phone layout the mobile work tuned is
+untouched below 873px of viewport.
+
+The clamp is what makes this work: when the southern floor binds, the marker's
+position is fixed by the frame rather than by the lift, so shortening the sheet
+moves the fold down and leaves the marker where it is. 24px of clearance on
+every tablet height, 40px at 390x844.
+
+**And the test had been measuring the wrong thing.** It checked the marker's
+centre, which is why a 430x932 phone passed while 8px of its 44px touch target
+sat behind the sheet. It now checks the whole box, at three viewports, and
+polls until the flight lands rather than reading after a fixed wait — a single
+sample failed under four workers on the tall tablet, in mid-air.
+
+### 20. Still open, unchanged
+
 - The mobile sticky-map redesign (route 2 under item 1).
 - Holding an arrow key still drops steps (item 3) — the marker layer, untouched
   here.

@@ -97,7 +97,7 @@ export default function ExploreView({
 
   // Filters drive the story, not only the map. Hiding a marker while the
   // reader steps through every card regardless is a filter that does not
-  // filter: with "Major Battles" chosen the story walked straight on into the
+  // filter: with the battles alone chosen the story walked straight on into the
   // next political and diplomatic events, and the counter went on reading /51.
   const filteredEvents = useMemo(
     () => events.filter(event => (
@@ -328,9 +328,13 @@ export default function ExploreView({
 
   // --- Preset filters ---
   const ALL_TYPES = ['battle', 'political', 'diplomatic', 'military'];
+  // No "Major Battles" preset. It selected every event of type `battle` and
+  // called them major — Kettle Creek weighing the same as Yorktown — and the
+  // Battles chip in the row below already does exactly what it did, without
+  // the claim. A preset earns its place by expressing something the chips
+  // cannot: a curated set, or a combination.
   const FILTER_PRESETS = [
     { label: 'All Events', filters: ALL_TYPES },
-    { label: 'Major Battles', filters: ['battle'] },
     { label: 'Political Milestones', filters: ['political'] },
     // Every type, narrowed to the flagged events — the set spans battles,
     // a declaration, a treaty and a vote in the Commons, so no union of

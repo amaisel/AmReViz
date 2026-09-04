@@ -217,11 +217,12 @@ test.describe('AmReViz — full walkthrough', () => {
     await page.getByRole('button', { name: /^Filter/ }).click();
     const filters = page.locator('.filters-panel');
     await expect(filters).toBeVisible();
-    await filters.getByRole('button', { name: 'Major Battles' }).click();
-    await expect(page.locator('.filter-count-badge')).toHaveText('1');
-    await expect(
-      page.getByRole('group', { name: 'Filter events by type' }).getByRole('button', { name: /Battles/ }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    // The Battles chip, not a preset: "Major Battles" is gone, and the chip is
+    // what it always was underneath.
+    await filters.getByRole('group', { name: 'Filter events by type' })
+      .getByRole('button', { name: /Battles/ })
+      .click();
+    await expect(page.locator('.filter-count-badge')).toHaveText('3');
     await filters.getByRole('checkbox', { name: 'Color colonies' }).check();
     await filters.getByRole('button', { name: 'All Events' }).click();
     await expect(page.locator('.filter-count-badge')).toHaveCount(0);
@@ -400,7 +401,7 @@ test.describe('AmReViz — full walkthrough on a phone', () => {
     const panel = page.locator('.sheet-controls-panel');
     await expect(panel.getByRole('button', { name: 'Play' })).toBeVisible();
     await expect(panel.getByRole('combobox', { name: 'Search historical events' })).toHaveCount(1);
-    await expect(panel.getByRole('button', { name: 'Major Battles' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Political Milestones' })).toBeVisible();
     await shot(page, 'mobile-controls');
 
     // And the data view is reachable and readable at this width.

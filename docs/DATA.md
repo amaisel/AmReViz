@@ -34,8 +34,10 @@ them rather than pretending the war was fought only on the seaboard.
 
 The Explore view's "Turning Points" filter is a judgement, not a category. It
 used to be every battle plus the four diplomatic events — 28 of the 47, and a
-strict superset of the "Major Battles" filter beside it — which named a
-judgement the data never made.
+strict superset of the battles filter beside it — which named a judgement the
+data never made. (That neighbour, "Major Battles", has since been removed: it
+selected every event of type `battle` and called them major, which the Battles
+chip does without the claim.)
 
 One test decides membership: **the war's direction, its aims, or the balance of
 forces measurably changed here.** Not the biggest engagement, not the bloodiest.

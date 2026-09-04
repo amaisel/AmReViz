@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { motion as Motion, AnimatePresence, useAnimation, useDragControls } from 'framer-motion';
-import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
+import { mobileSheetPeek } from '../constants/layout';
 import useReducedMotion from '../hooks/useReducedMotion';
 
 const SNAP_FULL_RATIO = 0.9;
@@ -16,7 +16,7 @@ const snapDirect = { type: 'tween', duration: 0.12, ease: 'easeOut' };
 
 function getSnapPoints(vh) {
   return {
-    peek: vh * (1 - MOBILE_SHEET_PEEK_RATIO),
+    peek: vh - mobileSheetPeek(vh),
     full: vh * (1 - SNAP_FULL_RATIO),
   };
 }

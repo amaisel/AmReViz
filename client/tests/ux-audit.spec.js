@@ -764,7 +764,7 @@ test.describe('AmReViz UX & Accessibility Audit', () => {
 
     await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Search historical events' })).toBeVisible();
-    // Exact, or this also matches the "Major Battles" preset chip beside it.
+    // Exact: the type chips and the presets share words.
     await expect(page.getByRole('button', { name: 'Battles', exact: true })).toBeVisible();
   });
 
