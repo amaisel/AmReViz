@@ -39,7 +39,7 @@ judgement the data never made.
 
 One test decides membership: **the war's direction, its aims, or the balance of
 forces measurably changed here.** Not the biggest engagement, not the bloodiest.
-By that test the set is 13 events, each carrying its reason in the data as
+By that test the set is 12 events, each carrying its reason in the data as
 `turningPoint`:
 
 | Year | Event | Why it turns |
@@ -52,7 +52,6 @@ By that test the set is 13 events, each carrying its reason in the data as
 | 1777 | Valley Forge Winter Encampment | The army that marched out was retrained, and held the line at Monmouth nine days later |
 | 1778 | Treaty of Alliance Signed with France | A colonial rebellion becomes a European war |
 | 1780 | Battle of Kings Mountain | Breaks Loyalist recruiting and stalls the southern strategy |
-| 1781 | Battle of Cowpens | Costs Cornwallis his light troops and starts the march to Yorktown |
 | 1781 | Battle of the Chesapeake | The French fleet seals the bay; without it there is no siege |
 | 1781 | Siege of Yorktown | Ends major operations in North America |
 | 1782 | The Commons Votes Against the War | Britain gives up the war and opens negotiations |
@@ -64,7 +63,7 @@ the event rather than a filter over types. Each event keeps the source already
 cited on its card; the selection is editorial, and arguing with it means
 arguing with the reasons above rather than with a number.
 
-Two of the thirteen were added after the first pass left them out, and the
+Two of the twelve were added after the first pass left them out, and the
 omission is worth recording because it shows what the test does when applied
 carelessly. Boston and Valley Forge both fail a reading of "the balance of
 forces changed" that only counts armies destroyed and territory taken, and both
@@ -78,6 +77,13 @@ could stand against British regulars at Monmouth nine days later. A set chosen
 for strategic causation alone drifts toward the end of the war, where the chain
 to Yorktown is easiest to trace, and quietly drops the years when there was a
 question of whether an army would survive to fight at all.
+
+Cowpens was in the set and was taken out. Its case was causal rather than
+intrinsic — it cost Cornwallis his light troops and started the march that
+ended at Yorktown — and Kings Mountain, three months earlier, already carries
+the southern turn with Clinton's own account of it as "the first link in a
+chain of evils". Two entries for one turn flattered the southern campaign
+against the rest of the war.
 
 Reaching an event outside the set — by search, by a link, or from the data
 view — brings the rest of the story back rather than refusing to show it.

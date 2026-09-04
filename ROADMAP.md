@@ -629,7 +629,7 @@ filters only thinned markers; once they drove the story it was a label making a
 promise the app could not keep.
 
 `turningPoint` on the event now carries both the judgement and the reason for
-it, and 13 events hold it. The test for membership is one line — the war's
+it, and 12 events hold it. The test for membership is one line — the war's
 direction, its aims, or the balance of forces measurably changed here — and it
 is written down in `docs/DATA.md` beside the reasons, so the selection can be
 argued with rather than merely counted. The set spans battles, a declaration, a

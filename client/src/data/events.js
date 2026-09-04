@@ -1088,7 +1088,6 @@ export const events = [
     "lat": 35.1316,
     "lng": -81.8094,
     "type": "battle",
-    "turningPoint": "costs Cornwallis his light troops and starts the march to Yorktown",
     "side": "american",
     "casualties": {
       "american": 149,
