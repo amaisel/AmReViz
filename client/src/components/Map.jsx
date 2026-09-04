@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { landAreas, lakes, rivers, europeLand } from '../data/geo/baseMap';
 import { MOBILE_SHEET_PEEK_RATIO } from '../constants/layout';
-import { EVENT_TYPES, typeTheme, SIDES } from '../constants/palette';
+import { SIDES } from '../constants/palette';
 import useReducedMotion from '../hooks/useReducedMotion';
 
 // One renderer per pane, not one for the whole chart.
@@ -813,80 +813,6 @@ const TrailYearMarkers = memo(({ events, activeEventId, darkMode }) => {
     return <>{yearMarkers}</>;
   }, [visibleEvents, darkMode]);
 });
-
-function MapLegend({ darkMode, timelineOpen }) {
-  const items = Object.entries(EVENT_TYPES).map(([type, meta]) => ({
-    type,
-    label: meta.label,
-    border: typeTheme(type, darkMode).hue,
-  }));
-
-  const sides = [
-    { color: SIDES.american, label: 'American' },
-    { color: SIDES.british, label: 'British' },
-  ];
-
-  const getLegendSymbol = (type, color) => {
-    switch (type) {
-      case 'battle':
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <line x1="4" y1="4" x2="12" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
-            <line x1="12" y1="4" x2="4" y2="12" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
-          </svg>
-        );
-      case 'political':
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <rect x="3.5" y="2" width="9" height="12" rx="1" stroke={color} strokeWidth="1.6" fill="none"/>
-            <line x1="5.5" y1="5.5" x2="10.5" y2="5.5" stroke={color} strokeWidth="1.2"/>
-            <line x1="5.5" y1="8" x2="10.5" y2="8" stroke={color} strokeWidth="1.2"/>
-            <line x1="5.5" y1="10.5" x2="8.5" y2="10.5" stroke={color} strokeWidth="1.2"/>
-          </svg>
-        );
-      case 'diplomatic':
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <circle cx="8" cy="8" r="5" stroke={color} strokeWidth="1.6" fill="none"/>
-            <circle cx="8" cy="8" r="2" fill={color}/>
-          </svg>
-        );
-      case 'military':
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <path d="M8 2L13 5V10C13 12.5 10.5 14.5 8 15C5.5 14.5 3 12.5 3 10V5L8 2Z" stroke={color} strokeWidth="1.6" fill="none" strokeLinejoin="round"/>
-          </svg>
-        );
-      default:
-        return (
-          <svg viewBox="0 0 16 16" width="14" height="14">
-            <circle cx="8" cy="8" r="4" fill={color}/>
-          </svg>
-        );
-    }
-  };
-
-  return (
-    <div className={`map-legend ${darkMode ? 'dark' : ''} ${timelineOpen ? 'timeline-open' : ''}`}>
-      <h4>Legend</h4>
-      {items.map((item, i) => (
-        <div key={i} className="legend-item">
-          <span className="legend-symbol" style={{ borderColor: item.border }}>
-            {getLegendSymbol(item.type, item.border)}
-          </span>
-          <span className="legend-label">{item.label}</span>
-        </div>
-      ))}
-      <div className="legend-divider" />
-      {sides.map((s, i) => (
-        <div key={i} className="legend-item">
-          <span className="legend-dot" style={{ background: s.color }} />
-          <span className="legend-label">{s.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // West edge reaches -91 so the Gulf campaign at Pensacola (-87.2) is inside
 // the frame. The land data runs to -95, so the silhouette still has no
