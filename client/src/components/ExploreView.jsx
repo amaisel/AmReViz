@@ -203,10 +203,19 @@ export default function ExploreView({
 
   // Memoized so the map isn't handed a new array identity on every render —
   // it redraws 30+ markers and 140 paths when this changes.
-  const mapEvents = useMemo(
-    () => filteredEvents.filter(event => (eventOrder[event.id] ?? 0) <= anchorEventIndex),
-    [filteredEvents, eventOrder, anchorEventIndex]
-  );
+  //
+  // The event on screen is always on the map, whatever the filters say. The
+  // filters thin the markers; they do not change which step the story is on.
+  // Without this, filtering to battles while the card showed the Declaration
+  // left the map with no active marker, flew it back to the default centre,
+  // and — because the map reads the active event from this list — flipped
+  // the cartouche back to "The British Colonies" and dropped the Atlantic
+  // frame under the Treaty of Paris.
+  const mapEvents = useMemo(() => {
+    const shown = filteredEvents.filter(event => (eventOrder[event.id] ?? 0) <= anchorEventIndex);
+    if (!currentEvent || shown.some(event => event.id === currentEvent.id)) return shown;
+    return [...shown, currentEvent].sort((a, b) => eventOrder[a.id] - eventOrder[b.id]);
+  }, [filteredEvents, eventOrder, anchorEventIndex, currentEvent]);
 
   const mapActiveId = currentEvent?.id;
 
