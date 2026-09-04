@@ -13,7 +13,7 @@ import {
   Legend,
   ReferenceLine,
 } from 'recharts';
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion as Motion } from 'framer-motion';
 import { chartSeries, chartInk } from '../constants/palette';
 import useReducedMotion from '../hooks/useReducedMotion';
@@ -164,6 +164,54 @@ function CompactFrame({ compact, fallback, children }) {
   if (!compact) return children;
   return (
     <div className="chart-compact-frame" style={{ height: `var(--compact-chart-height, ${fallback}px)` }}>
+      {children}
+    </div>
+  );
+}
+
+// A vertical scroll frame that says so. The compact casualties chart keeps a
+// readable row per engagement and scrolls when the list outgrows its frame,
+// but a frame that scrolls silently is a chart that ends early: at the Full
+// Ledger, 1440x900 showed nine battles of twenty-three, stopping in 1777 with
+// Yorktown — the interlude's own anchor — below the fold and nothing to say
+// so. The frame marks itself while there is more below, and the CSS draws a
+// fade over that edge.
+function ScrollFrame({ className, label, children }) {
+  const ref = useRef(null);
+  const [more, setMore] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const remaining = el.scrollHeight - el.clientHeight - el.scrollTop;
+    setMore((prev) => {
+      const next = remaining > 2;
+      return prev === next ? prev : next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    measure();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    observer?.observe(el);
+    // The chart inside sizes itself a frame after mount.
+    const frame = requestAnimationFrame(measure);
+    return () => {
+      observer?.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [measure, children]);
+
+  return (
+    <div
+      ref={ref}
+      className={`chart-scroll-frame chart-scroll-frame--y ${more ? 'has-more' : ''} ${className ?? ''}`}
+      tabIndex={0}
+      aria-label={label}
+      onScroll={measure}
+    >
       {children}
     </div>
   );
@@ -470,7 +518,10 @@ function wrapTitle(title, maxChars) {
 
 function CampaignNameTick({ x, y, payload, darkMode, compact }) {
   const ink = chartInk(darkMode);
-  const lines = wrapTitle(payload.value, compact ? 11 : 14);
+  // One line when compact. The compact chart gives each campaign ~21px, and
+  // a two-line label at 11px per line is 22px: in the Full Ledger "New England
+  // Campaign" and "New York & New Jersey" were printed over each other.
+  const lines = compact ? [payload.value] : wrapTitle(payload.value, 14);
   const fontSize = compact ? 10 : 11;
   const lineH = compact ? 11 : 13;
   const startY = -((lines.length - 1) * lineH) / 2 + 4;
@@ -590,6 +641,31 @@ export function CasualtiesChart({
     return Number.isInteger(index) ? data[index] : undefined;
   };
 
+  // One explicit domain for both axes: a second axis with no series bound to
+  // it has no data to derive one from, and two axes that disagree would put
+  // two different scales on one plot.
+  const maxCasualties = data.reduce(
+    (max, d) => Math.max(max, d.americanCasualties, d.britishCasualties),
+    0,
+  );
+  // Spelled out for the same reason: Recharts derives ticks from bound data
+  // too, and drew the unbound axis as a bare line.
+  const tickStep = maxCasualties > 5000 ? 2000 : maxCasualties > 2000 ? 1000 : maxCasualties > 800 ? 500 : 200;
+  const ticks = [];
+  for (let n = 0; n <= maxCasualties; n += tickStep) ticks.push(n);
+  const axisProps = {
+    type: 'number',
+    scale: 'sqrt',
+    domain: [0, maxCasualties],
+    ticks,
+    allowDecimals: false,
+    stroke: textColor,
+    tick: { fontSize: 11, fill: textColor },
+    tickFormatter: (n) => Number(n).toLocaleString(),
+    axisLine: { stroke: textColor, strokeOpacity: 0.4 },
+    tickLine: { stroke: textColor, strokeOpacity: 0.3 },
+  };
+
   const plot = (
     <ResponsiveContainer
       width="100%"
@@ -623,17 +699,13 @@ export function CasualtiesChart({
         // tabindex on inner <g>s; a click then frames the whole plot.
         accessibilityLayer={false}
       >
-        <XAxis
-          type="number"
-          scale="sqrt"
-          domain={[0, 'dataMax']}
-          allowDecimals={false}
-          stroke={textColor}
-          tick={{ fontSize: 11, fill: textColor }}
-          tickFormatter={(n) => Number(n).toLocaleString()}
-          axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
-          tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
-        />
+        {/* The scale sits at the top, where the reader meets it first. The
+            list is long — 23 rows at full height, and a scroll frame when
+            compact — so an axis only at the foot was out of sight until the
+            reader had passed every bar it explained. The full chart keeps a
+            second copy at the foot for whoever arrives from below. */}
+        <XAxis {...axisProps} orientation="top" />
+        {!compact && <XAxis {...axisProps} xAxisId="foot" orientation="bottom" includeHidden />}
         <YAxis
           type="category"
           dataKey="title"
@@ -686,6 +758,12 @@ export function CasualtiesChart({
           barSize={compact ? 7 : 11}
           activeBar={false}
         />
+        {/* Never drawn (hide keeps it out of the bar groups too); it exists so
+            the foot axis has data to derive its ticks from, since Recharts
+            gives an axis with nothing bound to it a bare line. */}
+        {!compact && (
+          <Bar dataKey="britishCasualties" xAxisId="foot" hide legendType="none" tooltipType="none" isAnimationActive={false} />
+        )}
       </BarChart>
     </ResponsiveContainer>
   );
@@ -709,13 +787,9 @@ export function CasualtiesChart({
         </>
       )}
       {compact ? (
-        <div
-          className="chart-scroll-frame chart-scroll-frame--y"
-          tabIndex={0}
-          aria-label="Scrollable chronological battle casualty chart"
-        >
+        <ScrollFrame label="Scrollable chronological battle casualty chart">
           <div style={{ height: chartHeight }}>{plot}</div>
-        </div>
+        </ScrollFrame>
       ) : (
         <div style={{ height: chartHeight }}>{plot}</div>
       )}
@@ -816,7 +890,9 @@ export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAx
             stroke={textColor}
             width={sharedTimeAxis ? SHARED_Y_AXIS_WIDTH : 140}
             interval={0}
-            tick={sharedTimeAxis
+            // Recharts' default tick wraps a label to the axis width, which in
+            // the compact chart put two-line labels on one-line rows.
+            tick={sharedTimeAxis || compact
               ? (props) => <CampaignNameTick {...props} darkMode={darkMode} compact={compact} />
               : { fontSize: 11, fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}

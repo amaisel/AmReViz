@@ -125,6 +125,25 @@
   padding-bottom: 0;
 }
 
+/* Sticky to the frame's lower edge, so it rides over whichever rows are
+   last in view; ScrollFrame removes the class once the reader reaches the
+   end. Drawn as a fade to the card's surface rather than a hard line. */
+.chart-scroll-frame--y.has-more::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 32px;
+  margin-top: -32px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.97));
+  pointer-events: none;
+}
+
+.dark .chart-scroll-frame--y.has-more::after,
+.event-card-fixed.dark .chart-scroll-frame--y.has-more::after {
+  background: linear-gradient(to bottom, rgba(18, 22, 30, 0), rgba(18, 22, 30, 0.97));
+}
+
 .chart-scroll-frame:focus-visible {
   outline: 2px solid var(--color-gold);
   outline-offset: 3px;

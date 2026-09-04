@@ -874,7 +874,10 @@ test.describe('Large screens', () => {
         const panel = document.querySelector('.desktop-event-card');
         const card = document.querySelector('.data-interlude-card');
         return {
+          // The casualties chart keeps a readable row per battle and scrolls
+          // inside a frame; the frame is what the reader sees of it.
           charts: [...card.querySelectorAll('.recharts-responsive-container')]
+            .map((c) => c.closest('.chart-scroll-frame--y') ?? c)
             .map((c) => Math.round(c.getBoundingClientRect().height)),
           fits: card.scrollHeight <= panel.clientHeight,
         };
