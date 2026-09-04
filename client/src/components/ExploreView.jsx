@@ -365,6 +365,10 @@ export default function ExploreView({
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      // Chords belong to the browser and the OS. Cmd+C is how a reader copies
+      // a passage from the card; Cmd+1 switches tabs; Alt+→ and Cmd+← are
+      // Forward and Back. Every one of them used to be read as its bare key.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       if ((e.key === 'c' || e.key === 'C') && !isMobile) {
         e.preventDefault();
@@ -380,6 +384,13 @@ export default function ExploreView({
       }
 
       if (e.key === ' ') {
+        // Space is how a button is pressed. With a button focused — Next,
+        // Filter, a map marker — it activates that button and nothing else;
+        // claiming it here meant no control in the story could be pressed
+        // with Space at all, and a focused marker both jumped and started
+        // playback. Shift+Space is the browser's page-up.
+        if (e.shiftKey) return;
+        if (e.target instanceof Element && e.target.closest('button, a[href], [role="button"], [role="option"], summary')) return;
         e.preventDefault();
         togglePlayback();
         return;

@@ -47,6 +47,7 @@ export default function WelcomeScreen({
         && target.closest('button, a, input, textarea, select, [contenteditable="true"]');
 
       if (hasTriggered.current || isInteractive) return;
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
 
       // ArrowRight matches how the story itself now advances; ArrowDown stays
       // because there is no card to scroll on this screen and it reads as

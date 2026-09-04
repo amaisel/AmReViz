@@ -131,9 +131,9 @@ export default function App() {
   useEffect(() => {
     const handleKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-      if (e.key === 'd' || e.key === 'D') {
-        if (!e.ctrlKey && !e.metaKey) setDarkMode(prev => !prev);
-      }
+      // Cmd+1 / Cmd+2 are the browser's own tab switches; Cmd+D bookmarks.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'd' || e.key === 'D') setDarkMode(prev => !prev);
       if (e.key === '1') navigateToView('explore');
       if (e.key === '2') navigateToView('data');
     };
