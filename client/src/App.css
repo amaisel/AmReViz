@@ -2077,6 +2077,58 @@ body.dark-mode {
   }
 }
 
+/* The type climbs with the column, on the same reasoning as the story panel's
+   above 1600px: a wider card at the same 12.8px is a longer line of the same
+   small text. What Recharts draws inside the plot is scaled in Charts.jsx,
+   where those sizes are set as props; this is the half that lives in the DOM.
+
+   Running text is not here — the measure caps above keep the paragraphs
+   where they are, and growing them would only lengthen the line. */
+.data-view-container {
+  --data-title: 1.1rem;
+  --data-takeaway: 0.82rem;
+  --data-insight: 2.5rem;
+  --data-insight-label: 0.85rem;
+  --data-group-title: 1.4rem;
+}
+
+.data-view-container .chart-title { font-size: var(--data-title); }
+.data-view-container .chart-takeaway { font-size: var(--data-takeaway); }
+.data-view-container .insight-value { font-size: var(--data-insight); }
+.data-view-container .insight-card h3,
+.data-view-container .insight-card p { font-size: var(--data-insight-label); }
+.data-view-container .data-group-title { font-size: var(--data-group-title); }
+
+@media (min-width: 1600px) {
+  .data-view-container {
+    --data-title: 1.3rem;
+    --data-takeaway: 0.92rem;
+    --data-insight: 3rem;
+    --data-insight-label: 0.95rem;
+    --data-group-title: 1.7rem;
+  }
+}
+
+@media (min-width: 2200px) {
+  .data-view-container {
+    --data-title: 1.5rem;
+    --data-takeaway: 1.02rem;
+    --data-insight: 3.6rem;
+    --data-insight-label: 1.05rem;
+    --data-group-title: 2rem;
+  }
+}
+
+@media (min-width: 3000px) {
+  .data-view-container {
+    --data-title: 1.7rem;
+    --data-takeaway: 1.12rem;
+    --data-insight: 4.2rem;
+    --data-insight-label: 1.15rem;
+    --data-group-title: 2.3rem;
+  }
+}
+
 /* A measure is a property of a paragraph, not of the view: the charts take the
    width, the prose stops where it stays readable. */
 @media (min-width: 1200px) {

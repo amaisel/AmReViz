@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npm test               # 179 tests; boots its own server on 5174
+npm test               # 181 tests; boots its own server on 5174
 npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
@@ -678,6 +678,26 @@ column of text against half a card of nothing.
 Seven tests: the scroller reaching the window edge and the column's share of it
 at five widths, the charts actually taking the width the column gains, and the
 measure holding at 2560.
+
+**The type had to climb with it.** A wider column at the same 11px axis and
+280px plot is a letterbox of tiny labels across a very wide card — the same
+trap item 11 records for the story panel, where widening alone would only have
+lengthened the line. Everything inside a chart is set in pixels through
+Recharts props, so it cannot be scaled from the stylesheet: `useChartMetrics`
+measures the chart and returns a step (1.2 at 1200px of chart, 1.35 at 1600,
+1.5 at 2000), and the tick type, the label gutter, the row height, the bar
+size and the plot height all take it. Below 1200px nothing moves, which leaves
+every layout at or under a 1600px viewport exactly where it was. Titles,
+takeaways and the headline figures scale in CSS on the viewport breakpoints,
+since those are ordinary DOM text.
+
+The steps are keyed to the chart's own width rather than the viewport's: a
+chart in a narrow panel on a wide screen is still a narrow chart.
+
+It also turned up a pre-existing inconsistency. The troop curve drew the shared
+year axis at 11px and the campaign bars at 12px — a pair meant to read as one
+axis rendering the same years at two sizes, invisible until the scale
+multiplied the gap. One constant now.
 
 ### 19. Still open, unchanged
 

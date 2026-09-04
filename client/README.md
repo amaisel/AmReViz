@@ -15,7 +15,7 @@ npm run dev           # vite, port 5173
 npm run lint          # eslint, must be clean
 npm run build         # must be clean
 npm run preview       # serve the production build
-npm test              # the whole suite, 179 tests; boots its own server on 5174
+npm test              # the whole suite, 181 tests; boots its own server on 5174
 npm run walkthrough   # just the end-to-end walk through the app
 ```
 

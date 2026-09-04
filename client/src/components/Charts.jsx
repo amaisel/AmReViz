@@ -73,6 +73,10 @@ const SHARED_AXIS_DOMAIN = [0, 7];
 const SHARED_AXIS_TICKS = [0, 1, 2, 3, 4, 5, 6];
 const SHARED_TIME_MARGIN = { top: 20, right: 16, left: 4, bottom: 4 };
 const SHARED_Y_AXIS_WIDTH = 120;
+// One size for the shared year axis. The troop curve drew it at 11px and the
+// campaign bars at 12px, so a pair meant to read as one axis rendered the same
+// years at two sizes — invisible until the scale below multiplied the gap.
+const SHARED_AXIS_TICK_SIZE = 12;
 
 // Seven year labels want about 230px of plot between them. On a phone they had
 // nothing like it: the campaign axis gives 120px of its width to the region
@@ -89,9 +93,27 @@ const SHARED_Y_AXIS_WIDTH = 120;
 const SHARED_AXIS_TICKS_SPARSE = [0, 2, 4, 6];
 const SHARED_AXIS_DENSE_MIN_WIDTH = 380;
 
-function useSharedAxisTicks() {
+// Everything inside a chart — tick type, the label gutter, the row height, the
+// plot itself — is set in pixels through Recharts props, so none of it can be
+// scaled from the stylesheet the way the story panel's prose is. On a display
+// wide enough for a 1760px column the axes were still 11px and the plot still
+// 280px tall: a letterbox of tiny type across a very wide card.
+//
+// The steps are keyed to the chart's own width rather than the viewport's,
+// because a chart in a narrow panel on a wide screen is still a narrow chart.
+// Below 1200px nothing changes, which keeps every layout at or under a 1600px
+// viewport exactly where it was.
+const CHART_SCALE_STEPS = [
+  { from: 2000, scale: 1.5 },
+  { from: 1600, scale: 1.35 },
+  { from: 1200, scale: 1.2 },
+];
+
+const chartScaleFor = (width) => CHART_SCALE_STEPS.find((step) => width >= step.from)?.scale ?? 1;
+
+function useChartMetrics() {
   const ref = useRef(null);
-  const [ticks, setTicks] = useState(SHARED_AXIS_TICKS);
+  const [metrics, setMetrics] = useState({ ticks: SHARED_AXIS_TICKS, scale: 1 });
 
   useEffect(() => {
     const el = ref.current;
@@ -99,10 +121,9 @@ function useSharedAxisTicks() {
     const measure = () => {
       const { width } = el.getBoundingClientRect();
       if (!width) return;
-      setTicks((prev) => {
-        const next = width < SHARED_AXIS_DENSE_MIN_WIDTH ? SHARED_AXIS_TICKS_SPARSE : SHARED_AXIS_TICKS;
-        return prev === next ? prev : next;
-      });
+      const ticks = width < SHARED_AXIS_DENSE_MIN_WIDTH ? SHARED_AXIS_TICKS_SPARSE : SHARED_AXIS_TICKS;
+      const scale = chartScaleFor(width);
+      setMetrics((prev) => (prev.ticks === ticks && prev.scale === scale ? prev : { ticks, scale }));
     };
     measure();
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
@@ -115,7 +136,7 @@ function useSharedAxisTicks() {
     };
   }, []);
 
-  return [ref, ticks];
+  return [ref, metrics];
 }
 
 function utcYearFraction(iso) {
@@ -280,11 +301,12 @@ export function ArmyChart({
   const plotData = sharedTimeAxis
     ? data.map((d) => ({ ...d, axisYear: yearToAxis(d.year) }))
     : data;
-  const [axisRef, sharedTicks] = useSharedAxisTicks();
+  const [chartRef, { ticks: sharedTicks, scale }] = useChartMetrics();
+  const px = (size) => Math.round(size * scale);
 
   return (
     <Motion.div
-      ref={axisRef}
+      ref={chartRef}
       className={`chart-container ${compact ? 'compact' : ''}`}
       {...entrance(reduceMotion)}
       role="region"
@@ -306,7 +328,7 @@ export function ArmyChart({
       <CompactFrame compact={compact} fallback={200}>
       <ResponsiveContainer
         width="100%"
-        height={compact ? '100%' : 280}
+        height={compact ? '100%' : px(280)}
         minWidth={0}
         initialDimension={{ width: 320, height: compact ? 200 : 280 }}
       >
@@ -346,7 +368,7 @@ export function ArmyChart({
             minTickGap={sharedTimeAxis ? 0 : undefined}
             padding={sharedTimeAxis ? { left: 0, right: 0 } : undefined}
             stroke={textColor}
-            tick={{ fontSize: sharedTimeAxis ? 11 : 12, fill: textColor }}
+            tick={{ fontSize: px(sharedTimeAxis ? SHARED_AXIS_TICK_SIZE : 12), fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
             label={sharedTimeAxis ? undefined : {
@@ -358,13 +380,13 @@ export function ArmyChart({
             }}
           />
           <YAxis
-            width={sharedTimeAxis ? SHARED_Y_AXIS_WIDTH : undefined}
+            width={sharedTimeAxis ? px(SHARED_Y_AXIS_WIDTH) : undefined}
             stroke={textColor}
-            tick={{ fontSize: 12, fill: textColor }}
+            tick={{ fontSize: px(12), fill: textColor }}
             tickFormatter={(value) => `${value / 1000}k`}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
-            label={{ value: 'Troops furnished', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
+            label={{ value: 'Troops furnished', angle: -90, position: 'insideLeft', offset: 15, fontSize: px(11), fill: textColor }}
           />
           <Tooltip
             content={(props) => (
@@ -378,7 +400,7 @@ export function ArmyChart({
             )}
           />
           <Legend
-            wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }}
+            wrapperStyle={{ paddingTop: '20px', fontSize: `${px(13)}px` }}
             formatter={(value, entry) => legendLabel(value, entry, darkMode)}
           />
           <ReferenceLine
@@ -451,9 +473,12 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
     ? ((1 - finalImports / peakImports) * 100).toFixed(1)
     : '0.0';
   const reduceMotion = useReducedMotion();
+  const [chartRef, { scale }] = useChartMetrics();
+  const px = (size) => Math.round(size * scale);
 
   return (
     <Motion.div
+      ref={chartRef}
       className={`chart-container ${compact ? 'compact' : ''}`}
       {...entrance(reduceMotion, compact ? 0 : 0.15)}
       role="region"
@@ -471,7 +496,7 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
       <CompactFrame compact={compact} fallback={200}>
       <ResponsiveContainer
         width="100%"
-        height={compact ? '100%' : 280}
+        height={compact ? '100%' : px(280)}
         minWidth={0}
         initialDimension={{ width: 320, height: compact ? 200 : 280 }}
       >
@@ -479,20 +504,20 @@ export function TradeChart({ data, darkMode, source, compact = false }) {
           <XAxis
             dataKey="year"
             stroke={textColor}
-            tick={{ fontSize: 12, fill: textColor }}
+            tick={{ fontSize: px(12), fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
           />
           <YAxis
             stroke={textColor}
-            tick={{ fontSize: 12, fill: textColor }}
+            tick={{ fontSize: px(12), fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
             tickLine={{ stroke: textColor, strokeOpacity: 0.3 }}
-            label={{ value: 'Value (£m)', angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: textColor }}
+            label={{ value: 'Value (£m)', angle: -90, position: 'insideLeft', offset: 15, fontSize: px(11), fill: textColor }}
           />
           <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
           <Legend
-            wrapperStyle={{ paddingTop: '20px', fontSize: '13px' }}
+            wrapperStyle={{ paddingTop: '20px', fontSize: `${px(13)}px` }}
             formatter={(value, entry) => legendLabel(value, entry, darkMode)}
           />
           <ReferenceLine
@@ -562,22 +587,23 @@ function wrapTitle(title, maxChars) {
   return [title.slice(0, idx), ...wrapTitle(rest, maxChars)];
 }
 
-function CampaignNameTick({ x, y, payload, darkMode, compact }) {
+function CampaignNameTick({ x, y, payload, darkMode, compact, scale = 1 }) {
   const ink = chartInk(darkMode);
+  const px = (size) => Math.round(size * scale);
   // One line when compact. The compact chart gives each campaign ~21px, and
   // a two-line label at 11px per line is 22px: in the Full Ledger "New England
   // Campaign" and "New York & New Jersey" were printed over each other.
   const lines = compact ? [payload.value] : wrapTitle(payload.value, 14);
-  const fontSize = compact ? 10 : 11;
-  const lineH = compact ? 11 : 13;
-  const startY = -((lines.length - 1) * lineH) / 2 + 4;
+  const fontSize = px(compact ? 10 : 11);
+  const lineH = px(compact ? 11 : 13);
+  const startY = -((lines.length - 1) * lineH) / 2 + px(4);
 
   return (
     <g transform={`translate(${x},${y})`}>
       {lines.map((line, i) => (
         <text
           key={`${line}-${i}`}
-          x={-6}
+          x={-px(6)}
           y={startY + i * lineH}
           textAnchor="end"
           fill={ink.body}
@@ -597,9 +623,9 @@ function CampaignNameTick({ x, y, payload, darkMode, compact }) {
 const CASUALTY_LABEL_WIDTH = { compact: 88, full: 120 };
 const CASUALTY_MARK_GUTTER = { compact: 14, full: 16 };
 
-function casualtyAxisWidth(compact) {
+function casualtyAxisWidth(compact, scale = 1) {
   const key = compact ? 'compact' : 'full';
-  return CASUALTY_LABEL_WIDTH[key] + CASUALTY_MARK_GUTTER[key];
+  return Math.round((CASUALTY_LABEL_WIDTH[key] + CASUALTY_MARK_GUTTER[key]) * scale);
 }
 
 function CasualtyAxisTick({
@@ -611,17 +637,21 @@ function CasualtyAxisTick({
   compact,
   marked,
   markColor,
+  scale = 1,
 }) {
   const ink = chartInk(darkMode);
+  const px = (size) => Math.round(size * scale);
+  // The wrap width is in characters, so it holds as the type grows: a wider
+  // gutter carries the same words at a larger size rather than more of them.
   const lines = wrapTitle(payload.value, compact ? 11 : 14);
-  const fontSize = compact ? 10 : 12;
-  const lineH = compact ? 11 : 13;
-  const extra = compact || year == null ? 0 : 12;
+  const fontSize = px(compact ? 10 : 12);
+  const lineH = px(compact ? 11 : 13);
+  const extra = compact || year == null ? 0 : px(12);
   const blockH = lines.length * lineH + extra;
   const startY = -blockH / 2 + lineH * 0.75;
   const key = compact ? 'compact' : 'full';
   // Fixed column: left edge of the label block, same x on every row.
-  const markX = -casualtyAxisWidth(compact) + CASUALTY_MARK_GUTTER[key] / 2;
+  const markX = -casualtyAxisWidth(compact, scale) + (CASUALTY_MARK_GUTTER[key] * scale) / 2;
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -630,7 +660,7 @@ function CasualtyAxisTick({
           className="casualty-row-mark"
           cx={markX}
           cy={0}
-          r={compact ? 3 : 3.5}
+          r={px(compact ? 3 : 3.5) || 3}
           fill={markColor}
         />
       )}
@@ -649,11 +679,11 @@ function CasualtyAxisTick({
       ))}
       {!compact && year != null && (
         <text
-          x={-6}
+          x={-px(6)}
           y={startY + lines.length * lineH + 1}
           textAnchor="end"
           fill={ink.muted}
-          fontSize={10}
+          fontSize={px(10)}
           fontFamily="var(--font-body)"
         >
           {year}
@@ -679,8 +709,12 @@ export function CasualtiesChart({
   const [hoveredIndex, setHoveredIndex] = useState(null);
   // Horizontal bars: one row per engagement so names stay readable and the
   // chart grows with the list instead of forcing a sideways scroll.
-  const rowPx = compact ? 26 : 46;
-  const chartHeight = Math.max(compact ? 160 : 280, data.length * rowPx + (compact ? 48 : 88));
+  const [chartRef, { scale }] = useChartMetrics();
+  const px = (size) => Math.round(size * scale);
+  // A row has to grow with the name inside it, or a wider gutter just wraps
+  // the same label onto lines that no longer fit between the bars.
+  const rowPx = px(compact ? 26 : 46);
+  const chartHeight = Math.max(px(compact ? 160 : 280), data.length * rowPx + px(compact ? 48 : 88));
 
   // Which row a pointer is over, from geometry rather than from Recharts'
   // hover state.
@@ -755,7 +789,7 @@ export function CasualtiesChart({
     ticks,
     allowDecimals: false,
     stroke: textColor,
-    tick: { fontSize: 11, fill: textColor },
+    tick: { fontSize: px(11), fill: textColor },
     tickFormatter: (n) => Number(n).toLocaleString(),
     axisLine: { stroke: textColor, strokeOpacity: 0.4 },
     tickLine: { stroke: textColor, strokeOpacity: 0.3 },
@@ -794,7 +828,7 @@ export function CasualtiesChart({
         <YAxis
           type="category"
           dataKey="title"
-          width={casualtyAxisWidth(compact)}
+          width={casualtyAxisWidth(compact, scale)}
           interval={0}
           stroke={textColor}
           tick={(props) => {
@@ -803,6 +837,7 @@ export function CasualtiesChart({
             return (
               <CasualtyAxisTick
                 {...props}
+                scale={scale}
                 year={data[props.index]?.year}
                 darkMode={darkMode}
                 compact={compact}
@@ -823,7 +858,7 @@ export function CasualtiesChart({
           <Legend
             verticalAlign="top"
             align="right"
-            wrapperStyle={{ paddingBottom: '4px', fontSize: '13px' }}
+            wrapperStyle={{ paddingBottom: '4px', fontSize: `${px(13)}px` }}
             formatter={(value, entry) => legendLabel(value, entry, darkMode)}
           />
         )}
@@ -832,7 +867,7 @@ export function CasualtiesChart({
           name="American / allied"
           fill={american.hue}
           radius={[0, 4, 4, 0]}
-          barSize={compact ? 7 : 11}
+          barSize={px(compact ? 7 : 11)}
           activeBar={false}
         />
         <Bar
@@ -840,7 +875,7 @@ export function CasualtiesChart({
           name="Crown / allied"
           fill={crown.hue}
           radius={[0, 4, 4, 0]}
-          barSize={compact ? 7 : 11}
+          barSize={px(compact ? 7 : 11)}
           activeBar={false}
         />
         {/* Never drawn (hide keeps it out of the bar groups too); it exists so
@@ -855,6 +890,7 @@ export function CasualtiesChart({
 
   return (
     <Motion.div
+      ref={chartRef}
       className={`chart-container casualties-chart ${compact ? 'compact' : ''}`}
       {...entrance(reduceMotion, compact ? 0 : 0.25)}
       role="region"
@@ -936,11 +972,12 @@ export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAx
   const timeMargin = sharedTimeAxis
     ? SHARED_TIME_MARGIN
     : { top: 10, right: 30, left: 10, bottom: 10 };
-  const [axisRef, sharedTicks] = useSharedAxisTicks();
+  const [chartRef, { ticks: sharedTicks, scale }] = useChartMetrics();
+  const px = (size) => Math.round(size * scale);
 
   return (
     <Motion.div
-      ref={axisRef}
+      ref={chartRef}
       className={`chart-container ${compact ? 'compact' : ''}`}
       {...entrance(reduceMotion, compact ? 0 : 0.35)}
       role="region"
@@ -958,7 +995,7 @@ export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAx
       )}
       <div className="campaign-legend" style={{ marginBottom: sharedTimeAxis ? '0.5rem' : '1rem' }}>
         {Object.entries(regionColors).map(([region, color]) => (
-          <span key={region} className="campaign-legend-item" style={{ fontSize: '12px' }}>
+          <span key={region} className="campaign-legend-item" style={{ fontSize: `${px(12)}px` }}>
             <span className="campaign-legend-dot" style={{ background: color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block', marginRight: '6px' }} />
             {REGION_NAMES[region] ?? region}
           </span>
@@ -967,7 +1004,7 @@ export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAx
       <CompactFrame compact={compact} fallback={240}>
       <ResponsiveContainer
         width="100%"
-        height={compact ? '100%' : Math.max(300, data.length * (sharedTimeAxis ? 42 : 36))}
+        height={compact ? '100%' : px(Math.max(300, data.length * (sharedTimeAxis ? 42 : 36)))}
         minWidth={0}
         initialDimension={{ width: 320, height: compact ? 240 : Math.max(300, data.length * (sharedTimeAxis ? 42 : 36)) }}
       >
@@ -976,7 +1013,7 @@ export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAx
             type="number"
             tickFormatter={formatYearTick}
             stroke={textColor}
-            tick={{ fontSize: 12, fill: textColor }}
+            tick={{ fontSize: px(12), fill: textColor }}
             domain={SHARED_AXIS_DOMAIN}
             ticks={sharedTicks}
             allowDecimals={false}
@@ -989,13 +1026,13 @@ export function CampaignTimeline({ data, darkMode, compact = false, sharedTimeAx
             type="category"
             dataKey="name"
             stroke={textColor}
-            width={sharedTimeAxis ? SHARED_Y_AXIS_WIDTH : 140}
+            width={px(sharedTimeAxis ? SHARED_Y_AXIS_WIDTH : 140)}
             interval={0}
             // Recharts' default tick wraps a label to the axis width, which in
             // the compact chart put two-line labels on one-line rows.
             tick={sharedTimeAxis || compact
-              ? (props) => <CampaignNameTick {...props} darkMode={darkMode} compact={compact} />
-              : { fontSize: 11, fill: textColor }}
+              ? (props) => <CampaignNameTick {...props} darkMode={darkMode} compact={compact} scale={scale} />
+              : { fontSize: px(11), fill: textColor }}
             axisLine={{ stroke: textColor, strokeOpacity: 0.4 }}
           />
           <Tooltip

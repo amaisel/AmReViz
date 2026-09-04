@@ -766,6 +766,90 @@ test.describe('The data view uses the screen', () => {
       .toBeGreaterThan(narrow + 100);
   });
 
+  // The column grew and the type did not: on a 2560 display the axes were
+  // still 11px and the plot still 280px tall, a letterbox of tiny labels
+  // across a very wide card. Everything inside a chart is set in pixels
+  // through Recharts props, so it scales in JS rather than in the stylesheet.
+  test('the chart type and plots grow with the column', async ({ page }) => {
+    const measure = async () => {
+      await expect(page.locator('.recharts-surface').first()).toBeVisible();
+      await page.waitForTimeout(900);
+      return page.evaluate(() => {
+        const chart = document.querySelector('[aria-label="American Troops Furnished by Year Chart"]');
+        const tick = chart.querySelector('.recharts-cartesian-axis-tick-value');
+        const plot = chart.querySelector('.recharts-wrapper');
+        const title = document.querySelector('.chart-title');
+        return {
+          tick: Math.round(parseFloat(tick.getAttribute('font-size') || getComputedStyle(tick).fontSize)),
+          plotHeight: Math.round(plot.getBoundingClientRect().height),
+          title: Math.round(parseFloat(getComputedStyle(title).fontSize)),
+        };
+      });
+    };
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    const narrow = await measure();
+
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    const wide = await measure();
+
+    expect(wide.tick, `${wide.tick}px against ${narrow.tick}px`).toBeGreaterThan(narrow.tick);
+    expect(wide.title, `${wide.title}px against ${narrow.title}px`).toBeGreaterThan(narrow.title);
+    expect(wide.plotHeight, `${wide.plotHeight}px against ${narrow.plotHeight}px`)
+      .toBeGreaterThan(narrow.plotHeight);
+
+    // A phone is not a wide screen: nothing below the first step moves.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const phone = await measure();
+    expect(phone.tick, 'the phone axis changed size').toBe(narrow.tick);
+  });
+
+  // The two charts share a scale, so they have to take the same step: one
+  // scaled and one not would put their years in different places.
+  test('the stacked pair scales together', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.data-stack--shared-time .recharts-surface').first()).toBeVisible();
+    await page.locator('.data-stack--shared-time').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1200);
+
+    const years = await page.locator('.data-stack--shared-time').evaluate((stack) => {
+      // By shape and baseline rather than by class: the year row is the one
+      // set of labels shared by both charts, and Recharts' tick classes do not
+      // match the way they read.
+      const read = (label) => {
+        const chart = stack.querySelector(`[aria-label="${label}"]`);
+        const years = [...chart.querySelectorAll('.recharts-surface text')]
+          .map((t) => ({
+            year: t.textContent.trim(),
+            x: Math.round(t.getBoundingClientRect().x),
+            top: Math.round(t.getBoundingClientRect().top),
+            size: Math.round(parseFloat(t.getAttribute('font-size') || getComputedStyle(t).fontSize)),
+          }))
+          .filter((t) => /^1[678]\d\d$/.test(t.year));
+        if (!years.length) return [];
+        // The axis is the row they share; anything else is a stray label.
+        const baseline = Math.max(...years.map((t) => t.top));
+        return years.filter((t) => Math.abs(t.top - baseline) < 6);
+      };
+      return {
+        troops: read('American Troops Furnished by Year Chart'),
+        campaigns: read('Military Campaigns Timeline'),
+      };
+    });
+
+    expect(years.troops.length).toBeGreaterThan(0);
+    expect(years.troops[0].size, 'the two charts took different steps')
+      .toBe(years.campaigns[0].size);
+
+    const campaignByYear = Object.fromEntries(years.campaigns.map((t) => [t.year, t.x]));
+    const drift = years.troops
+      .filter((t) => campaignByYear[t.year] != null)
+      .filter((t) => Math.abs(t.x - campaignByYear[t.year]) > 4);
+    expect(drift, 'the years stopped lining up once the type grew').toEqual([]);
+  });
+
   // A measure is a property of a paragraph: the charts take the width, the
   // prose does not stretch with them.
   test('the running text keeps a readable measure', async ({ page }) => {
