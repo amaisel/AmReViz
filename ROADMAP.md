@@ -60,6 +60,18 @@ Every test in the latter two was checked against the code from before its fix
 and observed to fail — a colour or geometry test that passes either way is
 worse than none, and several did exactly that until the checks were tightened.
 
+`tests/helpers.js` is the one copy of what the specs share — `baseUrl`, the
+viewports, `openApp`/`openStory`/`openEvent`, the two animation waits,
+`contrastRatio`, the effective-background compositor, the axe filter, and the
+`test` every suite imports. They each grew their own copies first, and the
+copies had already drifted: two compositors with different floors, and two
+contrast functions where only one parsed the bare hex SVG attributes carry —
+the other mangled `#6FA8E8` into [6, 8, 8] and read it as near-black.
+
+That shared `test` fails on an uncaught exception or an unexpected console
+error, so every suite carries the check the walkthrough introduced, not just
+the walkthrough.
+
 Seven notes for anyone extending it, each of which cost a false pass or a false
 failure to learn.
 

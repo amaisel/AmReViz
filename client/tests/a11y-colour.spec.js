@@ -1,75 +1,13 @@
-import { test, expect } from '@playwright/test';
+import {
+  test,
+  expect,
+  baseUrl,
+  contrastRatio,
+  EFFECTIVE_BG,
+  setTheme,
+  quietFirstVisit,
+} from './helpers.js';
 import AxeBuilder from '@axe-core/playwright';
-
-const baseUrl = globalThis.process?.env.AMREVIZ_TEST_URL || 'http://localhost:5174/';
-
-// ---------------------------------------------------------------------------
-// Colour maths. WCAG relative luminance, and a compositor, because almost
-// nothing in this app sits on a flat opaque background.
-// ---------------------------------------------------------------------------
-// Handles both `rgb()/rgba()` strings from getComputedStyle and the bare hex
-// SVG attributes carry. Matching digits with a regex works for one and quietly
-// mangles the other: `#6FA8E8` yields [6, 8, 8], which reads as near-black.
-const channels = (value) => {
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(value).trim());
-  if (hex) {
-    const h = hex[1].length === 3 ? hex[1].replace(/./g, (c) => c + c) : hex[1];
-    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-  }
-  return (String(value).match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
-};
-
-const luminance = (rgb) => {
-  const [r, g, b] = rgb.map((v) => {
-    const c = v / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-
-function contrastRatio(foreground, background) {
-  const a = luminance(channels(foreground));
-  const b = luminance(channels(background));
-  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-}
-
-// Runs in the page. Composites every translucent layer from the element up to
-// the first opaque one, and reports whether an image or gradient is involved —
-// contrast over imagery is not computable from declared colours, so the caller
-// has to decide what to do about it rather than being handed a wrong number.
-const EFFECTIVE_BG = `(element) => {
-  const parse = (s) => { const p = (s||'').match(/[\\d.]+/g); return p ? { rgb: p.slice(0,3).map(Number), a: p.length>3?Number(p[3]):1 } : null; };
-  let imagery = false;
-  const layers = [];
-  for (let n = element; n; n = n.parentElement) {
-    const cs = getComputedStyle(n);
-    if (cs.backgroundImage && cs.backgroundImage !== 'none') imagery = true;
-    const p = parse(cs.backgroundColor);
-    if (!p || p.a === 0) continue;
-    layers.push(p);
-    if (p.a === 1) break;
-  }
-  let base = layers.length && layers[layers.length-1].a === 1 ? layers.pop().rgb : [255,255,255];
-  for (let i = layers.length - 1; i >= 0; i--) {
-    const { rgb, a } = layers[i];
-    base = base.map((c, k) => rgb[k]*a + c*(1-a));
-  }
-  return { bg: 'rgb(' + base.map((c) => Math.round(c)).join(', ') + ')', imagery };
-}`;
-
-async function setTheme(page, dark) {
-  await page.evaluate((d) => localStorage.setItem('amreviz-dark-mode', String(d)), dark);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-}
-
-async function quietFirstVisit(page) {
-  await page.addInitScript(() => {
-    try {
-      sessionStorage.setItem('amreviz-hint-dismissed', '1');
-      sessionStorage.setItem('amreviz-sheet-bounce', 'true');
-    } catch { /* privacy-restricted context; the hints simply show */ }
-  });
-}
 
 // ---------------------------------------------------------------------------
 

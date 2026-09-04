@@ -16,16 +16,21 @@
  * The expected story sequence is derived from `src/data`, not typed out here,
  * so adding an event or an interlude extends the walk instead of breaking it.
  */
-import { test as base, expect } from '@playwright/test';
+import {
+  test,
+  expect,
+  baseUrl,
+  DESKTOP,
+  MOBILE,
+  cardTitle,
+  stepCounter,
+  openApp,
+  settleAnimations,
+} from './helpers.js';
 import { events, eventSlug } from '../src/data/events.js';
 import { interludes } from '../src/data/interludes.js';
 
-const env = globalThis.process?.env ?? {};
-const baseUrl = env.AMREVIZ_TEST_URL || 'http://127.0.0.1:5174/';
-const wantShots = Boolean(env.WALKTHROUGH_SHOTS);
-
-const MOBILE = { width: 390, height: 844 };
-const DESKTOP = { width: 1280, height: 800 };
+const wantShots = Boolean(globalThis.process?.env.WALKTHROUGH_SHOTS);
 
 // The same interleave ExploreView does: each event, then any interlude
 // anchored to it. An interlude holds the map on the event before it, so its
@@ -37,60 +42,6 @@ const storyItems = events.flatMap((event) => [
     .map((interlude) => ({ title: interlude.title, anchor: event, kind: 'interlude' })),
 ]);
 
-// Errors the app is responsible for. A hero image that fails to load is not
-// one of them: an event whose bundled file is missing falls back to hotlinking
-// Wikipedia, so an offline or proxied run fails those loads by design and the
-// card renders without a picture.
-const IGNORED_CONSOLE = [
-  /Failed to load resource/i,
-  /ERR_(NAME_NOT_RESOLVED|INTERNET_DISCONNECTED|CONNECTION|BLOCKED|FAILED|ABORTED|TIMED_OUT)/i,
-  /net::/i,
-  /wikipedia\.org/i,
-  /favicon/i,
-  /Download the React DevTools/i,
-];
-
-// Every test in the file watches for uncaught exceptions and console errors,
-// and fails on them at the end of the test whatever else it asserted.
-const test = base.extend({
-  // `run`, not the conventional `use`: eslint's react-hooks rules read a call
-  // to `use()` as the React hook of that name and reject it here.
-  page: async ({ page }, run) => {
-    const problems = [];
-    page.on('pageerror', (error) => problems.push(`uncaught: ${error.message}`));
-    page.on('console', (message) => {
-      if (message.type() !== 'error') return;
-      const text = message.text();
-      if (IGNORED_CONSOLE.some((pattern) => pattern.test(text))) return;
-      problems.push(`console.error: ${text}`);
-    });
-
-    await run(page);
-
-    expect(problems, 'the browser reported errors during the walk').toEqual([]);
-  },
-});
-
-// Framer Motion animates opacity inline; a screenshot or a click that lands
-// mid-transition is the flakiest thing in this app. Wait for the element to be
-// opaque with nothing still running on it — ignoring the active marker's pulse
-// ring, which loops forever on purpose.
-async function settle(page, selector) {
-  await expect
-    .poll(
-      () =>
-        page.locator(selector).first().evaluate((el) => {
-          const opaque = Number(getComputedStyle(el).opacity) === 1;
-          const running = el
-            .getAnimations({ subtree: true })
-            .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity);
-          return opaque && running.length === 0;
-        }),
-      { timeout: 15_000, message: `${selector} never came to rest` },
-    )
-    .toBe(true);
-}
-
 // Screenshots are for looking at, not for comparing: `WALKTHROUGH_SHOTS=1`
 // leaves one per stop of the walk in test-results/walkthrough, which git
 // ignores. Named rather than numbered — the legs run in parallel, so a
@@ -100,20 +51,10 @@ async function shot(page, name) {
   await page.screenshot({ path: `test-results/walkthrough/${name}.png` });
 }
 
-const stepCounter = (page) => page.locator('.status-chip-counter');
-const cardTitle = (page) => page.locator('.event-card-title').first();
-
-/**
- * Open the app at `hash` on a desktop viewport.
- *
- * By way of `about:blank`, so that going from one hash to another is a real
- * document load rather than a same-document hash change — the app boots from
- * the address bar, and a walk that skipped the boot would not be testing it.
- */
+/** `openApp`, at the desktop viewport this leg of the walk runs at. */
 async function open(page, hash = '') {
   await page.setViewportSize(DESKTOP);
-  if (new URL(page.url(), baseUrl).protocol !== 'about:') await page.goto('about:blank');
-  await page.goto(`${baseUrl}${hash}`, { waitUntil: 'domcontentloaded' });
+  await openApp(page, hash);
 }
 
 /** Enter the story from the welcome screen and wait for the map and card. */
@@ -314,41 +255,22 @@ test.describe('AmReViz — full walkthrough', () => {
     await search.blur();
     await page.keyboard.press('c');
     await expect(page.locator('.view-mode-cards')).toBeVisible();
-    await settle(page, '.view-mode-cards');
+    await settleAnimations(page, '.view-mode-cards');
     await shot(page, 'explore-cards-focus');
     await page.keyboard.press('Escape');
     await expect(page.locator('.scrollytelling-view.view-mode-map')).toBeVisible();
     await expect(page.locator('.leaflet-container')).toBeVisible();
   });
 
-  test('deep links, legacy links and junk links all land somewhere sensible', async ({ page }) => {
+  // Routing proper — a slug link, a pre-slug number and its rewrite, junk
+  // keys, replaced-not-pushed history — belongs to `ux-improvements.spec.js`,
+  // which parameterises all of it. The walk only needs to know that a deep
+  // link opens the story and that the two views are reachable from each other.
+  test('a deep link opens the story, and the two views reach each other', async ({ page }) => {
     const target = events.find((event) => /Bunker Hill/i.test(event.title)) ?? events[4];
 
-    // A slug link opens that event directly.
     await open(page, `#/explore/${eventSlug(target.id)}`);
     await expect(cardTitle(page)).toHaveText(target.title);
-
-    // A pre-slug numeric link still resolves, and is rewritten to the slug.
-    await open(page, `#/explore/${target.id}`);
-    await expect(cardTitle(page)).toHaveText(target.title);
-    await expect
-      .poll(() => new URL(page.url()).hash, { message: 'the numeric link was never rewritten' })
-      .toBe(`#/explore/${eventSlug(target.id)}`);
-
-    // A slug that names nothing falls back to the start of the story rather
-    // than to an empty view.
-    await open(page, '#/explore/not-a-real-event');
-    await expect(cardTitle(page)).toHaveText(storyItems[0].title);
-
-    // Back and Forward retrace the steps the story pushed.
-    await open(page);
-    await enterStory(page);
-    await page.keyboard.press('ArrowRight');
-    await expect(cardTitle(page)).toHaveText(storyItems[1].title);
-    await page.goBack();
-    await expect(cardTitle(page)).toHaveText(storyItems[0].title);
-    await page.goForward();
-    await expect(cardTitle(page)).toHaveText(storyItems[1].title);
 
     // The header toggle and the number keys move between the two views.
     await page.getByRole('button', { name: 'Data', exact: true }).click();
@@ -420,7 +342,7 @@ test.describe('AmReViz — full walkthrough', () => {
     await page.keyboard.press('d');
     await expect(page.locator('body')).toHaveClass(/dark-mode/);
     await expect(page.locator('.scrollytelling-view')).toHaveClass(/dark/);
-    await settle(page, '.desktop-event-card');
+    await settleAnimations(page, '.desktop-event-card');
     await shot(page, 'explore-dark');
 
     await page.keyboard.press('2');
@@ -448,7 +370,7 @@ test.describe('AmReViz — full walkthrough on a phone', () => {
 
     const sheet = page.locator('.bottom-sheet');
     await expect(sheet).toBeVisible();
-    await settle(page, '.bottom-sheet');
+    await settleAnimations(page, '.bottom-sheet');
     await expect(cardTitle(page)).toHaveText(storyItems[0].title);
     // One card, not one per layout.
     await expect(page.locator('.event-card-fixed')).toHaveCount(1);

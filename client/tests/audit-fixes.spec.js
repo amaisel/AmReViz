@@ -1,15 +1,10 @@
-import { test, expect } from '@playwright/test';
-
-const baseUrl = globalThis.process?.env.AMREVIZ_TEST_URL || 'http://localhost:5174/';
-
-const title = (page) => page.locator('.event-card-title').first();
-
-async function openEvent(page, slug) {
-  await page.goto(`${baseUrl}#/explore/${slug}`, { waitUntil: 'domcontentloaded' });
-  await expect(title(page)).toBeVisible();
-  // The map's flight to the event.
-  await page.waitForTimeout(1200);
-}
+import {
+  test,
+  expect,
+  baseUrl,
+  cardTitle as title,
+  openEvent,
+} from './helpers.js';
 
 test.describe('The current event is always on the map', () => {
   // The map read its active event from the filtered marker list. A preset that

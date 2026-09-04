@@ -1,36 +1,10 @@
-import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
-
-const baseUrl = globalThis.process?.env.AMREVIZ_TEST_URL || 'http://localhost:5174/';
-
-// Wait out the card's entry transition before scanning. Framer Motion animates
-// opacity inline, and axe blends a half-faded badge against the parchment
-// behind it and reports a contrast failure that no user ever sees. Without
-// this the explore scans fail intermittently, on timing alone.
-async function settleCardAnimation(page, selector) {
-  await expect
-    .poll(
-      () =>
-        page.locator(selector).evaluate((el) => {
-          const own = Number(getComputedStyle(el).opacity);
-          const running = el
-            .getAnimations({ subtree: true })
-            // The active marker's pulse ring loops forever by design.
-            .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity);
-          return own === 1 && running.length === 0;
-        }),
-      { timeout: 10_000, message: `${selector} never finished animating` },
-    )
-    .toBe(true);
-}
-
-// Serious/critical axe violations, formatted for a readable assertion message.
-async function seriousA11yViolations(page) {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  return violations
-    .filter(({ impact }) => impact === 'serious' || impact === 'critical')
-    .map(({ id, impact, nodes }) => `${id} (${impact}) on ${nodes[0].target.join(' ')}`);
-}
+import {
+  test,
+  expect,
+  baseUrl,
+  seriousA11yViolations,
+  settleAnimations as settleCardAnimation,
+} from './helpers.js';
 
 test.describe('AmReViz UX & Accessibility Audit', () => {
   test.beforeEach(async ({ page }) => {

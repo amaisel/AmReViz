@@ -41,6 +41,7 @@ src/
   data/         events.js, interludes.js, metrics.js, geo/ (generated)
   hooks/        useHashRouter, useReducedMotion, useEventImage
 tests/
+  helpers.js                what the specs share: navigation, waits, colour
   walkthrough.spec.js       the end-to-end walk: every view, every event
   audit-fixes.spec.js       the explore and data bugs from the audit pass
   ux-audit.spec.js          map framing, mobile sheet geometry

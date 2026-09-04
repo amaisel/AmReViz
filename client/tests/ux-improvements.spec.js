@@ -1,81 +1,13 @@
-import { test, expect } from '@playwright/test';
+import {
+  test,
+  expect,
+  baseUrl,
+  contrastRatio,
+  settleTransitions,
+  openStory as freshVisit,
+  EFFECTIVE_BG as EFFECTIVE_BACKGROUND,
+} from './helpers.js';
 import AxeBuilder from '@axe-core/playwright';
-
-const baseUrl = globalThis.process?.env.AMREVIZ_TEST_URL || 'http://localhost:5174/';
-
-// WCAG's relative luminance, so a measured pairing can be asserted rather than
-// eyeballed. Takes the `rgb()`/`rgba()` strings getComputedStyle returns.
-function contrastRatio(foreground, background) {
-  const channels = (value) => value.match(/[\d.]+/g).slice(0, 3).map(Number);
-  const luminance = (rgb) => {
-    const [r, g, b] = rgb.map((v) => {
-      const c = v / 255;
-      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
-  const a = luminance(channels(foreground));
-  const b = luminance(channels(background));
-  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-}
-
-// What a reader actually sees behind an element: every translucent layer from
-// the element up to the first opaque one, composited.
-//
-// Reading `backgroundColor` alone and calling it the background is how this
-// test first reported a false failure — an inactive filter chip under the
-// pointer carries a `rgba(0, 0, 0, 0.05)` hover wash, which as a flat colour
-// is nearly black, and as a wash over parchment is barely a tint.
-const EFFECTIVE_BACKGROUND = `(element) => {
-  const layers = [];
-  for (let node = element; node; node = node.parentElement) {
-    const bg = getComputedStyle(node).backgroundColor;
-    const parts = bg.match(/[\\d.]+/g);
-    if (!parts) continue;
-    const alpha = parts.length > 3 ? Number(parts[3]) : 1;
-    if (alpha === 0) continue;
-    layers.push({ rgb: parts.slice(0, 3).map(Number), alpha });
-    if (alpha === 1) break;
-  }
-  // Nothing opaque all the way up: the page itself is the floor.
-  const bodyBg = getComputedStyle(document.body).backgroundColor.match(/[\\d.]+/g);
-  let base = layers.length && layers[layers.length - 1].alpha === 1
-    ? layers.pop().rgb
-    : (bodyBg ? bodyBg.slice(0, 3).map(Number) : [255, 255, 255]);
-  // Composite from the bottom layer upward.
-  for (let i = layers.length - 1; i >= 0; i -= 1) {
-    const { rgb, alpha } = layers[i];
-    base = base.map((c, k) => rgb[k] * alpha + c * (1 - alpha));
-  }
-  return \`rgb(\${base.map((c) => Math.round(c)).join(', ')})\`;
-}`;
-
-// Colour is transitioned over 0.2s on several of these controls, so a value
-// read immediately after a click belongs to neither the old state nor the new
-// one. Wait for every matching element to stop animating before measuring.
-//
-// Every one, not just the first: the chip that changes state is rarely the
-// first in the row, and polling only `.first()` returned "settled" while the
-// one under test was still halfway between its two colours.
-async function settleTransitions(page, selector) {
-  await expect
-    .poll(
-      () => page.locator(selector).evaluateAll((els) => els.reduce((total, el) => total + el
-        .getAnimations({ subtree: true })
-        .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity)
-        .length, 0)),
-      { timeout: 5_000, message: `${selector} never stopped transitioning` },
-    )
-    .toBe(0);
-}
-
-// A fresh page per bogus route. `page.goto` to a URL that differs only in its
-// hash is a same-document navigation, so the previous app state keeps running
-// and the next case inherits it — which reads as a pass that is not real.
-async function freshVisit(page, hash) {
-  await page.goto(`${baseUrl}${hash}`, { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('.scrollytelling-view')).toBeVisible();
-}
 
 test.describe('Keyboard and assistive technology', () => {
   // Leaflet stamps role="button" and tabindex="0" on every marker icon while
@@ -229,7 +161,7 @@ test.describe('Colour', () => {
         await expect(badge).toBeVisible();
         const { fg, bg } = await badge.evaluate((el, src) => {
           const effective = eval(src);
-          return { fg: getComputedStyle(el).color, bg: effective(el) };
+          return { fg: getComputedStyle(el).color, bg: effective(el).bg };
         }, EFFECTIVE_BACKGROUND);
         const ratio = contrastRatio(fg, bg);
         expect(ratio, `${selector} "${name}" in ${theme} mode: ${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
@@ -262,7 +194,7 @@ test.describe('Colour', () => {
         return els.map((el) => ({
           label: el.textContent.trim(),
           fg: getComputedStyle(el).color,
-          bg: effective(el),
+          bg: effective(el).bg,
           active: el.classList.contains('active'),
         }));
       }, EFFECTIVE_BACKGROUND);
