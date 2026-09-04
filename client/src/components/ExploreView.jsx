@@ -777,6 +777,8 @@ export default function ExploreView({
           onNext={handleNextEvent}
           hasPrev={hasPrev}
           hasNext={hasNext}
+          isPlaying={isPlaying}
+          onTogglePlayback={togglePlayback}
           panelContent={sheetPanelContent}
         >
           {cardContent}

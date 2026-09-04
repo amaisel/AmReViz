@@ -39,6 +39,8 @@ export default function MobileBottomSheet({
   onNext,
   hasPrev,
   hasNext,
+  isPlaying = false,
+  onTogglePlayback,
 }) {
   const reduceMotion = useReducedMotion();
   const snapTransition = reduceMotion ? snapDirect : snapSpring;
@@ -260,20 +262,39 @@ export default function MobileBottomSheet({
           </svg>
         </button>
 
-        <button
-          type="button"
-          className={`sheet-panel-toggle ${panelOpen ? 'active' : ''}`}
-          onClick={() => setPanelOpen(prev => !prev)}
-          aria-expanded={panelOpen}
-          aria-label="Story controls"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <line x1="4" y1="9" x2="20" y2="9"/>
-            <line x1="4" y1="16" x2="20" y2="16"/>
-            <circle cx="9" cy="9" r="2.2" fill="currentColor" stroke="none"/>
-            <circle cx="15" cy="16" r="2.2" fill="currentColor" stroke="none"/>
-          </svg>
-        </button>
+        {/* While the story plays, the controls panel — where Play lives —
+            closes at every event change to keep the map in view, which took
+            Pause with it: stopping meant reopening the panel and tapping
+            within the four-second window before it closed again. Pause takes
+            the panel toggle's slot for as long as playback runs. */}
+        {isPlaying ? (
+          <button
+            type="button"
+            className="sheet-panel-toggle sheet-pause-btn active"
+            onClick={onTogglePlayback}
+            aria-label="Pause playback"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="5" width="4" height="14" rx="1" />
+              <rect x="14" y="5" width="4" height="14" rx="1" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`sheet-panel-toggle ${panelOpen ? 'active' : ''}`}
+            onClick={() => setPanelOpen(prev => !prev)}
+            aria-expanded={panelOpen}
+            aria-label="Story controls"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <line x1="4" y1="9" x2="20" y2="9"/>
+              <line x1="4" y1="16" x2="20" y2="16"/>
+              <circle cx="9" cy="9" r="2.2" fill="currentColor" stroke="none"/>
+              <circle cx="15" cy="16" r="2.2" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       <AnimatePresence>
