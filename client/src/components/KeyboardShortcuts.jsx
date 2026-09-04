@@ -30,11 +30,40 @@ export default function KeyboardShortcuts({ darkMode }) {
         e.preventDefault();
         setIsOpen(prev => !prev);
       }
-      if (e.key === 'Escape') setIsOpen(false);
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
+
+  // While open, the dialog owns the keyboard. Every other shortcut in the app
+  // listens on window too, so with the dialog in front of them ← → still
+  // stepped the story, D still flipped the theme, 2 switched to the data view
+  // and Space on the Close button started playback rather than closing.
+  // Stopping propagation in the capture phase ends the dispatch before any of
+  // those bubble-phase listeners run — immediately, so the header's synthetic
+  // `?` (dispatched on window itself) cannot reach the opener above either. A
+  // focused button's own activation is a default action and still happens.
+  // Tab is left to the trap below.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Tab') return;
+      if (e.key === 'Escape' || (e.key === '?' && !e.ctrlKey && !e.metaKey)) {
+        e.preventDefault();
+        setIsOpen(false);
+      }
+      e.stopImmediatePropagation();
+    };
+    // The welcome screen begins the journey on a wheel gesture; not from
+    // behind a dialog.
+    const onWheel = (e) => e.stopImmediatePropagation();
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('wheel', onWheel, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('wheel', onWheel, true);
+    };
+  }, [isOpen]);
 
   // Remember the opener before the dialog paints over it, and give focus back
   // on close: without this, dismissing the dialog dropped the keyboard reader

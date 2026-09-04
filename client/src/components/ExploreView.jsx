@@ -377,7 +377,6 @@ export default function ExploreView({
       }
 
       if (e.key === 'Escape' && viewMode === 'cards') {
-        if (document.querySelector('.shortcuts-overlay')) return;
         e.preventDefault();
         setViewMode('map');
         return;
