@@ -2805,8 +2805,30 @@ body.dark-mode {
   .welcome-screen {
     height: 100%;
     min-height: 100%;
+    /* The middle row may not shrink below its content: on a short phone
+       (an SE at 375x667) it was squeezed to fit and its overflow hidden, so
+       the three figures were cut off behind the footer and the screen,
+       exactly one viewport tall, had nothing to scroll. */
+    grid-template-rows: auto minmax(max-content, 1fr) auto;
     overflow-y: auto;
     background-size: 48px 48px, 48px 48px, auto, auto;
+  }
+
+  .welcome-atlas-layout {
+    overflow: visible;
+  }
+
+  .welcome-atlas-masthead {
+    gap: 1rem;
+  }
+
+  .welcome-atlas-eyebrow {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .welcome-atlas-theme {
+    flex-shrink: 0;
   }
 
   .welcome-atlas-frame {
@@ -2888,7 +2910,7 @@ body.dark-mode {
 
 @media (max-width: 560px) {
   .welcome-atlas-masthead {
-    min-height: 4rem;
+    min-height: 3.5rem;
   }
 
   .welcome-atlas-eyebrow {
@@ -2913,8 +2935,11 @@ body.dark-mode {
     font-size: 0.65rem;
   }
 
+  /* Tightened so the whole sheet — masthead to footer — fits a 390x664
+     viewport without scrolling. */
   .welcome-atlas-hero {
-    padding-top: clamp(2.2rem, 6vh, 3.2rem);
+    padding-top: clamp(1.5rem, 4vh, 3.2rem);
+    padding-bottom: 1.5rem;
   }
 
   .welcome-title {
@@ -2924,7 +2949,7 @@ body.dark-mode {
 
   .welcome-atlas-rule {
     width: 8.5rem;
-    margin-block: 1.35rem;
+    margin-block: 1.1rem;
   }
 
   .welcome-atlas-rule span {
@@ -2940,7 +2965,7 @@ body.dark-mode {
     align-items: stretch;
     flex-direction: column;
     gap: 0.75rem;
-    margin-top: 1.5rem;
+    margin-top: 1.25rem;
   }
 
   .welcome-atlas-action {
@@ -2961,6 +2986,7 @@ body.dark-mode {
 
   .welcome-atlas-legend {
     margin-inline: 1.5rem;
+    margin-bottom: 1.25rem;
   }
 
   .welcome-atlas-stat {
@@ -2988,8 +3014,14 @@ body.dark-mode {
     letter-spacing: 0.08em;
   }
 
+  /* Label hidden, glyph kept: the span inherits font-size, so the ring was
+     drawn around nothing. */
   .welcome-atlas-help {
     font-size: 0;
+  }
+
+  .welcome-atlas-help span {
+    font-size: 0.7rem;
   }
 }
 
