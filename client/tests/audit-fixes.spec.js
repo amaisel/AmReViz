@@ -698,6 +698,96 @@ test.describe('Turning points', () => {
   });
 });
 
+test.describe('The data view uses the screen', () => {
+  // The scroller was the 900px column itself, so its scrollbar sat 150px in
+  // from the right edge of a 1215px window — a bar in the middle of the
+  // parchment, scrolling a box that was not the page. And the column stopped
+  // at 900px whatever the display, which left the charts — the whole point of
+  // this view — reading in a third of a wide screen.
+  const measure = (page) => page.evaluate(() => {
+    const container = document.querySelector('.data-view-container');
+    const view = document.querySelector('.data-view');
+    const doc = document.documentElement;
+    return {
+      scrolls: container.scrollHeight > container.clientHeight,
+      containerRight: Math.round(container.getBoundingClientRect().right),
+      viewport: doc.clientWidth,
+      column: Math.round(view.getBoundingClientRect().width),
+      overflowX: doc.scrollWidth - doc.clientWidth,
+    };
+  });
+
+  for (const [width, height, minShare] of [
+    [1215, 900, 0.8],
+    [1440, 900, 0.75],
+    [1920, 1080, 0.7],
+    [2560, 1440, 0.65],
+    [3440, 1440, 0.6],
+  ]) {
+    test(`${width}x${height}: the column grows with the screen`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.recharts-surface').first()).toBeVisible();
+      await page.waitForTimeout(800);
+
+      const m = await measure(page);
+
+      // The scrolling box reaches the edge of the window, so its scrollbar is
+      // where a scrollbar belongs.
+      expect(m.containerRight, 'the scroller stops short of the window edge')
+        .toBe(m.viewport);
+
+      // And the content is not marooned in the middle of a wide display.
+      expect(
+        m.column / m.viewport,
+        `the column is ${m.column}px of a ${m.viewport}px screen`,
+      ).toBeGreaterThanOrEqual(minShare);
+
+      expect(m.overflowX, 'the data view scrolls sideways').toBeLessThanOrEqual(1);
+    });
+  }
+
+  test('the charts take the width the column gains', async ({ page }) => {
+    const chartWidth = async () => {
+      await expect(page.locator('.recharts-surface').first()).toBeVisible();
+      await page.waitForTimeout(800);
+      return page.locator('.chart-container').first().evaluate((el) => el.getBoundingClientRect().width);
+    };
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    const narrow = await chartWidth();
+
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    const wide = await chartWidth();
+
+    // Not a fixed column with more parchment around it.
+    expect(wide, `${Math.round(wide)}px at 1920 against ${Math.round(narrow)}px at 1280`)
+      .toBeGreaterThan(narrow + 100);
+  });
+
+  // A measure is a property of a paragraph: the charts take the width, the
+  // prose does not stretch with them.
+  test('the running text keeps a readable measure', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await page.goto(`${baseUrl}#/data`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.data-method-note')).toBeVisible();
+    await page.waitForTimeout(600);
+
+    const characters = await page.locator('.data-method-note p').first().evaluate((el) => {
+      const style = getComputedStyle(el);
+      const probe = document.createElement('span');
+      probe.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${style.font}`;
+      probe.textContent = 'abcdefghijklmnopqrstuvwxyz';
+      el.appendChild(probe);
+      const width = probe.getBoundingClientRect().width / 26;
+      probe.remove();
+      return el.getBoundingClientRect().width / width;
+    });
+    expect(characters, 'the method note runs past a readable measure').toBeLessThan(95);
+  });
+});
+
 test.describe('Search', () => {
   test('finds by several words and by year', async ({ page }) => {
     await openEvent(page, 'boston-tea-party');

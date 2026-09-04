@@ -2023,13 +2023,97 @@ body.dark-mode {
   color: #e5e5e5;
 }
 
+/* The scroll lives on the full-width container and the column is centred
+   inside it. Capping the scroller itself at 900px put its scrollbar 150px in
+   from the right edge of a 1215px window — a bar floating in the middle of the
+   parchment, scrolling a box that was not the page.
+
+   The column then grows with the viewport rather than stopping at 900px
+   whatever the screen, the same way the story panel does above 1600px. Charts
+   are the reason: they are the whole point of this view and they were reading
+   in a third of a wide display. Running text is capped in `ch` further down so
+   the prose does not stretch with them. */
 .data-view-container {
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
   padding: 2rem;
   overflow-y: auto;
   height: 100%;
+  --data-column: 900px;
+}
+
+.data-view-container > .data-view {
+  width: 100%;
+  max-width: var(--data-column);
+  margin: 0 auto;
+}
+
+@media (min-width: 1200px) {
+  .data-view-container {
+    --data-column: clamp(900px, 84vw, 1120px);
+    padding: 2rem 2.5rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  .data-view-container {
+    --data-column: clamp(1120px, 78vw, 1400px);
+    padding: 2.25rem 3rem;
+  }
+}
+
+@media (min-width: 2200px) {
+  .data-view-container {
+    --data-column: clamp(1400px, 72vw, 1760px);
+    padding: 2.5rem 3.5rem;
+  }
+}
+
+/* An ultrawide left the column at half the screen, which is the complaint this
+   whole block answers. The cap keeps climbing, slower than the viewport. */
+@media (min-width: 3000px) {
+  .data-view-container {
+    --data-column: clamp(1760px, 66vw, 2200px);
+    padding: 3rem 4rem;
+  }
+}
+
+/* A measure is a property of a paragraph, not of the view: the charts take the
+   width, the prose stops where it stays readable. */
+@media (min-width: 1200px) {
+  .data-subtitle {
+    max-width: 64ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .data-method-note p {
+    max-width: 90ch;
+  }
+}
+
+/* Wider than that, one capped paragraph per column rather than one column of
+   text against half a card of nothing. The heading and the source links span
+   both, so the note still reads top to bottom. */
+@media (min-width: 1400px) {
+  .data-method-note {
+    display: grid;
+    /* Columns sized by the measure, not by the card: two 1fr columns put the
+       slack between the paragraphs, which read as two texts either side of a
+       void. Centred, the slack splits evenly to the outer edges instead. */
+    grid-template-columns: repeat(2, minmax(0, 62ch));
+    justify-content: center;
+    column-gap: 2.5rem;
+    align-items: start;
+  }
+
+  .data-method-note > strong,
+  .data-method-note .data-method-links {
+    grid-column: 1 / -1;
+  }
+
+  .data-method-note p + p {
+    margin-top: 0;
+  }
 }
 
 .view-loading {

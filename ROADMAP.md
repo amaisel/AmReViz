@@ -26,7 +26,7 @@ cd client
 npm run dev            # vite, port 5173
 npm run lint           # eslint, must be clean
 npm run build          # must be clean
-npm test               # 172 tests; boots its own server on 5174
+npm test               # 179 tests; boots its own server on 5174
 npm run walkthrough    # the end-to-end walk, on its own (~1 min)
 ```
 
@@ -653,7 +653,33 @@ every event of type `battle`, with no notion of major — Kettle Creek and
 Yorktown weigh the same to it. Either the word goes or the data needs a second
 judgement; left alone here because that is an editorial call, not a bug.
 
-### 18. Still open, unchanged
+### 18. The data view used half the screen, and scrolled the wrong box — fixed
+
+`.data-view-container` was capped at 900px *and* carried `overflow-y: auto`,
+so the scrolling element was the column itself. Its scrollbar sat 150px in
+from the right edge of a 1215px window — a bar floating in the middle of the
+parchment, scrolling a box that was not the page. And the column stopped at
+900px whatever the display: 836px of content on a 1215px screen, and a third
+of a 2560px one, with the charts — the whole point of this view — reading in a
+strip while the parchment either side did nothing.
+
+The scroll now lives on the full-width container, with the column centred
+inside it, so the scrollbar is where a scrollbar belongs. The column grows in
+steps that mirror the story panel's above: `clamp(900px, 84vw, 1120px)` from
+1200, then 1400 from 1600, 1760 from 2200, 2200 from 3000. Measured share of
+the viewport: 84% at 1215, 78% at 1440, 73% at 1920, 64% at 3440 — against 69%
+and 26% before.
+
+Running text does not grow with it. The subtitle keeps 64ch, the method note
+90ch, both in `ch` for the reason item 11 gives. Above 1400px the note lays its
+two paragraphs in columns sized by the measure and centred, rather than one
+column of text against half a card of nothing.
+
+Seven tests: the scroller reaching the window edge and the column's share of it
+at five widths, the charts actually taking the width the column gains, and the
+measure holding at 2560.
+
+### 19. Still open, unchanged
 
 - A 768x1024 tablet — the widest viewport the mobile layout covers — still
   hides Pensacola, the southernmost event, 36px behind the sheet. The sheet
