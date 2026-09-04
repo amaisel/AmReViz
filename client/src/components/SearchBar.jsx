@@ -1,17 +1,40 @@
 import { useState, useMemo, useRef } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 
+const tokenize = (query) => query.toLowerCase().split(/\s+/).filter(Boolean);
+
+// Marks every token that occurs in the text, not only the phrase as typed.
 function highlightMatch(text, query) {
-  if (!query.trim()) return text;
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) return text;
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="search-highlight">{text.slice(idx, idx + query.length)}</mark>
-      {text.slice(idx + query.length)}
-    </>
-  );
+  const tokens = tokenize(query);
+  if (tokens.length === 0) return text;
+  const lower = text.toLowerCase();
+  const ranges = [];
+  for (const token of tokens) {
+    let from = 0;
+    for (;;) {
+      const idx = lower.indexOf(token, from);
+      if (idx === -1) break;
+      ranges.push([idx, idx + token.length]);
+      from = idx + token.length;
+    }
+  }
+  if (ranges.length === 0) return text;
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const range of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push([...range]);
+  }
+  const parts = [];
+  let cursor = 0;
+  merged.forEach(([start, end], i) => {
+    if (start > cursor) parts.push(text.slice(cursor, start));
+    parts.push(<mark key={i} className="search-highlight">{text.slice(start, end)}</mark>);
+    cursor = end;
+  });
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
 }
 
 export default function SearchBar({ events, onEventSelect, darkMode }) {
@@ -22,20 +45,36 @@ export default function SearchBar({ events, onEventSelect, darkMode }) {
   const resultsRef = useRef(null);
 
   const results = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    // Simple score-based search: title matches are better than description matches
+    const tokens = tokenize(query);
+    if (tokens.length === 0) return [];
+    const phrase = tokens.join(' ');
+    // Every word must match somewhere; the phrase as typed scores extra, and a
+    // title match outranks one in the description. The old search matched the
+    // whole string against each field, so "yorktown 1781" and "lexington
+    // concord" found nothing, and a year found only events whose prose
+    // happened to mention it.
     return events
       .map(e => {
+        const title = e.title.toLowerCase();
+        const description = e.description.toLowerCase();
+        const location = e.location.toLowerCase();
+        const year = String(e.year);
         let score = 0;
-        if (e.title.toLowerCase().includes(q)) score += 10;
-        if (e.title.toLowerCase().startsWith(q)) score += 5;
-        if (e.description.toLowerCase().includes(q)) score += 2;
-        if (e.location.toLowerCase().includes(q)) score += 3;
+        for (const token of tokens) {
+          let tokenScore = 0;
+          if (title.includes(token)) tokenScore += 10;
+          if (title.startsWith(token)) tokenScore += 5;
+          if (location.includes(token)) tokenScore += 3;
+          if (description.includes(token)) tokenScore += 2;
+          if (year === token || e.date.toLowerCase().includes(token)) tokenScore += 8;
+          if (tokenScore === 0) return { ...e, score: 0 };
+          score += tokenScore;
+        }
+        if (tokens.length > 1 && title.includes(phrase)) score += 10;
         return { ...e, score };
       })
       .filter(e => e.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => b.score - a.score || a.year - b.year)
       .slice(0, 10);
   }, [query, events]);
 
